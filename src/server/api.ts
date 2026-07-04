@@ -1,0 +1,220 @@
+import type Database from 'better-sqlite3';
+import type {
+  MessageListResponse,
+  MessageRow,
+  ProjectInfo,
+  SearchResponse,
+  SessionListResponse,
+  SessionMeta,
+  StatsResponse,
+} from './apiTypes.js';
+import { SNIPPET_CLOSE, SNIPPET_OPEN } from './apiTypes.js';
+
+const SESSION_COLUMNS = `
+  id, project_path, project_key, started_at, ended_at, model, turn_count,
+  input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+  cost_usd, files_touched_count
+`;
+
+function rowToSession(r: any): SessionMeta {
+  return {
+    id: r.id,
+    projectPath: r.project_path,
+    projectKey: r.project_key,
+    startedAt: r.started_at,
+    endedAt: r.ended_at,
+    model: r.model,
+    turnCount: r.turn_count,
+    inputTokens: r.input_tokens,
+    outputTokens: r.output_tokens,
+    cacheReadTokens: r.cache_read_tokens,
+    cacheWriteTokens: r.cache_write_tokens,
+    costUsd: r.cost_usd,
+    filesTouchedCount: r.files_touched_count,
+  };
+}
+
+const SORTABLE: Record<string, string> = {
+  started_at: 'started_at',
+  ended_at: 'ended_at',
+  cost_usd: 'cost_usd',
+  turn_count: 'turn_count',
+};
+
+export interface ListSessionsQuery {
+  sort?: string;
+  dir?: string;
+  project?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export function listSessions(db: Database.Database, q: ListSessionsQuery): SessionListResponse {
+  const sort = SORTABLE[q.sort ?? ''] ?? 'started_at';
+  const dir = q.dir === 'asc' ? 'ASC' : 'DESC';
+  const limit = Math.min(Math.max(q.limit ?? 100, 1), 1000);
+  const offset = Math.max(q.offset ?? 0, 0);
+  const where = q.project ? `WHERE project_key = ?` : '';
+  const params: unknown[] = q.project ? [q.project] : [];
+
+  const rows = db
+    .prepare(
+      `SELECT ${SESSION_COLUMNS} FROM sessions ${where}
+       ORDER BY ${sort} ${dir} LIMIT ? OFFSET ?`,
+    )
+    .all(...params, limit, offset);
+  const total = db
+    .prepare(`SELECT COUNT(*) AS n FROM sessions ${where}`)
+    .get(...params) as { n: number };
+
+  return { sessions: rows.map(rowToSession), total: total.n };
+}
+
+export function getSession(db: Database.Database, id: string): SessionMeta | null {
+  const row = db.prepare(`SELECT ${SESSION_COLUMNS} FROM sessions WHERE id = ?`).get(id);
+  return row ? rowToSession(row) : null;
+}
+
+export function listMessages(
+  db: Database.Database,
+  sessionId: string,
+  q: { afterIdx?: number; limit?: number },
+): MessageListResponse | null {
+  const session = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(sessionId);
+  if (!session) return null;
+  const afterIdx = q.afterIdx ?? -1;
+  const limit = Math.min(Math.max(q.limit ?? 200, 1), 2000);
+
+  const rows = db
+    .prepare(
+      `SELECT uuid, parent_uuid, idx, role, kind, tool_name, tool_use_id, ts, is_sidechain,
+              tokens_in, tokens_out, cost_usd, model, text, raw_json
+       FROM messages WHERE session_id = ? AND idx > ? ORDER BY idx LIMIT ?`,
+    )
+    .all(sessionId, afterIdx, limit);
+  const total = db
+    .prepare(`SELECT COUNT(*) AS n FROM messages WHERE session_id = ?`)
+    .get(sessionId) as { n: number };
+
+  const messages: MessageRow[] = rows.map((r: any) => ({
+    uuid: r.uuid,
+    parentUuid: r.parent_uuid,
+    idx: r.idx,
+    role: r.role,
+    kind: r.kind,
+    toolName: r.tool_name,
+    toolUseId: r.tool_use_id,
+    ts: r.ts,
+    isSidechain: r.is_sidechain === 1,
+    tokensIn: r.tokens_in,
+    tokensOut: r.tokens_out,
+    costUsd: r.cost_usd,
+    model: r.model,
+    text: r.text,
+    raw: r.raw_json,
+  }));
+
+  return { sessionId, messages, total: total.n };
+}
+
+/**
+ * Sanitize free-form user input into an FTS5 MATCH expression: each token
+ * becomes a quoted phrase (so FTS syntax like parens or NEAR can't error),
+ * with a trailing * preserved as a prefix query.
+ */
+export function toFtsQuery(input: string): string | null {
+  const tokens = input.split(/\s+/).filter(Boolean).slice(0, 16);
+  const parts: string[] = [];
+  for (const token of tokens) {
+    const prefix = token.endsWith('*');
+    const core = token.replace(/\*+$/, '').replace(/"/g, '""');
+    if (core === '') continue;
+    parts.push(`"${core}"${prefix ? '*' : ''}`);
+  }
+  return parts.length > 0 ? parts.join(' ') : null;
+}
+
+export function searchMessages(
+  db: Database.Database,
+  q: { query: string; limit?: number },
+): SearchResponse {
+  const match = toFtsQuery(q.query);
+  const empty: SearchResponse = { query: q.query, groups: [], totalHits: 0 };
+  if (!match) return empty;
+  const limit = Math.min(Math.max(q.limit ?? 100, 1), 500);
+
+  let rows: any[];
+  try {
+    rows = db
+      .prepare(
+        `SELECT m.uuid, m.session_id, m.idx, m.kind, m.tool_name, m.ts,
+                snippet(messages_fts, 0, ?, ?, '…', 12) AS snip,
+                s.id, s.project_path, s.project_key, s.started_at, s.ended_at, s.model,
+                s.turn_count, s.input_tokens, s.output_tokens, s.cache_read_tokens,
+                s.cache_write_tokens, s.cost_usd, s.files_touched_count
+         FROM messages_fts
+         JOIN messages m ON m.rowid = messages_fts.rowid
+         JOIN sessions s ON s.id = m.session_id
+         WHERE messages_fts MATCH ?
+         ORDER BY bm25(messages_fts)
+         LIMIT ?`,
+      )
+      .all(SNIPPET_OPEN, SNIPPET_CLOSE, match, limit);
+  } catch {
+    return empty; // belt and suspenders: a MATCH error must never 500
+  }
+
+  const groups = new Map<string, { session: SessionMeta; hits: SearchResponse['groups'][0]['hits'] }>();
+  for (const r of rows) {
+    let group = groups.get(r.session_id);
+    if (!group) {
+      group = { session: rowToSession(r), hits: [] };
+      groups.set(r.session_id, group);
+    }
+    group.hits.push({
+      uuid: r.uuid,
+      idx: r.idx,
+      kind: r.kind,
+      toolName: r.tool_name,
+      ts: r.ts,
+      snippet: r.snip,
+    });
+  }
+
+  return { query: q.query, groups: [...groups.values()], totalHits: rows.length };
+}
+
+export function listProjects(db: Database.Database): ProjectInfo[] {
+  const rows = db
+    .prepare(
+      `SELECT project_key, MAX(project_path) AS project_path, COUNT(*) AS n
+       FROM sessions GROUP BY project_key ORDER BY n DESC`,
+    )
+    .all();
+  return rows.map((r: any) => ({
+    projectKey: r.project_key,
+    projectPath: r.project_path,
+    sessionCount: r.n,
+  }));
+}
+
+export function getStats(db: Database.Database): StatsResponse {
+  const totals = db
+    .prepare(
+      `SELECT COUNT(*) AS sessions,
+              COALESCE(SUM(turn_count), 0) AS messages,
+              COALESCE(SUM(input_tokens), 0) AS input_tokens,
+              COALESCE(SUM(output_tokens), 0) AS output_tokens,
+              COALESCE(SUM(cost_usd), 0) AS cost_usd
+       FROM sessions`,
+    )
+    .get() as any;
+  return {
+    sessions: totals.sessions,
+    messages: totals.messages,
+    inputTokens: totals.input_tokens,
+    outputTokens: totals.output_tokens,
+    costUsd: totals.cost_usd,
+    projects: listProjects(db),
+  };
+}

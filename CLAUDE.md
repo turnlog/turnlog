@@ -10,9 +10,24 @@ The full product spec, strategy, and rationale live in `docs/turnlog-deep-dive.m
 - **Licensing is offline Ed25519 signed keys**, honor-system 2-machine term, blocklist shipped inside npm releases. Public key embedded in the package; private key lives only in a Cloudflare Worker. Trial gating is stateless: only the 10 newest sessions are openable unlicensed.
 - **Payments via Paddle** (merchant of record), keygen in a CF Worker — the only server component, and the app never depends on it.
 
+## Repo layout & commands
+
+Phase 1 (parser, index, server core) is implemented; Phase 2 (React viewer UI in `web/`) is next — see `docs/roadmap.md` for status checkboxes.
+
+- `src/parser/` — streaming line reader with byte offsets, `normalize.ts` (sniffer + cardinal-rule wrapper), `adapters/v1.ts` (pure function, raw record → `NormalizedRecord`)
+- `src/indexer/` — SQLite schema (`db.ts`), incremental `Indexer`, worker-thread driver (`workerDriver.ts` + `worker.ts`), in-process driver for tests/CLI, chokidar watcher
+- `src/server/` — hardened `node:http` server, typed API (`api.ts` + `apiTypes.ts`, the contract the web UI will import), placeholder page
+- `src/cost/pricing.ts` — shipped pricing table; cache writes priced by TTL breakdown (1.25× 5m / 2× 1h)
+- `fixtures/corpus/` — synthetic fake projects dir; `fixtures/golden/` — committed normalization snapshots
+- `test/` — vitest; `bin/turnlog.cjs` — plain-CJS Node-version-guard shim
+
+Commands: `npm test` · `npm run typecheck` · `npm run lint` · `npm run build` · `npm run golden:update` (regenerate goldens after an adapter change — review the diff, that's the point of them). Smoke test against real data without touching the user's config: `TURNLOG_DATA_DIR=<scratch> node bin/turnlog.cjs index` (reads `~/.claude/projects`, writes the index to the scratch dir).
+
+Conventions: any adapter change ships with corpus fixtures + regenerated goldens. Bump `ADAPTER_VERSION` in `src/version.ts` when normalization output changes — it forces a full reindex. The server-hardening tests in `test/server.test.ts` are load-bearing; never weaken them. Note: `fetch` can't forge a Host header (undici strips it) — hardening tests must use raw `http.request`.
+
 ## Stack
 
-- **CLI/server:** Node 20+, TypeScript. Server binds 127.0.0.1 only, serves the built React bundle + JSON API.
+- **CLI/server:** Node 20+, TypeScript, ESM. Server is bare `node:http` (chosen over Fastify — zero runtime deps beyond better-sqlite3 + chokidar), binds 127.0.0.1 only, serves the built React bundle + JSON API.
 - **Indexer:** worker thread (or child process) — JSONL parsing and SQLite writes must never block the API.
 - **Data:** better-sqlite3, WAL mode, single writer. FTS5 with `unicode61 tokenchars '_$.'` + `prefix='2 3'`. Message text stored in the DB. Incremental indexing via per-file byte offsets. DB in `~/.config/turnlog/` (XDG on Linux, `%APPDATA%` on Windows).
 - **Frontend:** React + TypeScript + Vite, shipped prebuilt inside the npm package. React Query over the local API. react-virtuoso for session lists (virtualization is mandatory), Shiki in a web worker for highlighting.

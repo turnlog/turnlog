@@ -31,46 +31,48 @@ The product's foundation and its hardest problem (the parser). No UI yet — eve
 
 ### 1.1 Repo & CLI scaffold
 
-- [ ] Single npm package layout: `src/cli/`, `src/server/`, `src/indexer/`, `src/parser/`, `src/parser/adapters/`, `web/` (Vite app), `fixtures/` (corpus submodule or copy)
-- [ ] TypeScript strict, ESLint, Vitest; Node 20+ `engines` field
-- [ ] CLI entrypoint with subcommands: `turnlog` (start + open browser), `turnlog index --rebuild`, `turnlog export <id>`, `turnlog license <key>` (stubs OK for the last two)
-- [ ] Node version guard at startup with a friendly error — the one remaining "installer" bug class
-- [ ] Config/data dir resolution: `~/.config/turnlog/` (XDG on Linux, `%APPDATA%` on Windows)
+- [x] Single npm package layout: `src/cli/`, `src/server/`, `src/indexer/`, `src/parser/`, `src/parser/adapters/`, `web/` (Vite app), `fixtures/` (corpus submodule or copy)
+- [x] TypeScript strict, ESLint, Vitest; Node 20+ `engines` field
+- [x] CLI entrypoint with subcommands: `turnlog` (start + open browser), `turnlog index --rebuild`, `turnlog export <id>`, `turnlog license <key>` (stubs OK for the last two)
+- [x] Node version guard at startup with a friendly error — the one remaining "installer" bug class
+- [x] Config/data dir resolution: `~/.config/turnlog/` (XDG on Linux, `%APPDATA%` on Windows)
 
 ### 1.2 Localhost server + hardening (v1 scope, not optional — §1.1)
 
-- [ ] Fastify or bare `node:http`; serves static frontend bundle + JSON API
-- [ ] Bind **127.0.0.1 only**, random high port
-- [ ] Validate `Host` and `Origin` headers against localhost; 403 otherwise (DNS-rebinding defense)
-- [ ] Random session token generated at startup, embedded in the opened URL, required on every API request
-- [ ] No CORS headers (same-origin only)
-- [ ] Tests that actually exercise each rejection path
+- [x] Bare `node:http` (chosen over Fastify — zero extra deps); serves static frontend bundle + JSON API
+- [x] Bind **127.0.0.1 only**, random high port
+- [x] Validate `Host` and `Origin` headers against localhost; 403 otherwise (DNS-rebinding defense)
+- [x] Random session token generated at startup, embedded in the opened URL, required on every API request
+- [x] No CORS headers (same-origin only)
+- [x] Tests that actually exercise each rejection path
 
 ### 1.3 Parser pipeline — where the product lives (§2.3)
 
-- [ ] Streaming JSONL reader (readline over fs stream — sessions run 50–500MB, never whole-file `JSON.parse`)
-- [ ] `RawLine → VersionSniffer → AdapterVN → NormalizedRecord` architecture; adapters as pure functions in one directory
-- [ ] Normalized model: threading from `parentUuid` chains (branches exist), flattened to display order; sidechain records marked as subagent runs; `tool_use`/`tool_result` paired by ID
-- [ ] **Cardinal rule wired in from the first line:** unrecognized records → `kind='unknown'` + `raw_json`, never crash, never drop
-- [ ] Golden-file snapshot tests over the whole corpus (raw → normalized); upgrades become diff-reviewable
-- [ ] Cost computation: shipped model pricing table + user override in settings; labeled as estimates
+- [x] Streaming JSONL reader (readline over fs stream — sessions run 50–500MB, never whole-file `JSON.parse`)
+- [x] `RawLine → VersionSniffer → AdapterVN → NormalizedRecord` architecture; adapters as pure functions in one directory
+- [x] Normalized model: threading from `parentUuid` chains (branches exist), flattened to display order; sidechain records marked as subagent runs; `tool_use`/`tool_result` paired by ID
+- [x] **Cardinal rule wired in from the first line:** unrecognized records → `kind='unknown'` + `raw_json`, never crash, never drop
+- [x] Golden-file snapshot tests over the whole corpus (raw → normalized); upgrades become diff-reviewable
+- [x] Cost computation: shipped model pricing table + user override in settings; labeled as estimates
 
 ### 1.4 SQLite index (§2.2)
 
-- [ ] better-sqlite3, WAL, `synchronous=NORMAL`, single writer
-- [ ] Schema: `sessions`, `messages`, `files_touched`, `messages_fts` (FTS5 external-content, `unicode61 tokenchars '_$.'`, `prefix='2 3'`)
-- [ ] Message text stored in the DB (replay must survive moved/deleted source logs)
-- [ ] Incremental indexing: `(file_path, last_byte_offset, mtime, size)` per file; append-only fast path; full reindex only on shrink or adapter version bump
-- [ ] Indexer runs in a worker thread — parsing and writes never block the API
-- [ ] chokidar watcher with debounce for live sessions
+- [x] better-sqlite3, WAL, `synchronous=NORMAL`, single writer
+- [x] Schema: `sessions`, `messages`, `files_touched`, `messages_fts` (FTS5 external-content, `unicode61 tokenchars '_$.'`, `prefix='2 3'`)
+- [x] Message text stored in the DB (replay must survive moved/deleted source logs)
+- [x] Incremental indexing: `(file_path, last_byte_offset, mtime, size)` per file; append-only fast path; full reindex only on shrink or adapter version bump
+- [x] Indexer runs in a worker thread — parsing and writes never block the API
+- [x] chokidar watcher with debounce for live sessions
 - [ ] CI matrix verifying better-sqlite3 prebuilds: macOS arm64/x64, Windows, Linux
 
 ### 1.5 API layer
 
-- [ ] Typed JSON API: list sessions (sort/filter), get session (paged messages), search (FTS5 with `highlight()` snippets, grouped by session), stats
-- [ ] Search endpoint returns jump-to-context data (message idx + match offsets) for Phase 2's navigation
+- [x] Typed JSON API: list sessions (sort/filter), get session (paged messages), search (FTS5 with `highlight()` snippets, grouped by session), stats
+- [x] Search endpoint returns jump-to-context data (message idx + match offsets) for Phase 2's navigation
 
 **Exit criteria:** 2GB projects dir fully indexed in a couple of minutes; startup catch-up on a warm index feels instant; search <50ms; live session updates within seconds; corpus snapshot suite green on all CI platforms.
+
+**Status 2026-07-05 — Phase 1 code complete.** 63 tests green. Measured on a real 280MB / 89-session `~/.claude/projects`: cold index 4.9s (extrapolates to ~35s for 2GB), warm catch-up 0.28s, search 0.6–27ms. Implementation decisions worth knowing: one message row per JSONL line (tree flattening is a Phase 2 renderer concern); a trailing line without newline is consumed only if it parses as complete JSON (mid-write safety); cache-write cost uses the 5m/1h TTL breakdown present in real logs; real CC 2.1.x already emits five record types beyond the documented set (`ai-title`, `attachment`, `last-prompt`, `mode`, `queue-operation`) — all land as `kind='unknown'` as designed. Remaining: CI matrix goes green on first push.
 
 ---
 
