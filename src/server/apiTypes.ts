@@ -35,6 +35,7 @@ export interface MessageRow {
   toolUseId: string | null;
   ts: string | null;
   isSidechain: boolean;
+  isError: boolean;
   tokensIn: number;
   tokensOut: number;
   costUsd: number | null;
@@ -76,6 +77,41 @@ export interface SearchResponse {
   query: string;
   groups: SearchGroup[];
   totalHits: number;
+}
+
+/**
+ * One turn of the spine view: a user prompt plus a mechanical summary of what
+ * happened under it, aggregated from main-chain tool calls (never an LLM).
+ */
+export interface TurnSummary {
+  /** idx of the prompt row that starts the turn. */
+  idx: number;
+  /** idx the turn ends before (the next turn's start, or total). */
+  endIdx: number;
+  uuid: string;
+  ts: string | null;
+  /** Prompt text, truncated server-side; command wrappers stripped. */
+  text: string;
+  /** Slash-command name when the prompt is a command wrapper (e.g. "/clear"). */
+  command: string | null;
+  reads: number;
+  edits: number;
+  commands: number;
+  /** Subagent (Task) launches. */
+  tasks: number;
+  otherTools: number;
+  /** Failed tool results under this turn (main chain + sidechains). */
+  errors: number;
+  tokensOut: number;
+}
+
+export interface TurnsResponse {
+  sessionId: string;
+  turns: TurnSummary[];
+  /** Messages in the session (turns' endIdx upper bound). */
+  total: number;
+  /** Rows before the first prompt (summaries, meta) — shown as a prelude. */
+  preludeCount: number;
 }
 
 export interface ProjectInfo {

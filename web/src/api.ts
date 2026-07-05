@@ -6,12 +6,14 @@ import {
 } from '@tanstack/react-query';
 import type {
   MessageListResponse,
+  MessageRow,
   ProjectInfo,
   SearchResponse,
   SessionListResponse,
   SessionMeta,
   StatsResponse,
   StatusResponse,
+  TurnsResponse,
 } from './types';
 
 /**
@@ -125,6 +127,34 @@ export function useSession(id: string | null) {
     queryKey: ['session', id],
     queryFn: () => apiFetch<SessionMeta>(`/api/sessions/${encodeURIComponent(id!)}`),
     enabled: id !== null,
+  });
+}
+
+export function useTurns(sessionId: string) {
+  return useQuery({
+    queryKey: ['turns', sessionId],
+    queryFn: () =>
+      apiFetch<TurnsResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/turns`),
+    // Cheap aggregate; keeps the spine fresh while a session is live.
+    refetchInterval: 7000,
+  });
+}
+
+/** The rows of one spine turn, fetched only when it expands. */
+export function useTurnRows(
+  sessionId: string,
+  startIdx: number,
+  endIdx: number,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ['turn-rows', sessionId, startIdx, endIdx],
+    queryFn: async (): Promise<MessageRow[]> => {
+      const res = await fetchMessages(sessionId, startIdx - 1, Math.max(1, endIdx - startIdx));
+      return res.messages;
+    },
+    enabled,
+    staleTime: 60_000,
   });
 }
 

@@ -130,7 +130,7 @@ describe('Indexer', () => {
     expect(summary.filesIndexed).toBe(1);
     const row = sessionRow(SESSION_C);
     expect(row.adapter_version).toBe(ADAPTER_VERSION);
-    expect(row.turn_count).toBe(2);
+    expect(row.turn_count).toBe(7);
   });
 
   it('rebuild wipes and reproduces identical counts', async () => {

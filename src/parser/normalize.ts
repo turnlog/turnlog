@@ -47,6 +47,7 @@ function unknownRecord(raw: string, fallbackId: string): NormalizedRecord {
     isSidechain: false,
     toolName: null,
     toolUseId: null,
+    isError: false,
     model: null,
     text: '',
     tokensIn: 0,

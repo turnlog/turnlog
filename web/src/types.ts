@@ -13,6 +13,8 @@ export type {
   SessionMeta,
   StatsResponse,
   StatusResponse,
+  TurnsResponse,
+  TurnSummary,
 } from '../../src/server/apiTypes';
 
 export const SNIPPET_OPEN = '\uE000';

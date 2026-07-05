@@ -6,7 +6,14 @@ import {
   useState,
 } from 'react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
-import { fetchMessages, useSearch, useSession, useStatus, useTrialOpenIds } from '../api';
+import {
+  fetchMessages,
+  useSearch,
+  useSession,
+  useStatus,
+  useTrialOpenIds,
+  useTurns,
+} from '../api';
 import {
   fmtCost,
   fmtCount,
@@ -19,6 +26,7 @@ import {
 } from '../format';
 import { navigate, sessionHash } from '../router';
 import { BlockView } from '../replay/blocks';
+import SpineView from '../replay/Spine';
 import { buildBlocks, idxToBlockMap } from '../replay/thread';
 import type { MessageRow, SessionMeta } from '../types';
 
@@ -26,10 +34,13 @@ const PAGE = 300;
 const JUMP_BACKSCROLL = 40;
 const VIRTUOSO_BASE = 10_000_000;
 
+type ViewMode = 'spine' | 'log';
+
 /**
  * A contiguous window of messages, growable in both directions. The API
  * pages forward-only (`after_idx`), so "earlier" is a bounded fetch of
- * exactly the gap above the window.
+ * exactly the gap above the window. (Log view only — the spine fetches
+ * per-turn ranges instead.)
  */
 function useMessageWindow(sessionId: string, startIdx: number | null) {
   const [rows, setRows] = useState<MessageRow[]>([]);
@@ -69,7 +80,7 @@ function useMessageWindow(sessionId: string, startIdx: number | null) {
   useEffect(() => {
     const after = startIdx === null ? -1 : Math.max(-1, startIdx - JUMP_BACKSCROLL - 1);
     void run(after, PAGE);
-    // The window belongs to one session; App keys Replay by session id.
+    // One window per mounted view; Replay keys views by session id.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
@@ -104,70 +115,14 @@ function useMessageWindow(sessionId: string, startIdx: number | null) {
   return { rows, total, error, loading, loadOlder, loadNewer, ensureLoaded };
 }
 
-function Tile({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="stat-tile">
-      <div className="stat-value">{value}</div>
-      <div className="stat-label">{label}</div>
-    </div>
-  );
-}
-
-function StatsPanel({ s }: { s: SessionMeta }) {
-  return (
-    <div className="stat-strip replay-stats">
-      <Tile label="turns" value={fmtCount(s.turnCount)} />
-      <Tile label="duration" value={fmtDuration(s.startedAt, s.endedAt)} />
-      <Tile label="tokens in / out" value={`${fmtTokens(s.inputTokens)} / ${fmtTokens(s.outputTokens)}`} />
-      <Tile label="cache read / write" value={`${fmtTokens(s.cacheReadTokens)} / ${fmtTokens(s.cacheWriteTokens)}`} />
-      <Tile label="files touched" value={fmtCount(s.filesTouchedCount)} />
-      <Tile label="est. cost" value={fmtCost(s.costUsd)} />
-    </div>
-  );
-}
-
-function LockedPanel({ s }: { s: SessionMeta | undefined }) {
-  return (
-    <div className="fullscreen-note">
-      <div>
-        <h1>This session is part of your locked history</h1>
-        {s && (
-          <p className="locked-meta">
-            {projectName(s)} · {fmtDate(s.startedAt)} · {fmtCount(s.turnCount)} turns ·{' '}
-            {fmtCost(s.costUsd)}
-          </p>
-        )}
-        <p>
-          The trial opens your 10 newest sessions. A license unlocks everything Turnlog
-          has already indexed — including this one.
-        </p>
-        <p>
-          <a href="#/">← back to the library</a>
-        </p>
-      </div>
-    </div>
-  );
-}
-
-export default function Replay({
+function LogView({
   sessionId,
   jumpIdx,
-  searchQuery,
 }: {
   sessionId: string;
   jumpIdx: number | null;
-  searchQuery: string | null;
 }) {
-  const session = useSession(sessionId);
-  const status = useStatus();
-  const licensed = status.data?.licensed ?? true;
-  const trialOpen = useTrialOpenIds(!licensed);
-  const locked =
-    !licensed && trialOpen.data !== undefined && !trialOpen.data.has(sessionId);
-
   const win = useMessageWindow(sessionId, jumpIdx);
-  const [statsOpen, setStatsOpen] = useState(false);
-
   const blocks = useMemo(() => buildBlocks(win.rows), [win.rows]);
   const idxMap = useMemo(() => idxToBlockMap(blocks), [blocks]);
   const idxMapRef = useRef(idxMap);
@@ -227,6 +182,123 @@ export default function Replay({
     return () => clearInterval(t);
   }, [win.loadNewer, win]);
 
+  if (win.error && win.rows.length === 0) {
+    return (
+      <div className="fullscreen-note">
+        <div>
+          <h1>Could not load session</h1>
+          <p>{win.error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const firstIdx = win.rows[0]?.idx;
+  const hasEarlier = firstIdx !== undefined && firstIdx > 0;
+
+  return (
+    <Virtuoso
+      ref={virtuoso}
+      className="replay-list"
+      data={blocks}
+      firstItemIndex={firstItemIndex}
+      endReached={() => void win.loadNewer()}
+      atBottomStateChange={(v) => {
+        atBottom.current = v;
+      }}
+      components={{
+        Header: () =>
+          hasEarlier ? (
+            <div className="load-earlier">
+              <button onClick={() => void win.loadOlder()}>
+                ↑ load earlier ({fmtCount(firstIdx)} events above)
+              </button>
+            </div>
+          ) : null,
+        Footer: () => <div className="replay-footer" />,
+      }}
+      itemContent={(_i, block) => <BlockView block={block} currentIdx={jumpIdx} />}
+    />
+  );
+}
+
+function Tile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="stat-tile">
+      <div>
+        <div className="stat-value">{value}</div>
+        <div className="stat-label">{label}</div>
+      </div>
+    </div>
+  );
+}
+
+function StatsPanel({ s }: { s: SessionMeta }) {
+  return (
+    <div className="stat-strip replay-stats">
+      <Tile label="turns" value={fmtCount(s.turnCount)} />
+      <Tile label="duration" value={fmtDuration(s.startedAt, s.endedAt)} />
+      <Tile label="tokens in / out" value={`${fmtTokens(s.inputTokens)} / ${fmtTokens(s.outputTokens)}`} />
+      <Tile label="cache read / write" value={`${fmtTokens(s.cacheReadTokens)} / ${fmtTokens(s.cacheWriteTokens)}`} />
+      <Tile label="files touched" value={fmtCount(s.filesTouchedCount)} />
+      <Tile label="est. cost" value={fmtCost(s.costUsd)} />
+    </div>
+  );
+}
+
+function LockedPanel({ s }: { s: SessionMeta | undefined }) {
+  return (
+    <div className="fullscreen-note">
+      <div>
+        <h1>This session is part of your locked history</h1>
+        {s && (
+          <p className="locked-meta">
+            {projectName(s)} · {fmtDate(s.startedAt)} · {fmtCount(s.turnCount)} turns ·{' '}
+            {fmtCost(s.costUsd)}
+          </p>
+        )}
+        <p>
+          The trial opens your 10 newest sessions. A license unlocks everything Turnlog
+          has already indexed — including this one.
+        </p>
+        <p>
+          <a href="#/">← back to the library</a>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default function Replay({
+  sessionId,
+  jumpIdx,
+  searchQuery,
+}: {
+  sessionId: string;
+  jumpIdx: number | null;
+  searchQuery: string | null;
+}) {
+  const session = useSession(sessionId);
+  const status = useStatus();
+  const licensed = status.data?.licensed ?? true;
+  const trialOpen = useTrialOpenIds(!licensed);
+  const locked =
+    !licensed && trialOpen.data !== undefined && !trialOpen.data.has(sessionId);
+
+  const turns = useTurns(sessionId);
+  const [mode, setMode] = useState<ViewMode>(
+    () => (localStorage.getItem('turnlog-view') === 'log' ? 'log' : 'spine'),
+  );
+  const setModePersist = (m: ViewMode) => {
+    localStorage.setItem('turnlog-view', m);
+    setMode(m);
+  };
+  // Sessions without prompts (pure summaries etc.) have no spine to show.
+  const spinePossible = turns.data === undefined || turns.data.turns.length > 0;
+  const effectiveMode: ViewMode = spinePossible ? mode : 'log';
+
+  const [statsOpen, setStatsOpen] = useState(false);
+
   // Match navigation across the session's search hits.
   const search = useSearch(searchQuery ?? '');
   const hitIdxs = useMemo(() => {
@@ -237,29 +309,12 @@ export default function Replay({
   const hitPos = jumpIdx !== null ? hitIdxs.indexOf(jumpIdx) : -1;
 
   const goToHit = (idx: number) => {
-    lastJump.current = null; // re-arm the jump effect even for the same idx
     navigate(sessionHash(sessionId, { m: idx, q: searchQuery ?? undefined }));
   };
 
   if (locked) return <LockedPanel s={session.data} />;
 
-  if (win.error && win.rows.length === 0) {
-    return (
-      <div className="fullscreen-note">
-        <div>
-          <h1>Could not load session</h1>
-          <p>{win.error}</p>
-          <p>
-            <a href="#/">← back to the library</a>
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   const s = session.data;
-  const firstIdx = win.rows[0]?.idx;
-  const hasEarlier = firstIdx !== undefined && firstIdx > 0;
 
   return (
     <div className="replay">
@@ -272,6 +327,25 @@ export default function Replay({
           <span className="replay-id">{shortId(sessionId)}</span>
           {s?.model && <span className="chip">{fmtModel(s.model)}</span>}
           <span className="replay-date">{s ? fmtDate(s.startedAt) : ''}</span>
+          <div className="view-toggle" role="tablist" aria-label="View mode">
+            <button
+              role="tab"
+              aria-selected={effectiveMode === 'spine'}
+              className={effectiveMode === 'spine' ? 'active' : ''}
+              disabled={!spinePossible}
+              onClick={() => setModePersist('spine')}
+            >
+              spine
+            </button>
+            <button
+              role="tab"
+              aria-selected={effectiveMode === 'log'}
+              className={effectiveMode === 'log' ? 'active' : ''}
+              onClick={() => setModePersist('log')}
+            >
+              log
+            </button>
+          </div>
           <button
             className={`stats-toggle ${statsOpen ? 'active' : ''}`}
             onClick={() => setStatsOpen(!statsOpen)}
@@ -282,28 +356,22 @@ export default function Replay({
         {statsOpen && s && <StatsPanel s={s} />}
       </div>
 
-      <Virtuoso
-        ref={virtuoso}
-        className="replay-list"
-        data={blocks}
-        firstItemIndex={firstItemIndex}
-        endReached={() => void win.loadNewer()}
-        atBottomStateChange={(v) => {
-          atBottom.current = v;
-        }}
-        components={{
-          Header: () =>
-            hasEarlier ? (
-              <div className="load-earlier">
-                <button onClick={() => void win.loadOlder()}>
-                  ↑ load earlier ({fmtCount(firstIdx)} events above)
-                </button>
-              </div>
-            ) : null,
-          Footer: () => <div className="replay-footer" />,
-        }}
-        itemContent={(_i, block) => <BlockView block={block} currentIdx={jumpIdx} />}
-      />
+      {effectiveMode === 'spine' ? (
+        turns.data ? (
+          <SpineView sessionId={sessionId} data={turns.data} currentIdx={jumpIdx} />
+        ) : turns.isError ? (
+          <div className="fullscreen-note">
+            <div>
+              <h1>Could not load session</h1>
+              <p>{(turns.error as Error).message}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="turn-loading">loading…</div>
+        )
+      ) : (
+        <LogView sessionId={sessionId} jumpIdx={jumpIdx} />
+      )}
 
       {searchQuery && hitIdxs.length > 0 && (
         <div className="match-bar">

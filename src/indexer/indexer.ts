@@ -63,9 +63,9 @@ export class Indexer {
     this.insMessage = db.prepare(
       `INSERT OR IGNORE INTO messages
          (uuid, session_id, parent_uuid, idx, role, kind, tool_name, tool_use_id, ts,
-          is_sidechain, tokens_in, tokens_out, cache_read_tokens, cache_write_tokens,
+          is_sidechain, is_error, tokens_in, tokens_out, cache_read_tokens, cache_write_tokens,
           cost_usd, model, text, raw_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     this.insFts = db.prepare(`INSERT INTO messages_fts (rowid, text) VALUES (?, ?)`);
     this.insFileTouched = db.prepare(
@@ -122,6 +122,7 @@ export class Indexer {
             rec.toolUseId,
             rec.ts,
             rec.isSidechain ? 1 : 0,
+            rec.isError ? 1 : 0,
             rec.tokensIn,
             rec.tokensOut,
             rec.cacheReadTokens,

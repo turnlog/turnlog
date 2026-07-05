@@ -60,6 +60,7 @@ export function normalizeV1(obj: any, raw: string, fallbackId: string): Normaliz
     isSidechain: obj?.isSidechain === true,
     toolName: null,
     toolUseId: null,
+    isError: false,
     model: null,
     text: '',
     tokensIn: 0,
@@ -91,6 +92,7 @@ export function normalizeV1(obj: any, raw: string, fallbackId: string): Normaliz
         if (toolResult) {
           rec.kind = 'tool_result';
           rec.toolUseId = str(toolResult.tool_use_id);
+          rec.isError = toolResult.is_error === true;
           return rec;
         }
       }

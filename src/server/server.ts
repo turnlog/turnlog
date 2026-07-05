@@ -10,6 +10,7 @@ import {
   listMessages,
   listProjects,
   listSessions,
+  listTurns,
   searchMessages,
 } from './api.js';
 import { placeholderHtml } from './placeholder.js';
@@ -217,6 +218,13 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
         limit: q.has('limit') ? Number(q.get('limit')) : undefined,
       }),
     );
+  }
+
+  const turnsMatch = /^\/api\/sessions\/([^/]+)\/turns$/.exec(p);
+  if (turnsMatch) {
+    const result = listTurns(db, decodeURIComponent(turnsMatch[1]!));
+    if (!result) return sendJson(res, 404, { error: 'session not found' });
+    return sendJson(res, 200, result);
   }
 
   const messagesMatch = /^\/api\/sessions\/([^/]+)\/messages$/.exec(p);

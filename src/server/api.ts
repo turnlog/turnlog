@@ -7,6 +7,8 @@ import type {
   SessionListResponse,
   SessionMeta,
   StatsResponse,
+  TurnsResponse,
+  TurnSummary,
 } from './apiTypes.js';
 import { SNIPPET_CLOSE, SNIPPET_OPEN } from './apiTypes.js';
 
@@ -88,7 +90,7 @@ export function listMessages(
   const rows = db
     .prepare(
       `SELECT uuid, parent_uuid, idx, role, kind, tool_name, tool_use_id, ts, is_sidechain,
-              tokens_in, tokens_out, cost_usd, model, text, raw_json
+              is_error, tokens_in, tokens_out, cost_usd, model, text, raw_json
        FROM messages WHERE session_id = ? AND idx > ? ORDER BY idx LIMIT ?`,
     )
     .all(sessionId, afterIdx, limit);
@@ -106,6 +108,7 @@ export function listMessages(
     toolUseId: r.tool_use_id,
     ts: r.ts,
     isSidechain: r.is_sidechain === 1,
+    isError: r.is_error === 1,
     tokensIn: r.tokens_in,
     tokensOut: r.tokens_out,
     costUsd: r.cost_usd,
@@ -115,6 +118,92 @@ export function listMessages(
   }));
 
   return { sessionId, messages, total: total.n };
+}
+
+const READ_TOOLS = new Set(['Read', 'Grep', 'Glob', 'LS', 'NotebookRead']);
+const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit']);
+const COMMAND_RE = /<command-name>([^<]*)<\/command-name>/;
+const TURN_TEXT_MAX = 240;
+
+/**
+ * The spine: prompts as turn boundaries, everything between two prompts
+ * aggregated into mechanical counts. One cheap columns-only scan per call —
+ * no raw JSON is touched.
+ */
+export function listTurns(db: Database.Database, sessionId: string): TurnsResponse | null {
+  const session = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(sessionId);
+  if (!session) return null;
+
+  const rows = db
+    .prepare(
+      `SELECT uuid, idx, kind, tool_name, ts, is_sidechain, is_error, tokens_out, text
+       FROM messages WHERE session_id = ? ORDER BY idx`,
+    )
+    .all(sessionId) as Array<{
+    uuid: string;
+    idx: number;
+    kind: string;
+    tool_name: string | null;
+    ts: string | null;
+    is_sidechain: number;
+    is_error: number;
+    tokens_out: number;
+    text: string;
+  }>;
+
+  const turns: TurnSummary[] = [];
+  let current: TurnSummary | null = null;
+  let preludeCount = 0;
+
+  for (const r of rows) {
+    if (r.kind === 'prompt' && r.is_sidechain === 0) {
+      if (current) current.endIdx = r.idx;
+      const command = COMMAND_RE.exec(r.text)?.[1]?.trim() ?? null;
+      const text = command
+        ? ''
+        : r.text.replace(/\s+/g, ' ').trim().slice(0, TURN_TEXT_MAX);
+      current = {
+        idx: r.idx,
+        endIdx: r.idx + 1, // patched below: next turn's start, or the session end
+        uuid: r.uuid,
+        ts: r.ts,
+        text,
+        command,
+        reads: 0,
+        edits: 0,
+        commands: 0,
+        tasks: 0,
+        otherTools: 0,
+        errors: 0,
+        tokensOut: 0,
+      };
+      turns.push(current);
+      continue;
+    }
+    if (!current) {
+      preludeCount++;
+      continue;
+    }
+    // Errors count from sidechains too (a failed subagent matters);
+    // tool tallies stay main-chain so the summary reads as "what I saw".
+    if (r.is_error === 1) current.errors++;
+    if (r.is_sidechain === 1) continue;
+    current.tokensOut += r.tokens_out;
+    if (r.kind === 'tool_use' && r.tool_name !== null) {
+      if (READ_TOOLS.has(r.tool_name)) current.reads++;
+      else if (EDIT_TOOLS.has(r.tool_name)) current.edits++;
+      else if (r.tool_name === 'Bash') current.commands++;
+      else if (r.tool_name === 'Task') current.tasks++;
+      else current.otherTools++;
+    }
+  }
+
+  // idx is line-ordered but can have gaps (duplicate uuids are ignored on
+  // insert), so the session's end bound comes from the last idx, not COUNT.
+  const total = rows.length === 0 ? 0 : rows[rows.length - 1]!.idx + 1;
+  if (current) current.endIdx = total;
+
+  return { sessionId, turns, total, preludeCount };
 }
 
 /**

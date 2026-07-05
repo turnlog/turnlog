@@ -27,6 +27,8 @@ export interface NormalizedRecord {
   toolName: string | null;
   /** Pairing id linking tool_use records to their tool_result. */
   toolUseId: string | null;
+  /** True for tool_result records the tool reported as failed. */
+  isError: boolean;
   model: string | null;
   /** Plain text extracted for full-text search. */
   text: string;

@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export function openDb(path: string): Database.Database {
   const db = new Database(path);
@@ -78,6 +78,12 @@ function migrate(db: Database.Database): void {
         prefix='2 3'
       );
     `);
+  }
+
+  if (version < 2) {
+    // Failure flag normalized out of raw JSON; backfill happens via the
+    // ADAPTER_VERSION bump that ships alongside (forces a full reindex).
+    db.exec(`ALTER TABLE messages ADD COLUMN is_error INTEGER NOT NULL DEFAULT 0;`);
   }
 
   db.pragma(`user_version = ${SCHEMA_VERSION}`);
