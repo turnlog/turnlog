@@ -68,3 +68,18 @@ describe('searchMessages', () => {
     expect(res.totalHits).toBeGreaterThan(0);
   });
 });
+
+describe('session-scoped search (in-session find)', () => {
+  it('filters to one session and orders hits by position', () => {
+    const res = searchMessages(db, { query: 'flux', sessionId: SESSION_C });
+    expect(res.groups).toHaveLength(1);
+    expect(res.groups[0]!.session.id).toBe(SESSION_C);
+    const idxs = res.groups[0]!.hits.map((h) => h.idx);
+    expect([...idxs].sort((a, b) => a - b)).toEqual(idxs);
+  });
+
+  it('returns nothing for a session without the term', () => {
+    const res = searchMessages(db, { query: 'useWebSocket', sessionId: SESSION_C });
+    expect(res.totalHits).toBe(0);
+  });
+});

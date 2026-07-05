@@ -117,6 +117,7 @@ export default function SpineView({
   currentIdx: number | null;
 }) {
   const [openTurns, setOpenTurns] = useState<Set<number>>(new Set());
+  const [topPos, setTopPos] = useState(0);
   const virtuoso = useRef<VirtuosoHandle>(null);
 
   const items = useMemo<SpineItem[]>(() => {
@@ -186,7 +187,7 @@ export default function SpineView({
             it.type === 'prelude' ? (
               <button
                 key="prelude"
-                className={`outline-item dim ${openTurns.has(-1) ? 'active' : ''}`}
+                className={`outline-item dim ${openTurns.has(-1) ? 'active' : ''} ${topPos === listPos ? 'current' : ''}`}
                 onClick={() => outlineClick(-1, listPos)}
               >
                 <span className="outline-n">·</span> prelude
@@ -194,7 +195,7 @@ export default function SpineView({
             ) : (
               <button
                 key={it.turn.idx}
-                className={`outline-item ${openTurns.has(it.turn.idx) ? 'active' : ''} ${it.turn.errors > 0 ? 'has-error' : ''}`}
+                className={`outline-item ${openTurns.has(it.turn.idx) ? 'active' : ''} ${it.turn.errors > 0 ? 'has-error' : ''} ${topPos === listPos ? 'current' : ''}`}
                 onClick={() => outlineClick(it.turn.idx, listPos)}
                 title={it.turn.command ?? it.turn.text}
               >
@@ -210,6 +211,7 @@ export default function SpineView({
         ref={virtuoso}
         className="spine-list"
         data={items}
+        rangeChanged={(range) => setTopPos(range.startIndex)}
         itemContent={(_i, item) =>
           item.type === 'prelude' ? (
             <div className={`turn turn-prelude ${openTurns.has(-1) ? 'open' : ''}`}>

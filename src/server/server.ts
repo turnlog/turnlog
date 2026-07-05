@@ -217,6 +217,7 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
       searchMessages(db, {
         query: q.get('q') ?? '',
         limit: q.has('limit') ? Number(q.get('limit')) : undefined,
+        sessionId: q.get('session') ?? undefined,
       }),
     );
   }

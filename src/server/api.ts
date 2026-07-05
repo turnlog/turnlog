@@ -255,12 +255,20 @@ export function toFtsQuery(input: string): string | null {
 
 export function searchMessages(
   db: Database.Database,
-  q: { query: string; limit?: number },
+  q: { query: string; limit?: number; sessionId?: string },
 ): SearchResponse {
   const match = toFtsQuery(q.query);
   const empty: SearchResponse = { query: q.query, groups: [], totalHits: 0 };
   if (!match) return empty;
   const limit = Math.min(Math.max(q.limit ?? 100, 1), 500);
+
+  // Session-scoped find (in-session Cmd-F) orders by position, not rank —
+  // prev/next navigation needs document order.
+  const sessionWhere = q.sessionId !== undefined ? 'AND m.session_id = ?' : '';
+  const order = q.sessionId !== undefined ? 'm.idx' : 'bm25(messages_fts)';
+  const params: unknown[] = [SNIPPET_OPEN, SNIPPET_CLOSE, match];
+  if (q.sessionId !== undefined) params.push(q.sessionId);
+  params.push(limit);
 
   let rows: any[];
   try {
@@ -274,11 +282,11 @@ export function searchMessages(
          FROM messages_fts
          JOIN messages m ON m.rowid = messages_fts.rowid
          JOIN sessions s ON s.id = m.session_id
-         WHERE messages_fts MATCH ?
-         ORDER BY bm25(messages_fts)
+         WHERE messages_fts MATCH ? ${sessionWhere}
+         ORDER BY ${order}
          LIMIT ?`,
       )
-      .all(SNIPPET_OPEN, SNIPPET_CLOSE, match, limit);
+      .all(...params);
   } catch {
     return empty; // belt and suspenders: a MATCH error must never 500
   }

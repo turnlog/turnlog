@@ -103,6 +103,11 @@ weight, blue only where the agent speaks.
   (one of the two allowed shadows).
 - **`.view-toggle`** — segmented pill, active segment contrast-black.
 - **`.match-bar`** — floating contrast pill (the other allowed shadow).
+- **`.find-bar`** — in-session find (Cmd/Ctrl-F), inset pill input in the
+  replay header; drives the shared `?q=` state.
+- **`.error-nav`** — floating bottom-right pill (white, error-tinted border,
+  vermilion count) cycling failing results; `.you-are-here` — floating
+  current-turn breadcrumb pill atop the log view.
 - **`.turn-n`** — spine turn number in a 30px circle: gray idle → contrast
   when the turn is open. Errors mark the outline number vermilion.
 - **`.status-dot`** — mint idle, vermilion pulsing while indexing, inside a

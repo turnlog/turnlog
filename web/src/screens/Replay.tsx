@@ -8,6 +8,7 @@ import {
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import {
   fetchMessages,
+  useErrorIdxs,
   useSearch,
   useSession,
   useStatus,
@@ -29,7 +30,7 @@ import { BlockView } from '../replay/blocks';
 import SpineView from '../replay/Spine';
 import { buildBlocks, idxToBlockMap } from '../replay/thread';
 import { SkeletonRows } from '../components/Skeleton';
-import type { MessageRow, SessionMeta } from '../types';
+import type { MessageRow, SessionMeta, TurnSummary } from '../types';
 import type { Lens } from '../router';
 
 const PAGE = 300;
@@ -122,12 +123,15 @@ function LogView({
   sessionId,
   jumpIdx,
   lens = null,
+  turns,
 }: {
   sessionId: string;
   jumpIdx: number | null;
   lens?: Lens | null;
+  turns?: TurnSummary[];
 }) {
   const win = useMessageWindow(sessionId, jumpIdx, lens);
+  const [topIdx, setTopIdx] = useState<number | null>(null);
   const blocks = useMemo(() => buildBlocks(win.rows), [win.rows]);
   const idxMap = useMemo(() => idxToBlockMap(blocks), [blocks]);
   const idxMapRef = useRef(idxMap);
@@ -206,13 +210,31 @@ function LogView({
   // lens), so "earlier" only exists in the unfiltered view.
   const hasEarlier = lens === null && firstIdx !== undefined && firstIdx > 0;
 
+  // Sticky "you are here": the turn containing the topmost visible block.
+  const currentTurn =
+    turns && topIdx !== null
+      ? [...turns].reverse().find((t) => t.idx <= topIdx)
+      : undefined;
+  const turnNumber = currentTurn && turns ? turns.indexOf(currentTurn) + 1 : null;
+
   return (
+    <div className="log-wrap">
+      {currentTurn && (
+        <div className="you-are-here" title={currentTurn.command ?? currentTurn.text}>
+          <span className="turn-n">{turnNumber}</span>
+          <span className="yah-text">{currentTurn.command ?? currentTurn.text}</span>
+        </div>
+      )}
     <Virtuoso
       ref={virtuoso}
       className="replay-list"
       data={blocks}
       firstItemIndex={firstItemIndex}
       endReached={() => void win.loadNewer()}
+      rangeChanged={(range) => {
+        const block = blocks[range.startIndex - firstItemIndex];
+        if (block) setTopIdx(block.repIdx);
+      }}
       atBottomStateChange={(v) => {
         atBottom.current = v;
       }}
@@ -235,6 +257,7 @@ function LogView({
         />
       )}
     />
+    </div>
   );
 }
 
@@ -281,6 +304,67 @@ function LockedPanel({ s }: { s: SessionMeta | undefined }) {
           <a href="#/">← back to the library</a>
         </p>
       </div>
+    </div>
+  );
+}
+
+/** In-session find (4e): drives the same ?q= the global search uses. */
+function FindBar({
+  sessionId,
+  query,
+  hitIdxs,
+  onClose,
+}: {
+  sessionId: string;
+  query: string;
+  hitIdxs: number[];
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState(query);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
+
+  // Debounce into the URL — q is the single source of find state.
+  useEffect(() => {
+    if (value.trim() === query) return;
+    const t = setTimeout(() => {
+      navigate(
+        value.trim()
+          ? sessionHash(sessionId, { q: value.trim() })
+          : sessionHash(sessionId),
+      );
+    }, 250);
+    return () => clearTimeout(t);
+  }, [value, query, sessionId]);
+
+  return (
+    <div className="find-bar">
+      <input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            onClose();
+          } else if (e.key === 'Enter' && hitIdxs.length > 0) {
+            e.preventDefault();
+            navigate(sessionHash(sessionId, { m: hitIdxs[0]!, q: value.trim() }));
+          }
+        }}
+        placeholder="Find in this session…"
+        aria-label="Find in session"
+      />
+      <span className="find-count">
+        {query ? `${fmtCount(hitIdxs.length)} hit${hitIdxs.length === 1 ? '' : 's'}` : ''}
+      </span>
+      <button onClick={onClose} aria-label="Close find">
+        ✕
+      </button>
     </div>
   );
 }
@@ -340,14 +424,44 @@ export default function Replay({
 
   const [statsOpen, setStatsOpen] = useState(false);
 
-  // Match navigation across the session's search hits.
-  const search = useSearch(searchQuery ?? '');
+  // Match navigation — session-scoped, so the hit list is complete (4e).
+  const search = useSearch(searchQuery ?? '', sessionId);
   const hitIdxs = useMemo(() => {
     if (!searchQuery || !search.data) return [];
     const group = search.data.groups.find((g) => g.session.id === sessionId);
     return group ? [...group.hits.map((h) => h.idx)].sort((a, b) => a - b) : [];
   }, [search.data, searchQuery, sessionId]);
   const hitPos = jumpIdx !== null ? hitIdxs.indexOf(jumpIdx) : -1;
+
+  // In-session find bar: Cmd/Ctrl-F opens it; an incoming ?q= implies it.
+  const [findOpen, setFindOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'f' && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        setFindOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+  const closeFind = () => {
+    setFindOpen(false);
+    if (searchQuery) navigate(sessionHash(sessionId));
+  };
+
+  // Error jump markers (4c): cycle through failing results in either view.
+  const errorIdxs = useErrorIdxs(sessionId);
+  const jumpError = (dir: 1 | -1) => {
+    const list = errorIdxs.data ?? [];
+    if (list.length === 0) return;
+    const cur = jumpIdx ?? -1;
+    const target =
+      dir === 1
+        ? (list.find((i) => i > cur) ?? list[0]!)
+        : ([...list].reverse().find((i) => i < cur) ?? list[list.length - 1]!);
+    navigate(sessionHash(sessionId, { m: target, q: searchQuery ?? undefined }));
+  };
 
   const goToHit = (idx: number) => {
     navigate(sessionHash(sessionId, { m: idx, q: searchQuery ?? undefined }));
@@ -428,6 +542,15 @@ export default function Replay({
           </button>
         </div>
         {statsOpen && s && <StatsPanel s={s} />}
+        {(findOpen || searchQuery) && (
+          <FindBar
+            key={searchQuery ?? ''}
+            sessionId={sessionId}
+            query={searchQuery ?? ''}
+            hitIdxs={hitIdxs}
+            onClose={closeFind}
+          />
+        )}
       </div>
 
       {activeLens !== null ? (
@@ -446,7 +569,20 @@ export default function Replay({
           <SkeletonRows n={8} tile={30} />
         )
       ) : (
-        <LogView sessionId={sessionId} jumpIdx={jumpIdx} />
+        <LogView sessionId={sessionId} jumpIdx={jumpIdx} turns={turns.data?.turns} />
+      )}
+
+      {(errorIdxs.data?.length ?? 0) > 0 && (
+        <div className="error-nav" title="Jump between failing tool results">
+          <span className="dot dot-accent" />
+          <span className="error-nav-count">{errorIdxs.data!.length}</span>
+          <button onClick={() => jumpError(-1)} aria-label="Previous error">
+            ↑
+          </button>
+          <button onClick={() => jumpError(1)} aria-label="Next error">
+            ↓
+          </button>
+        </div>
       )}
 
       {searchQuery && hitIdxs.length > 0 && (

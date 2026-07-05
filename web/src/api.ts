@@ -170,13 +170,29 @@ export function fetchMessages(
   );
 }
 
-export function useSearch(q: string) {
+export function useSearch(q: string, sessionId?: string) {
+  const scope = sessionId ? `&session=${encodeURIComponent(sessionId)}` : '';
   return useQuery({
-    queryKey: ['search', q],
-    queryFn: () => apiFetch<SearchResponse>(`/api/search?q=${encodeURIComponent(q)}&limit=200`),
+    queryKey: ['search', q, sessionId ?? ''],
+    queryFn: () =>
+      apiFetch<SearchResponse>(
+        `/api/search?q=${encodeURIComponent(q)}&limit=${sessionId ? 500 : 200}${scope}`,
+      ),
     enabled: q.trim().length > 0,
     placeholderData: keepPreviousData,
     staleTime: 30_000,
+  });
+}
+
+/** Positions of failing tool results — the 4c jump markers. */
+export function useErrorIdxs(sessionId: string) {
+  return useQuery({
+    queryKey: ['error-idxs', sessionId],
+    queryFn: async (): Promise<number[]> => {
+      const res = await fetchMessages(sessionId, -1, 1000, 'errors');
+      return res.messages.filter((m) => m.isError).map((m) => m.idx);
+    },
+    staleTime: 60_000,
   });
 }
 
