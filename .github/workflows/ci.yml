@@ -7,13 +7,11 @@ on:
 
 jobs:
   test:
-    # The matrix doubles as the better-sqlite3 prebuild verification:
-    # a failed native install fails the job on that platform.
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        node: [20, 22]
+        node: [22, 24]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -22,6 +20,17 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
+      # npm ci alone doesn't verify prebuilds: on runners with a toolchain,
+      # better-sqlite3 falls back to node-gyp and compiles silently — which end
+      # users can't do. Re-fetch the prebuild explicitly (no fallback) and load it.
+      - name: Verify better-sqlite3 prebuild
+        shell: bash
+        run: |
+          cd node_modules/better-sqlite3
+          rm -rf build
+          ../.bin/prebuild-install --verbose
+          cd ../..
+          node -e "require('better-sqlite3')(':memory:').prepare('select 1').get(); console.log('prebuild OK')"
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build

@@ -4,9 +4,9 @@
 // Node version guard. This file must stay parseable by very old Node versions,
 // so it is plain CJS with ES5 syntax only.
 var major = parseInt(process.versions.node.split('.')[0], 10);
-if (major < 20) {
+if (major < 22) {
   console.error(
-    'turnlog requires Node.js 20 or newer. You are running ' + process.version + '.'
+    'turnlog requires Node.js 22 or newer. You are running ' + process.version + '.'
   );
   console.error('Upgrade at https://nodejs.org and try again.');
   process.exit(1);

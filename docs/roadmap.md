@@ -32,7 +32,7 @@ The product's foundation and its hardest problem (the parser). No UI yet — eve
 ### 1.1 Repo & CLI scaffold
 
 - [x] Single npm package layout: `src/cli/`, `src/server/`, `src/indexer/`, `src/parser/`, `src/parser/adapters/`, `web/` (Vite app), `fixtures/` (corpus submodule or copy)
-- [x] TypeScript strict, ESLint, Vitest; Node 20+ `engines` field
+- [x] TypeScript strict, ESLint, Vitest; Node 22+ `engines` field (raised from 20 on 2026-07-05: Node 20 went EOL in April 2026 and better-sqlite3 dropped its ABI-115 prebuilds in 12.10 — supporting it would mean freezing the native dep at 12.9)
 - [x] CLI entrypoint with subcommands: `turnlog` (start + open browser), `turnlog index --rebuild`, `turnlog export <id>`, `turnlog license <key>` (stubs OK for the last two)
 - [x] Node version guard at startup with a friendly error — the one remaining "installer" bug class
 - [x] Config/data dir resolution: `~/.config/turnlog/` (XDG on Linux, `%APPDATA%` on Windows)
