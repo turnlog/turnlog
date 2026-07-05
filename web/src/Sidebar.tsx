@@ -9,6 +9,7 @@ import {
   type SessionsQuery,
 } from './api';
 import Dropdown from './components/Dropdown';
+import { SkeletonRows } from './components/Skeleton';
 import { setProjectFilter, useProjectFilter } from './filterStore';
 import { fmtCost, fmtCount, fmtDate, fmtModel, projectName, tileClass } from './format';
 import { LockIcon } from './icons';
@@ -125,7 +126,9 @@ export default function Sidebar({ activeId }: { activeId: string | null }) {
         )}
       </div>
 
-      {rows.length === 0 && !sessions.isLoading ? (
+      {rows.length === 0 && sessions.isLoading ? (
+        <SkeletonRows n={9} tile={34} />
+      ) : rows.length === 0 ? (
         <div className="sidebar-empty">
           {sessions.isError
             ? (sessions.error as Error).message

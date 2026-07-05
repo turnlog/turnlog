@@ -174,6 +174,7 @@ export default function App() {
               sessionId={route.id}
               jumpIdx={route.jumpIdx}
               searchQuery={route.query}
+              lens={route.lens}
             />
           )}
         </main>

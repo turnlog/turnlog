@@ -11,9 +11,18 @@ import { useSyncExternalStore } from 'react';
  *   #/session/<id>?m=42&q=… replay, scrolled to message idx 42, match nav for q
  *   #/search?q=…            search
  */
+export type Lens = 'diffs' | 'commands' | 'errors' | 'prompts';
+const LENS_VALUES: readonly string[] = ['diffs', 'commands', 'errors', 'prompts'];
+
 export type Route =
   | { name: 'library' }
-  | { name: 'session'; id: string; jumpIdx: number | null; query: string | null }
+  | {
+      name: 'session';
+      id: string;
+      jumpIdx: number | null;
+      query: string | null;
+      lens: Lens | null;
+    }
   | { name: 'search'; query: string };
 
 export function parseRoute(hash: string): Route {
@@ -25,11 +34,13 @@ export function parseRoute(hash: string): Route {
   const session = /^\/session\/([^/?]+)$/.exec(path);
   if (session) {
     const m = params.get('m');
+    const l = params.get('l');
     return {
       name: 'session',
       id: decodeURIComponent(session[1]!),
       jumpIdx: m !== null && /^\d+$/.test(m) ? Number(m) : null,
       query: params.get('q'),
+      lens: l !== null && LENS_VALUES.includes(l) ? (l as Lens) : null,
     };
   }
   if (path === '/search') {
@@ -52,10 +63,14 @@ export function navigate(to: string): void {
   window.location.hash = to;
 }
 
-export function sessionHash(id: string, opts: { m?: number; q?: string } = {}): string {
+export function sessionHash(
+  id: string,
+  opts: { m?: number; q?: string; l?: Lens } = {},
+): string {
   const params = new URLSearchParams();
   if (opts.m !== undefined) params.set('m', String(opts.m));
   if (opts.q) params.set('q', opts.q);
+  if (opts.l) params.set('l', opts.l);
   const qs = params.toString();
   return `#/session/${encodeURIComponent(id)}${qs ? `?${qs}` : ''}`;
 }

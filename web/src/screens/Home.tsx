@@ -11,6 +11,7 @@ import {
   tileClass,
 } from '../format';
 import { navigate, searchHash, sessionHash } from '../router';
+import { Skel, SkeletonRows } from '../components/Skeleton';
 import type { SessionMeta } from '../types';
 
 function ArrowUpRight({ size = 13 }: { size?: number }) {
@@ -126,17 +127,17 @@ export default function Home() {
             <div className="dark-col">
               <span className="dot dot-mint" />
               <em>Sessions</em>
-              <strong>{s ? fmtCount(s.sessions) : '…'}</strong>
+              <strong>{s ? fmtCount(s.sessions) : <Skel w={64} h={30} />}</strong>
             </div>
             <div className="dark-col">
               <span className="dot dot-purple" />
               <em>Turns</em>
-              <strong>{s ? fmtCount(s.messages) : '…'}</strong>
+              <strong>{s ? fmtCount(s.messages) : <Skel w={96} h={30} />}</strong>
             </div>
             <div className="dark-col">
               <span className="dot dot-accent" />
               <em>Tokens</em>
-              <strong>{s ? fmtTokens(s.inputTokens + s.outputTokens) : '…'}</strong>
+              <strong>{s ? fmtTokens(s.inputTokens + s.outputTokens) : <Skel w={80} h={30} />}</strong>
             </div>
           </div>
         </section>
@@ -149,7 +150,7 @@ export default function Home() {
                 <ArrowUpRight />
               </span>
             </div>
-            <strong className="accent-big">{s ? fmtCost(s.costUsd) : '…'}</strong>
+            <strong className="accent-big">{s ? fmtCost(s.costUsd) : <Skel w={140} h={34} className="skel-onaccent" />}</strong>
             <p>computed locally from the shipped pricing table</p>
           </section>
         ) : (
@@ -183,11 +184,15 @@ export default function Home() {
               See all
             </button>
           </div>
-          <ul className="recent-list">
-            {recentRows.map((r) => (
-              <RecentRow key={r.id} s={r} />
-            ))}
-          </ul>
+          {recent.isLoading && recentRows.length === 0 ? (
+            <SkeletonRows n={4} tile={36} />
+          ) : (
+            <ul className="recent-list">
+              {recentRows.map((r) => (
+                <RecentRow key={r.id} s={r} />
+              ))}
+            </ul>
+          )}
         </section>
 
         <section className="card list-card">

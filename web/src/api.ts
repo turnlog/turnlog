@@ -162,9 +162,11 @@ export function fetchMessages(
   sessionId: string,
   afterIdx: number,
   limit: number,
+  lens?: string | null,
 ): Promise<MessageListResponse> {
+  const lensParam = lens ? `&lens=${lens}` : '';
   return apiFetch<MessageListResponse>(
-    `/api/sessions/${encodeURIComponent(sessionId)}/messages?after_idx=${afterIdx}&limit=${limit}`,
+    `/api/sessions/${encodeURIComponent(sessionId)}/messages?after_idx=${afterIdx}&limit=${limit}${lensParam}`,
   );
 }
 

@@ -273,11 +273,13 @@ export function SidechainRun({ blocks, label }: { blocks: Block[]; label?: strin
 const ToolBlockView = memo(function ToolBlockView({
   block,
   forceOpen,
+  defaultOpen = false,
 }: {
   block: Extract<Block, { kind: 'tool' }>;
   forceOpen: boolean;
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const view = parseRaw(block.use);
   const use = useMemo(
     () =>
@@ -290,12 +292,18 @@ const ToolBlockView = memo(function ToolBlockView({
   const resultView = block.result ? parseRaw(block.result) : null;
   const failed = resultView?.toolResults[0]?.isError === true;
   const summary = toolSummary(use.name, use.input);
+  const category =
+    use.name === 'Bash'
+      ? 'cat-cmd'
+      : ['Edit', 'MultiEdit', 'Write', 'NotebookEdit'].includes(use.name)
+        ? 'cat-diff'
+        : '';
 
   return (
     <div className="block block-tool">
       <button className="tool-head" onClick={() => setOpen(!isOpen)}>
         <Caret open={isOpen} />
-        <span className={`tool-dot ${failed ? 'failed' : ''}`} />
+        <span className={`tool-dot ${category} ${failed ? 'failed' : ''}`} />
         <span className="tool-name">{use.name}</span>
         {summary && <span className="tool-summary">{summary}</span>}
         {!block.result && <span className="tool-pending">no result</span>}
@@ -388,9 +396,12 @@ function MessageBlock({ row }: { row: MessageRow }) {
 export function BlockView({
   block,
   currentIdx,
+  defaultOpen = false,
 }: {
   block: Block;
   currentIdx: number | null;
+  /** Lens views open tool blocks by default — the content IS the view. */
+  defaultOpen?: boolean;
 }) {
   const isCurrent =
     currentIdx !== null &&
@@ -404,7 +415,7 @@ export function BlockView({
     block.kind === 'message' ? (
       <MessageBlock row={block.row} />
     ) : block.kind === 'tool' ? (
-      <ToolBlockView block={block} forceOpen={isCurrent} />
+      <ToolBlockView block={block} forceOpen={isCurrent} defaultOpen={defaultOpen} />
     ) : (
       <SidechainRun blocks={block.run} />
     );

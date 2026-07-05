@@ -7,6 +7,7 @@ import type { IndexDriver } from '../indexer/driver.js';
 import {
   getSession,
   getStats,
+  isLens,
   listMessages,
   listProjects,
   listSessions,
@@ -229,9 +230,14 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
 
   const messagesMatch = /^\/api\/sessions\/([^/]+)\/messages$/.exec(p);
   if (messagesMatch) {
+    const lensParam = q.get('lens') ?? undefined;
+    if (lensParam !== undefined && !isLens(lensParam)) {
+      return sendJson(res, 400, { error: 'unknown lens' });
+    }
     const result = listMessages(db, decodeURIComponent(messagesMatch[1]!), {
       afterIdx: q.has('after_idx') ? Number(q.get('after_idx')) : undefined,
       limit: q.has('limit') ? Number(q.get('limit')) : undefined,
+      lens: lensParam,
     });
     if (!result) return sendJson(res, 404, { error: 'session not found' });
     return sendJson(res, 200, result);

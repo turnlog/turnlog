@@ -48,9 +48,16 @@ export interface MessageRow {
 export interface MessageListResponse {
   sessionId: string;
   messages: MessageRow[];
-  /** Total messages in the session (for pagination). */
+  /** Total messages matching (session-wide, honoring the lens). */
   total: number;
 }
+
+/**
+ * Lenses collapse a session to one dimension (brainstorm §4b). Tool lenses
+ * include both the tool_use and its paired tool_result rows.
+ */
+export const LENSES = ['diffs', 'commands', 'errors', 'prompts'] as const;
+export type Lens = (typeof LENSES)[number];
 
 /**
  * Snippets mark match boundaries with U+E000 (open) and U+E001 (close) so the

@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { useTurnRows } from '../api';
+import { SkeletonLines } from '../components/Skeleton';
 import { fmtTime, fmtTokens } from '../format';
 import type { TurnsResponse, TurnSummary } from '../types';
 import { BlockView } from './blocks';
@@ -12,14 +13,15 @@ import { buildBlocks } from './thread';
  * anti-scroll view — expand only the turn you care about.
  */
 
-function summaryParts(t: TurnSummary): { text: string; error?: boolean }[] {
-  const parts: { text: string; error?: boolean }[] = [];
+/** Legend colors ride along: edits=mint, cmds=purple, errors=vermilion. */
+function summaryParts(t: TurnSummary): { text: string; cls?: string }[] {
+  const parts: { text: string; cls?: string }[] = [];
   if (t.reads > 0) parts.push({ text: `${t.reads} read${t.reads === 1 ? '' : 's'}` });
-  if (t.edits > 0) parts.push({ text: `${t.edits} edit${t.edits === 1 ? '' : 's'}` });
-  if (t.commands > 0) parts.push({ text: `${t.commands} cmd${t.commands === 1 ? '' : 's'}` });
+  if (t.edits > 0) parts.push({ text: `${t.edits} edit${t.edits === 1 ? '' : 's'}`, cls: 'm-edits' });
+  if (t.commands > 0) parts.push({ text: `${t.commands} cmd${t.commands === 1 ? '' : 's'}`, cls: 'm-cmds' });
   if (t.tasks > 0) parts.push({ text: `${t.tasks} subagent${t.tasks === 1 ? '' : 's'}` });
   if (t.otherTools > 0) parts.push({ text: `${t.otherTools} tool${t.otherTools === 1 ? '' : 's'}` });
-  if (t.errors > 0) parts.push({ text: `${t.errors} error${t.errors === 1 ? '' : 's'}`, error: true });
+  if (t.errors > 0) parts.push({ text: `${t.errors} error${t.errors === 1 ? '' : 's'}`, cls: 'm-errors' });
   if (parts.length === 0) parts.push({ text: 'reply only' });
   if (t.tokensOut > 0) parts.push({ text: `${fmtTokens(t.tokensOut)} tok` });
   return parts;
@@ -38,7 +40,13 @@ function TurnBody({
 }) {
   const rows = useTurnRows(sessionId, startIdx, endIdx, true);
   const blocks = useMemo(() => buildBlocks(rows.data ?? []), [rows.data]);
-  if (rows.isLoading) return <div className="turn-loading">loading…</div>;
+  if (rows.isLoading) {
+    return (
+      <div className="turn-body">
+        <SkeletonLines n={4} />
+      </div>
+    );
+  }
   if (rows.isError) return <div className="turn-loading">failed to load turn</div>;
   return (
     <div className="turn-body">
@@ -76,7 +84,7 @@ const TurnCard = memo(function TurnCard({
         )}
         <span className="turn-meta">
           {summaryParts(turn).map((p, i) => (
-            <span key={i} className={p.error ? 'turn-meta-error' : ''}>
+            <span key={i} className={p.cls ?? ''}>
               {p.text}
             </span>
           ))}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearch } from '../api';
+import { SkeletonRows } from '../components/Skeleton';
 import { fmtCost, fmtCount, fmtDate, fmtTime, projectName } from '../format';
 import { navigate, searchHash, sessionHash } from '../router';
 import { SNIPPET_CLOSE, SNIPPET_OPEN, type SearchHit } from '../types';
@@ -135,6 +136,9 @@ export default function Search({ query }: { query: string }) {
       </div>
 
       <div className="search-results">
+        {search.isLoading && groups.length === 0 && query !== '' && (
+          <SkeletonRows n={6} tile={28} />
+        )}
         {groups.map((g) => (
           <section key={g.session.id} className="search-group">
             <header className="search-group-head">

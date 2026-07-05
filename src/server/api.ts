@@ -10,7 +10,7 @@ import type {
   TurnsResponse,
   TurnSummary,
 } from './apiTypes.js';
-import { SNIPPET_CLOSE, SNIPPET_OPEN } from './apiTypes.js';
+import { LENSES, SNIPPET_CLOSE, SNIPPET_OPEN, type Lens } from './apiTypes.js';
 
 const SESSION_COLUMNS = `
   id, project_path, project_key, started_at, ended_at, model, turn_count,
@@ -77,26 +77,56 @@ export function getSession(db: Database.Database, id: string): SessionMeta | nul
   return row ? rowToSession(row) : null;
 }
 
+const DIFF_TOOLS_SQL = `('Edit','MultiEdit','Write','NotebookEdit')`;
+
+/**
+ * Lens WHERE fragments. Tool lenses match the tool_use rows and pull their
+ * paired tool_result rows in via tool_use_id; the errors lens starts from
+ * failing results and pulls the anchoring tool_use in.
+ */
+const LENS_SQL: Record<Lens, string> = {
+  prompts: `AND kind = 'prompt' AND is_sidechain = 0`,
+  diffs: `AND (tool_name IN ${DIFF_TOOLS_SQL}
+    OR (kind = 'tool_result' AND tool_use_id IN (
+      SELECT tool_use_id FROM messages
+      WHERE session_id = @sid AND tool_name IN ${DIFF_TOOLS_SQL} AND tool_use_id IS NOT NULL)))`,
+  commands: `AND (tool_name = 'Bash'
+    OR (kind = 'tool_result' AND tool_use_id IN (
+      SELECT tool_use_id FROM messages
+      WHERE session_id = @sid AND tool_name = 'Bash' AND tool_use_id IS NOT NULL)))`,
+  errors: `AND ((kind = 'tool_result' AND is_error = 1)
+    OR tool_use_id IN (
+      SELECT tool_use_id FROM messages
+      WHERE session_id = @sid AND kind = 'tool_result' AND is_error = 1
+        AND tool_use_id IS NOT NULL))`,
+};
+
+export function isLens(v: string | undefined): v is Lens {
+  return (LENSES as readonly string[]).includes(v ?? '');
+}
+
 export function listMessages(
   db: Database.Database,
   sessionId: string,
-  q: { afterIdx?: number; limit?: number },
+  q: { afterIdx?: number; limit?: number; lens?: Lens },
 ): MessageListResponse | null {
   const session = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(sessionId);
   if (!session) return null;
   const afterIdx = q.afterIdx ?? -1;
   const limit = Math.min(Math.max(q.limit ?? 200, 1), 2000);
+  const lensSql = q.lens ? LENS_SQL[q.lens] : '';
 
   const rows = db
     .prepare(
       `SELECT uuid, parent_uuid, idx, role, kind, tool_name, tool_use_id, ts, is_sidechain,
               is_error, tokens_in, tokens_out, cost_usd, model, text, raw_json
-       FROM messages WHERE session_id = ? AND idx > ? ORDER BY idx LIMIT ?`,
+       FROM messages WHERE session_id = @sid AND idx > @after ${lensSql}
+       ORDER BY idx LIMIT @limit`,
     )
-    .all(sessionId, afterIdx, limit);
+    .all({ sid: sessionId, after: afterIdx, limit });
   const total = db
-    .prepare(`SELECT COUNT(*) AS n FROM messages WHERE session_id = ?`)
-    .get(sessionId) as { n: number };
+    .prepare(`SELECT COUNT(*) AS n FROM messages WHERE session_id = @sid ${lensSql}`)
+    .get({ sid: sessionId }) as { n: number };
 
   const messages: MessageRow[] = rows.map((r: any) => ({
     uuid: r.uuid,

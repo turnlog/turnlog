@@ -854,6 +854,9 @@
   margin-left: 12px;
 }
 .view-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-size: 12.5px;
   font-weight: 500;
   padding: 5px 14px;
@@ -1719,4 +1722,127 @@
   font-size: 10.5px;
   color: var(--tx2);
   flex: none;
+}
+
+/* lens pills */
+.lens-toggle {
+  margin-left: 6px;
+}
+.lens-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  opacity: 0.65;
+}
+.lens-count-error {
+  color: var(--c-error);
+  opacity: 1;
+  font-weight: 700;
+}
+.view-toggle button.active .lens-count-error {
+  color: var(--accent-hi);
+}
+
+
+/* ── skeleton loading ──────────────────────────────────────────────── */
+
+.skel {
+  display: inline-block;
+  background: linear-gradient(90deg, var(--bg2) 25%, var(--bg1) 42%, var(--bg2) 60%);
+  background-size: 300% 100%;
+  animation: skel-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes skel-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skel {
+    animation: none;
+  }
+}
+.skel-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 0;
+}
+.skel-rows {
+  display: flex;
+  flex-direction: column;
+}
+.skel-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 2px;
+}
+.skel-row-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.sidebar .skel-rows {
+  padding: 4px 16px;
+}
+.screen > .skel-rows,
+.replay .skel-rows {
+  background: var(--card);
+  border-radius: var(--radius-lg);
+  padding: 18px 24px;
+  flex: 1;
+}
+
+/* ── lens legend colors: diffs=mint · cmds=purple · errors=vermilion ·
+     prompts=ink — anywhere those dimensions appear ────────────────── */
+
+.dot-ink {
+  background: var(--tx0);
+}
+.view-toggle button.active .dot-ink {
+  background: var(--contrast-on);
+}
+
+.turn-meta .m-edits {
+  color: var(--mint-tx);
+}
+.turn-meta .m-cmds {
+  color: var(--purple-tx);
+}
+.turn-meta .m-errors {
+  color: var(--c-error);
+  font-weight: 500;
+}
+
+.tool-dot.cat-diff {
+  background: var(--mint);
+}
+.tool-dot.cat-cmd {
+  background: var(--purple);
+}
+.tool-dot.failed {
+  background: var(--c-error);
+}
+
+.skel-onaccent {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.25) 25%,
+    rgba(255, 255, 255, 0.4) 42%,
+    rgba(255, 255, 255, 0.25) 60%
+  );
+  background-size: 300% 100%;
+}
+.dark-col .skel {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--contrast-on) 14%, transparent) 25%,
+    color-mix(in srgb, var(--contrast-on) 24%, transparent) 42%,
+    color-mix(in srgb, var(--contrast-on) 14%, transparent) 60%
+  );
+  background-size: 300% 100%;
 }

@@ -28,7 +28,9 @@ import { navigate, sessionHash } from '../router';
 import { BlockView } from '../replay/blocks';
 import SpineView from '../replay/Spine';
 import { buildBlocks, idxToBlockMap } from '../replay/thread';
+import { SkeletonRows } from '../components/Skeleton';
 import type { MessageRow, SessionMeta } from '../types';
+import type { Lens } from '../router';
 
 const PAGE = 300;
 const JUMP_BACKSCROLL = 40;
@@ -42,7 +44,7 @@ type ViewMode = 'spine' | 'log';
  * exactly the gap above the window. (Log view only — the spine fetches
  * per-turn ranges instead.)
  */
-function useMessageWindow(sessionId: string, startIdx: number | null) {
+function useMessageWindow(sessionId: string, startIdx: number | null, lens: Lens | null = null) {
   const [rows, setRows] = useState<MessageRow[]>([]);
   const [total, setTotal] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +66,7 @@ function useMessageWindow(sessionId: string, startIdx: number | null) {
       if (busy.current) return;
       busy.current = true;
       try {
-        const res = await fetchMessages(sessionId, afterIdx, limit);
+        const res = await fetchMessages(sessionId, afterIdx, limit, lens);
         merge(res.messages, res.total);
         setError(null);
       } catch (e) {
@@ -74,7 +76,7 @@ function useMessageWindow(sessionId: string, startIdx: number | null) {
         setLoading(false);
       }
     },
-    [sessionId, merge],
+    [sessionId, merge, lens],
   );
 
   useEffect(() => {
@@ -103,13 +105,14 @@ function useMessageWindow(sessionId: string, startIdx: number | null) {
           sessionId,
           Math.max(-1, target - JUMP_BACKSCROLL - 1),
           PAGE,
+          lens,
         ).catch(() => null);
         if (!res) return;
         merge(res.messages, res.total);
         if (res.messages.some((r) => r.idx === target) || res.messages.length === 0) return;
       }
     },
-    [sessionId, merge],
+    [sessionId, merge, lens],
   );
 
   return { rows, total, error, loading, loadOlder, loadNewer, ensureLoaded };
@@ -118,11 +121,13 @@ function useMessageWindow(sessionId: string, startIdx: number | null) {
 function LogView({
   sessionId,
   jumpIdx,
+  lens = null,
 }: {
   sessionId: string;
   jumpIdx: number | null;
+  lens?: Lens | null;
 }) {
-  const win = useMessageWindow(sessionId, jumpIdx);
+  const win = useMessageWindow(sessionId, jumpIdx, lens);
   const blocks = useMemo(() => buildBlocks(win.rows), [win.rows]);
   const idxMap = useMemo(() => idxToBlockMap(blocks), [blocks]);
   const idxMapRef = useRef(idxMap);
@@ -182,6 +187,9 @@ function LogView({
     return () => clearInterval(t);
   }, [win.loadNewer, win]);
 
+  if (win.loading && win.rows.length === 0) {
+    return <SkeletonRows n={8} tile={30} />;
+  }
   if (win.error && win.rows.length === 0) {
     return (
       <div className="fullscreen-note">
@@ -194,7 +202,9 @@ function LogView({
   }
 
   const firstIdx = win.rows[0]?.idx;
-  const hasEarlier = firstIdx !== undefined && firstIdx > 0;
+  // Lens windows start from the session beginning (jump targets override the
+  // lens), so "earlier" only exists in the unfiltered view.
+  const hasEarlier = lens === null && firstIdx !== undefined && firstIdx > 0;
 
   return (
     <Virtuoso
@@ -217,7 +227,13 @@ function LogView({
           ) : null,
         Footer: () => <div className="replay-footer" />,
       }}
-      itemContent={(_i, block) => <BlockView block={block} currentIdx={jumpIdx} />}
+      itemContent={(_i, block) => (
+        <BlockView
+          block={block}
+          currentIdx={jumpIdx}
+          defaultOpen={lens !== null && lens !== 'prompts'}
+        />
+      )}
     />
   );
 }
@@ -269,14 +285,24 @@ function LockedPanel({ s }: { s: SessionMeta | undefined }) {
   );
 }
 
+/** Lens legend: each dimension owns a color, everywhere it appears. */
+const LENS_LABELS: { value: Lens; label: string; dot: string }[] = [
+  { value: 'diffs', label: 'diffs', dot: 'dot-mint' },
+  { value: 'commands', label: 'cmds', dot: 'dot-purple' },
+  { value: 'errors', label: 'errors', dot: 'dot-accent' },
+  { value: 'prompts', label: 'prompts', dot: 'dot-ink' },
+];
+
 export default function Replay({
   sessionId,
   jumpIdx,
   searchQuery,
+  lens,
 }: {
   sessionId: string;
   jumpIdx: number | null;
   searchQuery: string | null;
+  lens: Lens | null;
 }) {
   const session = useSession(sessionId);
   const status = useStatus();
@@ -296,6 +322,21 @@ export default function Replay({
   // Sessions without prompts (pure summaries etc.) have no spine to show.
   const spinePossible = turns.data === undefined || turns.data.turns.length > 0;
   const effectiveMode: ViewMode = spinePossible ? mode : 'log';
+  // A jump target must be visible — match navigation overrides the lens.
+  const activeLens = jumpIdx === null ? lens : null;
+
+  const lensCounts: Record<Lens, number> | null = turns.data
+    ? turns.data.turns.reduce(
+        (acc, t) => {
+          acc.diffs += t.edits;
+          acc.commands += t.commands;
+          acc.errors += t.errors;
+          acc.prompts += 1;
+          return acc;
+        },
+        { diffs: 0, commands: 0, errors: 0, prompts: 0 },
+      )
+    : null;
 
   const [statsOpen, setStatsOpen] = useState(false);
 
@@ -330,21 +371,54 @@ export default function Replay({
           <div className="view-toggle" role="tablist" aria-label="View mode">
             <button
               role="tab"
-              aria-selected={effectiveMode === 'spine'}
-              className={effectiveMode === 'spine' ? 'active' : ''}
+              aria-selected={activeLens === null && effectiveMode === 'spine'}
+              className={activeLens === null && effectiveMode === 'spine' ? 'active' : ''}
               disabled={!spinePossible}
-              onClick={() => setModePersist('spine')}
+              onClick={() => {
+                setModePersist('spine');
+                if (activeLens) navigate(sessionHash(sessionId));
+              }}
             >
               spine
             </button>
             <button
               role="tab"
-              aria-selected={effectiveMode === 'log'}
-              className={effectiveMode === 'log' ? 'active' : ''}
-              onClick={() => setModePersist('log')}
+              aria-selected={activeLens === null && effectiveMode === 'log'}
+              className={activeLens === null && effectiveMode === 'log' ? 'active' : ''}
+              onClick={() => {
+                setModePersist('log');
+                if (activeLens) navigate(sessionHash(sessionId));
+              }}
             >
               log
             </button>
+          </div>
+          <div className="view-toggle lens-toggle" role="tablist" aria-label="Lens">
+            {LENS_LABELS.map(({ value, label, dot }) => {
+              const count = lensCounts?.[value];
+              return (
+                <button
+                  key={value}
+                  role="tab"
+                  aria-selected={activeLens === value}
+                  className={activeLens === value ? 'active' : ''}
+                  disabled={count === 0}
+                  onClick={() =>
+                    navigate(
+                      activeLens === value
+                        ? sessionHash(sessionId)
+                        : sessionHash(sessionId, { l: value }),
+                    )
+                  }
+                >
+                  <span className={`dot ${dot}`} />
+                  {label}
+                  {count !== null && count !== undefined && count > 0 && (
+                    <span className="lens-count">{count}</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
           <button
             className={`stats-toggle ${statsOpen ? 'active' : ''}`}
@@ -356,7 +430,9 @@ export default function Replay({
         {statsOpen && s && <StatsPanel s={s} />}
       </div>
 
-      {effectiveMode === 'spine' ? (
+      {activeLens !== null ? (
+        <LogView key={activeLens} sessionId={sessionId} jumpIdx={null} lens={activeLens} />
+      ) : effectiveMode === 'spine' ? (
         turns.data ? (
           <SpineView sessionId={sessionId} data={turns.data} currentIdx={jumpIdx} />
         ) : turns.isError ? (
@@ -367,7 +443,7 @@ export default function Replay({
             </div>
           </div>
         ) : (
-          <div className="turn-loading">loading…</div>
+          <SkeletonRows n={8} tile={30} />
         )
       ) : (
         <LogView sessionId={sessionId} jumpIdx={jumpIdx} />

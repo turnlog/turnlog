@@ -70,7 +70,9 @@
   --blue: #6b93f7;
   --blue-dim: rgba(107, 147, 247, 0.15);
   --mint: #8fe0a8;
+  --mint-tx: #8fe0a8;
   --purple: #b6a7f5;
+  --purple-tx: #b6a7f5;
   --mark: rgba(107, 147, 247, 0.28);
 
   /* the near-black surface — inverts to white on dark */
@@ -128,7 +130,9 @@
   --blue: #3e6df5;
   --blue-dim: rgba(62, 109, 245, 0.11);
   --mint: #4cba74;
+  --mint-tx: #27874f;
   --purple: #8a76e8;
+  --purple-tx: #6a51d8;
   --mark: rgba(62, 109, 245, 0.2);
 
   --contrast-solid: #17191f;

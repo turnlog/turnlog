@@ -89,7 +89,16 @@ weight, blue only where the agent speaks.
   white on vermilion.
 - **`.tile`** — rounded-square project mark with initial; color rotates
   vermilion/black/blue by project-key hash (`tileClass` in `format.ts`).
-- **`.dot`** — 8px data dots (mint/purple/accent) labeling numbers.
+- **`.dot`** — 8px data dots labeling numbers and legend entries.
+- **Lens legend** — the four session dimensions own fixed colors everywhere
+  they appear (pills, spine summary counts, tool dots): **diffs = mint**,
+  **commands = purple**, **errors = vermilion**, **prompts = ink**.
+  Text-safe variants (`--mint-tx`, `--purple-tx`) exist for small type on
+  light backgrounds.
+- **`Skeleton.tsx`** (`.skel`, `SkeletonLines`, `SkeletonRows`) — shimmer
+  placeholders replace all "loading…" text: spine turn bodies, log initial
+  load, sidebar list, home numbers (`.skel-onaccent` / dark-card variants),
+  search results. Honors `prefers-reduced-motion`.
 - **`.dd-*`** — custom listbox dropdown: gray pill trigger, white r16 menu
   (one of the two allowed shadows).
 - **`.view-toggle`** — segmented pill, active segment contrast-black.
