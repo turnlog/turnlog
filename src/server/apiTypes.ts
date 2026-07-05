@@ -100,4 +100,10 @@ export interface StatusResponse {
   lastError: string | null;
   lastScanAt: string | null;
   appVersion: string;
+  /**
+   * Drives the trial treatment in the UI: when false, only the 10 newest
+   * sessions are openable. Real Ed25519 verification lands in Phase 3; until
+   * then the server reports true (TURNLOG_UNLICENSED=1 previews trial mode).
+   */
+  licensed: boolean;
 }

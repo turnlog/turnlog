@@ -12,16 +12,17 @@ The full product spec, strategy, and rationale live in `docs/turnlog-deep-dive.m
 
 ## Repo layout & commands
 
-Phase 1 (parser, index, server core) is implemented; Phase 2 (React viewer UI in `web/`) is next — see `docs/roadmap.md` for status checkboxes.
+Phases 1 (parser, index, server core) and 2 (React viewer UI) are implemented; Phase 3 (licensing, CF Worker, export, packaging polish) is next — see `docs/roadmap.md` for status checkboxes.
 
 - `src/parser/` — streaming line reader with byte offsets, `normalize.ts` (sniffer + cardinal-rule wrapper), `adapters/v1.ts` (pure function, raw record → `NormalizedRecord`)
 - `src/indexer/` — SQLite schema (`db.ts`), incremental `Indexer`, worker-thread driver (`workerDriver.ts` + `worker.ts`), in-process driver for tests/CLI, chokidar watcher
-- `src/server/` — hardened `node:http` server, typed API (`api.ts` + `apiTypes.ts`, the contract the web UI will import), placeholder page
+- `src/server/` — hardened `node:http` server, typed API (`api.ts` + `apiTypes.ts`, the contract the web UI imports type-only), serves `web/dist`
 - `src/cost/pricing.ts` — shipped pricing table; cache writes priced by TTL breakdown (1.25× 5m / 2× 1h)
+- `web/` — npm workspace: Vite + React viewer (persistent session sidebar + home / replay / search screens; dark + light themes via CSS tokens on `data-theme`, toggle persisted, Shiki themes follow). `web/src/replay/thread.ts` builds display blocks (tool_use/result folding, sidechain runs nested under Task calls); `web/src/replay/raw.ts` re-parses `raw` JSONL tolerantly (UI half of the cardinal rule — degrade, never throw); Shiki runs in a web worker with a lang whitelist + size cap. Nunito Sans + Fira Code woff2 bundled in `web/public/fonts/`, Solar outline icons vendored as path data in `web/src/icons.tsx` (CC BY 4.0 — credits in `web/public/CREDITS.txt`) — nothing ever loads from the network.
 - `fixtures/corpus/` — synthetic fake projects dir; `fixtures/golden/` — committed normalization snapshots
 - `test/` — vitest; `bin/turnlog.cjs` — plain-CJS Node-version-guard shim
 
-Commands: `npm test` · `npm run typecheck` · `npm run lint` · `npm run build` · `npm run golden:update` (regenerate goldens after an adapter change — review the diff, that's the point of them). Smoke test against real data without touching the user's config: `TURNLOG_DATA_DIR=<scratch> node bin/turnlog.cjs index` (reads `~/.claude/projects`, writes the index to the scratch dir).
+Commands: `npm test` · `npm run typecheck` (server + web) · `npm run lint` · `npm run build` (server tsc + web bundle) · `npm run golden:update` (regenerate goldens after an adapter change — review the diff, that's the point of them). Smoke test against real data without touching the user's config: `TURNLOG_DATA_DIR=<scratch> node bin/turnlog.cjs index` (reads `~/.claude/projects`, writes the index to the scratch dir). UI dev loop: `npm run dev` (one command: builds the server, boots API + Vite with a shared token, Ctrl-C stops both; `scripts/dev.mjs`). The Vite proxy injects the token and rewrites Host (`changeOrigin` — the DNS-rebinding defense rejects the dev origin's port otherwise). `TURNLOG_UNLICENSED=1` previews the trial lock treatment until Phase 3 wires real license verification.
 
 Conventions: any adapter change ships with corpus fixtures + regenerated goldens. Bump `ADAPTER_VERSION` in `src/version.ts` when normalization output changes — it forces a full reindex. The server-hardening tests in `test/server.test.ts` are load-bearing; never weaken them. Note: `fetch` can't forge a Host header (undici strips it) — hardening tests must use raw `http.request`.
 

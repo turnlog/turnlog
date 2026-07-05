@@ -1,0 +1,11 @@
+Nunito Sans
+Copyright © 2014 The Nunito Project Authors, with Reserved Font Name "Nunito Sans"
+
+Fira Code
+Copyright © 2014–present The Fira Code Project Authors
+
+Both licensed under the SIL Open Font License, Version 1.1.
+https://scripts.sil.org/OFL
+
+These woff2 files are latin subsets obtained via Fontsource and are bundled
+with Turnlog so the app never loads anything from the network.

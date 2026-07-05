@@ -82,28 +82,30 @@ React + TS + Vite in `web/`, React Query over the local API, built bundle shippe
 
 ### 2.1 Library screen
 
-- [ ] Session list: sortable/filterable by date, project, cost, duration
-- [ ] **Trial treatment designed now, not bolted on:** unlicensed mode shows the full library, only the 10 newest sessions openable; older rows visibly locked but showing metadata (date, project, cost)
+- [x] Session list: sortable/filterable by date, project, cost, duration
+- [x] **Trial treatment designed now, not bolted on:** unlicensed mode shows the full library, only the 10 newest sessions openable; older rows visibly locked but showing metadata (date, project, cost)
 
 ### 2.2 Replay screen
 
-- [ ] react-virtuoso list (variable heights, reverse scroll); memoized rows
-- [ ] Threaded turns from the parent chain; tool calls collapsed by default (results can be enormous)
-- [ ] Sidechain/subagent runs as nested collapsible threads under the spawning tool call — hard rendering problem, real differentiator
-- [ ] Diff rendering: normalize Edit/Write tool records to unified diff, small custom component (side-by-side is v1.5)
-- [ ] Shiki in a web worker: lazy, on-demand as rows become visible, language whitelist (ts/js/tsx/py/go/rust/json/bash/diff), size cap per block with "highlight anyway"
+- [x] react-virtuoso list (variable heights, reverse scroll); memoized rows
+- [x] Threaded turns from the parent chain; tool calls collapsed by default (results can be enormous)
+- [x] Sidechain/subagent runs as nested collapsible threads under the spawning tool call — hard rendering problem, real differentiator
+- [x] Diff rendering: normalize Edit/Write tool records to unified diff, small custom component (side-by-side is v1.5)
+- [x] Shiki in a web worker: lazy, on-demand as rows become visible, language whitelist (ts/js/tsx/py/go/rust/json/bash/diff), size cap per block with "highlight anyway"
 
 ### 2.3 Search screen — the demo GIF; polish beyond reason
 
-- [ ] Query → results grouped by session with `highlight()` snippets
-- [ ] Click → session opened scrolled to the hit; prev/next match navigation
-- [ ] Keyboard-first: focus search on open, arrow through results
+- [x] Query → results grouped by session with `highlight()` snippets
+- [x] Click → session opened scrolled to the hit; prev/next match navigation
+- [x] Keyboard-first: focus search on open, arrow through results
 
 ### 2.4 Stats
 
-- [ ] Per-session stats panel: tokens, cost, duration, files touched, tool usage
+- [x] Per-session stats panel: tokens, cost, duration, files touched, tool usage
 
 **Exit criteria:** a 5,000-turn session scrolls at 60fps; you personally use Turnlog daily instead of grep.
+
+**Status 2026-07-05 — Phase 2 code complete.** `web/` is an npm workspace (Vite + React 18 + React Query + react-virtuoso + Shiki); bundle ships at ~139KB gz with language grammars lazily code-split. Verified end-to-end against the real 91-session index through the hardened server, including headless-browser screenshots of all three screens and the search→replay jump. Implementation decisions worth knowing: hash routing because the server deliberately serves only `/` (and `?token=` must survive reloads); the trial gate reads a new `licensed` flag on `/api/status` (hardcoded true until Phase 3; `TURNLOG_UNLICENSED=1` previews the locked UI); sidechain runs anchor to their Task call by matching the run's opening prompt against `input.prompt` (nearest-preceding-Task fallback, orphan runs render standalone — never dropped); message windows grow bidirectionally over the forward-only `after_idx` API; assistant prose renders via react-markdown (never raw HTML — session logs are untrusted input and the origin holds the API token); Nunito Sans + Fira Code woff2 bundled locally (OFL notice alongside). Deferred, deliberately: server-side enforcement of the trial gate + excluding locked sessions from search (Phase 3, with real licensing); branch-point rendering beyond file order (v1.5); 60fps-on-5,000-turns validation and daily-use verdict await real use. Post-completion UI iteration (same day): persistent session sidebar + centered home overview replacing the full-page library; dark + light themes as CSS tokens on `data-theme` (light is neutral cool, not beige; Shiki themes follow the toggle); card-based design language after a dashboard reference; Solar outline icons vendored (CC BY 4.0); Nunito Sans + Fira Code bundled; `npm run dev` one-command dev loop (Vite proxy needs `changeOrigin` — the Host check rejects the dev origin's port otherwise).
 
 ---
 

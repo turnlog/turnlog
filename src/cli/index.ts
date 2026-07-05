@@ -88,7 +88,9 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
 
   const dbFile = dbPath();
   const db = openDb(dbFile); // main-thread connection: creates schema, then read-only use
-  const token = crypto.randomBytes(16).toString('hex');
+  // TURNLOG_TOKEN is a dev-only escape hatch so the Vite proxy can inject a
+  // stable token; real launches always get a fresh random one.
+  const token = process.env.TURNLOG_TOKEN ?? crypto.randomBytes(16).toString('hex');
   const settings = loadSettings();
   const driver = new WorkerDriver({
     dbPath: dbFile,

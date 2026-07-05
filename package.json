@@ -15,9 +15,15 @@
     "dist",
     "web/dist"
   ],
+  "workspaces": [
+    "web"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.json && npm run build -w web",
+    "build:server": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && npm run typecheck -w web",
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "npm run dev -w web",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src test",

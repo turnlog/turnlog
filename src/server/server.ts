@@ -183,7 +183,11 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
   const q = url.searchParams;
 
   if (p === '/api/status') {
-    return sendJson(res, 200, { ...driver.status(), appVersion: APP_VERSION });
+    return sendJson(res, 200, {
+      ...driver.status(),
+      appVersion: APP_VERSION,
+      licensed: process.env.TURNLOG_UNLICENSED !== '1',
+    });
   }
   if (p === '/api/stats') {
     return sendJson(res, 200, getStats(db));
