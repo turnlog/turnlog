@@ -117,9 +117,11 @@ Derived from `turnlog-feature-brainstorm.md` §4: the fix for "it's just a scrol
 - [x] **4b Lenses:** collapse the session to one dimension — diffs only · bash only · errors only · prompts only. Cheap: `kind` is already a column. (Server-side `lens=` filter on the messages endpoint pulls paired tool_use/result rows in together; lens pills with counts in the replay header; tool blocks open by default inside a lens; `?l=` in the session URL.)
 - [x] **4e In-session find + sticky "you are here":** session-scoped find with next/prev (FTS `session=` filter, hits in document order) and a breadcrumb of the current turn. (Cmd/Ctrl-F opens the find bar; it drives the same `?q=` the global search uses, so the match bar is shared; log view gets a floating current-turn breadcrumb, the spine outline marks the topmost visible turn.)
 - [x] **4c Jump-to-error markers:** "N errors in this session →" from `is_error`, as jump points. (Floating error-nav pill cycles failing results in either view via the jump mechanism — the spine auto-expands the containing turn.)
-- [ ] **4d Outcome pivot** (v1 if the timebox holds, else first v1.5): expose `files_touched` via the API; file-tree → cumulative per-file diff — answers "what did this session do to my code" and sidesteps the transcript.
+- [x] **4d Outcome pivot:** files view (third segment beside spine/log, `?v=` deep-linkable) — touched-file list with edit counts and failure marks → the file's cumulative diffs in order, each with a "view in session" jump. Made v1-cheap by grouping the diffs lens client-side instead of a new endpoint; `files_touched` stays unexposed until something needs it cross-session.
 
 **Exit criteria:** a 5,000-turn session scans in ~ten spine rows; "where did it go wrong" is one click (error marker), not a scroll hunt.
+
+**Status 2026-07-05 — Phase 2.5 complete** (all five items, same day). Find-at-every-zoom now exists end to end: cross-session FTS → in-session find (`session=`-scoped, document-ordered hits, Cmd-F) → structure (spine · lenses · files pivot · error markers · you-are-here). The four dimensions carry a fixed color legend (diffs=mint, cmds=purple, errors=vermilion, prompts=ink). Session URLs encode everything: `?m=` jump, `?q=` find, `?l=` lens, `?v=` view.
 
 ---
 

@@ -123,9 +123,11 @@ weight, blue only where the agent speaks.
   sessions" list card (tiles, chips, ↗ circles) · "Projects" list card.
 - **Sidebar**: controls (project + sort dropdowns, direction circle, trial
   pill) over a hairline session list (tile, name, cost, sub-line, model chip).
-- **Replay**: white header card (back circle, title, chips, `spine|log`
-  toggle, stats pill) → spine (outline card + turn list card) or log
-  (single virtualized card). Match bar floats bottom-center.
+- **Replay**: white header card (back circle, title, chips, `spine|log|files`
+  toggle, lens pills with legend dots, stats pill) → spine (outline card +
+  turn list card), log (single virtualized card), or files (touched-file
+  list card + cumulative per-file diffs card). Match bar floats
+  bottom-center; error-nav pill bottom-right.
 - **Search**: pill input (vermilion focus ring), meta line, white group cards
   with hairline hits, blue `--mark` highlights.
 

@@ -224,18 +224,23 @@ kbd {
   font-family: var(--mono);
 }
 
+/* custom scrollbars — every scroller, both engines */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg3) transparent;
+}
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-thumb {
   background: var(--bg3);
-  border-radius: 5px;
-  border: 2px solid var(--bg0);
+  border-radius: 8px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--line);
+  background: var(--tx2);
 }
-::-webkit-scrollbar-track {
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
   background: transparent;
 }

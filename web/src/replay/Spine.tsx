@@ -150,18 +150,35 @@ export default function SpineView({
     return -1;
   };
 
-  // Jump target (search hit / match nav): expand its turn and bring it on-screen.
+  // Jump target (search hit / match nav / error nav): expand its turn and
+  // bring it on-screen. Auto-opens replace the previous auto-open so cycling
+  // through hits doesn't leave a trail of expanded turns.
+  const lastAutoOpened = useRef<number | null>(null);
   useEffect(() => {
     if (currentIdx === null) return;
     const key = containerOf(currentIdx);
-    setOpenTurns((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+    setOpenTurns((prev) => {
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      if (lastAutoOpened.current !== null && lastAutoOpened.current !== key) {
+        next.delete(lastAutoOpened.current);
+      }
+      next.add(key);
+      return next;
+    });
+    const smooth = lastAutoOpened.current !== null; // first landing is instant
+    lastAutoOpened.current = key;
     const listPos = items.findIndex((it) =>
       it.type === 'turn' ? it.turn.idx === key : key === -1,
     );
     if (listPos !== -1) {
       // Let the expanded body mount first, then align the turn.
       requestAnimationFrame(() =>
-        virtuoso.current?.scrollToIndex({ index: listPos, align: 'start' }),
+        virtuoso.current?.scrollToIndex({
+          index: listPos,
+          align: 'start',
+          behavior: smooth ? 'smooth' : 'auto',
+        }),
       );
     }
     // containerOf/items derive from data, which this effect intentionally
@@ -174,7 +191,7 @@ export default function SpineView({
     const wasOpen = openTurns.has(idx);
     toggle(idx);
     if (!wasOpen) {
-      virtuoso.current?.scrollToIndex({ index: listPos, align: 'start' });
+      virtuoso.current?.scrollToIndex({ index: listPos, align: 'start', behavior: 'smooth' });
     }
   };
 

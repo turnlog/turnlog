@@ -175,6 +175,7 @@ export default function App() {
               jumpIdx={route.jumpIdx}
               searchQuery={route.query}
               lens={route.lens}
+              view={route.view}
             />
           )}
         </main>

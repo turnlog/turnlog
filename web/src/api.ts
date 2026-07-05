@@ -184,6 +184,25 @@ export function useSearch(q: string, sessionId?: string) {
   });
 }
 
+/** Every row of one lens, paged to completion (files view needs all diffs). */
+export function useLensRows(sessionId: string, lens: string) {
+  return useQuery({
+    queryKey: ['lens-rows', sessionId, lens],
+    queryFn: async (): Promise<MessageRow[]> => {
+      const out: MessageRow[] = [];
+      let after = -1;
+      for (let i = 0; i < 10; i++) {
+        const res = await fetchMessages(sessionId, after, 2000, lens);
+        out.push(...res.messages);
+        if (out.length >= res.total || res.messages.length === 0) break;
+        after = res.messages[res.messages.length - 1]!.idx;
+      }
+      return out;
+    },
+    staleTime: 60_000,
+  });
+}
+
 /** Positions of failing tool results — the 4c jump markers. */
 export function useErrorIdxs(sessionId: string) {
   return useQuery({

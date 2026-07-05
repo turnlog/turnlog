@@ -27,17 +27,18 @@ import {
 } from '../format';
 import { navigate, sessionHash } from '../router';
 import { BlockView } from '../replay/blocks';
+import FilesView from '../replay/Files';
 import SpineView from '../replay/Spine';
 import { buildBlocks, idxToBlockMap } from '../replay/thread';
 import { SkeletonRows } from '../components/Skeleton';
 import type { MessageRow, SessionMeta, TurnSummary } from '../types';
-import type { Lens } from '../router';
+import type { Lens, ViewParam } from '../router';
 
 const PAGE = 300;
 const JUMP_BACKSCROLL = 40;
 const VIRTUOSO_BASE = 10_000_000;
 
-type ViewMode = 'spine' | 'log';
+type ViewMode = 'spine' | 'log' | 'files';
 
 /**
  * A contiguous window of messages, growable in both directions. The API
@@ -154,16 +155,16 @@ function LogView({
   const atBottom = useRef(false);
 
   const scrollToIdx = useCallback(
-    (target: number, attempt = 0) => {
+    (target: number, smooth: boolean, attempt = 0) => {
       const pos = idxMapRef.current.get(target);
       if (pos !== undefined) {
         virtuoso.current?.scrollToIndex({
           index: firstItemIndex + pos,
           align: 'center',
-          behavior: 'auto',
+          behavior: smooth ? 'smooth' : 'auto',
         });
       } else if (attempt < 20) {
-        requestAnimationFrame(() => scrollToIdx(target, attempt + 1));
+        requestAnimationFrame(() => scrollToIdx(target, smooth, attempt + 1));
       }
     },
     [firstItemIndex],
@@ -173,10 +174,11 @@ function LogView({
   const lastJump = useRef<number | null>(null);
   useEffect(() => {
     if (jumpIdx === null || lastJump.current === jumpIdx) return;
+    const smooth = lastJump.current !== null; // first landing is instant
     lastJump.current = jumpIdx;
     let alive = true;
     void win.ensureLoaded(jumpIdx).then(() => {
-      if (alive) requestAnimationFrame(() => scrollToIdx(jumpIdx));
+      if (alive) requestAnimationFrame(() => scrollToIdx(jumpIdx, smooth));
     });
     return () => {
       alive = false;
@@ -382,11 +384,13 @@ export default function Replay({
   jumpIdx,
   searchQuery,
   lens,
+  view,
 }: {
   sessionId: string;
   jumpIdx: number | null;
   searchQuery: string | null;
   lens: Lens | null;
+  view?: ViewParam | null;
 }) {
   const session = useSession(sessionId);
   const status = useStatus();
@@ -396,16 +400,18 @@ export default function Replay({
     !licensed && trialOpen.data !== undefined && !trialOpen.data.has(sessionId);
 
   const turns = useTurns(sessionId);
-  const [mode, setMode] = useState<ViewMode>(
-    () => (localStorage.getItem('turnlog-view') === 'log' ? 'log' : 'spine'),
-  );
+  const [mode, setMode] = useState<ViewMode>(() => {
+    if (view) return view; // ?v= deep link wins over the persisted choice
+    const stored = localStorage.getItem('turnlog-view');
+    return stored === 'log' || stored === 'files' ? stored : 'spine';
+  });
   const setModePersist = (m: ViewMode) => {
     localStorage.setItem('turnlog-view', m);
     setMode(m);
   };
   // Sessions without prompts (pure summaries etc.) have no spine to show.
   const spinePossible = turns.data === undefined || turns.data.turns.length > 0;
-  const effectiveMode: ViewMode = spinePossible ? mode : 'log';
+  const effectiveMode: ViewMode = mode === 'spine' && !spinePossible ? 'log' : mode;
   // A jump target must be visible — match navigation overrides the lens.
   const activeLens = jumpIdx === null ? lens : null;
 
@@ -506,6 +512,17 @@ export default function Replay({
             >
               log
             </button>
+            <button
+              role="tab"
+              aria-selected={activeLens === null && effectiveMode === 'files'}
+              className={activeLens === null && effectiveMode === 'files' ? 'active' : ''}
+              onClick={() => {
+                setModePersist('files');
+                if (activeLens) navigate(sessionHash(sessionId));
+              }}
+            >
+              files
+            </button>
           </div>
           <div className="view-toggle lens-toggle" role="tablist" aria-label="Lens">
             {LENS_LABELS.map(({ value, label, dot }) => {
@@ -555,7 +572,9 @@ export default function Replay({
 
       {activeLens !== null ? (
         <LogView key={activeLens} sessionId={sessionId} jumpIdx={null} lens={activeLens} />
-      ) : effectiveMode === 'spine' ? (
+      ) : effectiveMode === 'files' && jumpIdx === null ? (
+        <FilesView sessionId={sessionId} />
+      ) : effectiveMode === 'spine' || (effectiveMode === 'files' && jumpIdx !== null) ? (
         turns.data ? (
           <SpineView sessionId={sessionId} data={turns.data} currentIdx={jumpIdx} />
         ) : turns.isError ? (
