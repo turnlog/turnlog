@@ -8,6 +8,7 @@ import {
   useTrialOpenIds,
   type SessionsQuery,
 } from './api';
+import Dropdown from './components/Dropdown';
 import { fmtCost, fmtCount, fmtDate, fmtModel, projectName } from './format';
 import { LockIcon } from './icons';
 import { navigate, sessionHash } from './router';
@@ -81,30 +82,26 @@ export default function Sidebar({ activeId }: { activeId: string | null }) {
   return (
     <aside className="sidebar">
       <div className="sidebar-controls">
-        <select
+        <Dropdown
           value={project}
-          onChange={(e) => setProject(e.target.value)}
-          aria-label="Filter by project"
-        >
-          <option value="">all projects ({projects.data?.length ?? 0})</option>
-          {projects.data?.map((p) => (
-            <option key={p.projectKey} value={p.projectKey}>
-              {projectName(p)} ({p.sessionCount})
-            </option>
-          ))}
-        </select>
+          onChange={setProject}
+          ariaLabel="Filter by project"
+          options={[
+            { value: '', label: `all projects (${projects.data?.length ?? 0})` },
+            ...(projects.data?.map((p) => ({
+              value: p.projectKey,
+              label: `${projectName(p)} (${p.sessionCount})`,
+            })) ?? []),
+          ]}
+        />
         <div className="sidebar-controls-row">
-          <select
+          <Dropdown
+            className="dd-grow"
             value={sort}
-            onChange={(e) => setSort(e.target.value as typeof sort)}
-            aria-label="Sort by"
-          >
-            {SORTS.map((s) => (
-              <option key={s.value} value={s.value}>
-                by {s.label}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setSort(v as typeof sort)}
+            ariaLabel="Sort by"
+            options={SORTS.map((s) => ({ value: s.value, label: `by ${s.label}` }))}
+          />
           <button
             className="dir-toggle"
             onClick={() => setDir(dir === 'desc' ? 'asc' : 'desc')}

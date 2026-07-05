@@ -1,8 +1,9 @@
 /* ── Turnlog design tokens ─────────────────────────────────────────────
-   Archival instrument, two prints of the same negative:
-   dark  — ink-black layered surfaces, warm paper text, phosphor amber
-   light — warm paper surfaces, ink text, deepened amber
-   IBM Plex Sans for chrome, Plex Mono for content. Fonts are bundled —
+   Monochrome instrument, two prints of the same negative:
+   dark  — near-black surfaces, white accent
+   light — cool white surfaces, black accent
+   Color appears only where it carries meaning (diffs, errors, syntax).
+   Nunito Sans for chrome, Fira Code for content. Fonts are bundled —
    nothing loads from the network, ever. */
 
 @font-face {
@@ -40,34 +41,34 @@
   color-scheme: dark;
 
   /* surfaces, darkest → raised */
-  --bg0: #0a0d11;
-  --bg1: #0f141a;
-  --bg2: #151c24;
-  --bg3: #1c2530;
-  --line: #222c37;
-  --line-soft: #1a222c;
+  --bg0: #0b0d10;
+  --bg1: #101318;
+  --bg2: #171b21;
+  --bg3: #20252d;
+  --line: #262c35;
+  --line-soft: #1c2129;
 
   /* text */
-  --tx0: #e9e4d8;
-  --tx1: #a3adb6;
-  --tx2: #67737d;
+  --tx0: #e8eaee;
+  --tx1: #a0a6b0;
+  --tx2: #676d78;
 
-  /* the accent — phosphor amber */
-  --amber: #f0a848;
-  --amber-hi: #ffc46e;
-  --amber-dim: rgba(240, 168, 72, 0.14);
-  --mark: rgba(240, 168, 72, 0.24);
+  /* the accent — white on dark */
+  --accent: #f2f3f5;
+  --accent-hi: #ffffff;
+  --accent-dim: rgba(240, 243, 248, 0.09);
+  --mark: rgba(240, 243, 248, 0.24);
 
-  /* role rails */
-  --c-user: #f0a848;      /* prompts — the accent itself */
-  --c-assistant: #8fd0c3; /* sea-glass */
-  --c-tool: #8f9ec4;      /* slate blue */
-  --c-side: #5cb8a6;      /* teal — subagent runs */
+  /* role rails — shades of the same ink */
+  --c-user: #e8eaee;      /* prompts — strongest */
+  --c-assistant: #9aa1ad;
+  --c-tool: #565d68;
+  --c-side: #8a92a0;      /* subagent runs */
   --c-error: #e06c5e;
-  --c-dim: #4a5560;
-  --c-ok: #57b370;
+  --c-dim: #3a4048;
+  --c-ok: #676d78;
 
-  /* diff */
+  /* diff — semantic color stays */
   --diff-add-bg: rgba(80, 180, 120, 0.12);
   --diff-add-tx: #9fd8b4;
   --diff-del-bg: rgba(224, 108, 94, 0.12);
@@ -75,17 +76,17 @@
 
   --shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
   --grain: rgba(255, 255, 255, 0.0045);
-  --wash: rgba(240, 168, 72, 0.045);
-  --wash2: rgba(122, 110, 190, 0.05);
+  --wash: rgba(170, 180, 215, 0.05);
+  --wash2: rgba(120, 130, 175, 0.05);
 
-  /* floating-card system */
-  --card: #0f141b;
-  --card-line: #1c2530;
+  /* floating-card system; contrast card inverts to white */
+  --card: #10131a;
+  --card-line: #1d222b;
   --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.32);
-  --contrast-bg: linear-gradient(150deg, #1e2833 0%, #12161d 70%);
-  --contrast-tx: #e9e4d8;
-  --contrast-tx-dim: #96a0aa;
-  --contrast-line: rgba(255, 255, 255, 0.07);
+  --contrast-bg: linear-gradient(150deg, #f6f7f9 0%, #e8eaef 75%);
+  --contrast-tx: #17191d;
+  --contrast-tx-dim: #5b616c;
+  --contrast-line: rgba(20, 25, 35, 0.1);
 
   --sans: 'Nunito Sans', system-ui, sans-serif;
   --mono: 'Fira Code', ui-monospace, 'SF Mono', Menlo, monospace;
@@ -100,32 +101,33 @@
 :root[data-theme='light'] {
   color-scheme: light;
 
-  /* neutral cool light — warmth comes only from the corner washes + amber */
-  --bg0: #eef0f4;
-  --bg1: #f6f7fa;
-  --bg2: #e7eaef;
-  --bg3: #dbdfe7;
-  --line: #d2d7df;
-  --line-soft: #e3e7ed;
+  /* cool white — the only "colors" are ink and paper */
+  --bg0: #edeff5;
+  --bg1: #f5f6fa;
+  --bg2: #e7e9f0;
+  --bg3: #dbdee7;
+  --line: #d3d6df;
+  --line-soft: #e4e6ed;
 
   /* ink */
-  --tx0: #212530;
-  --tx1: #5a6270;
-  --tx2: #8a92a0;
+  --tx0: #1d2026;
+  --tx1: #5b616c;
+  --tx2: #9096a1;
 
-  /* amber, deepened for light contrast */
-  --amber: #b06f10;
-  --amber-hi: #8a5606;
-  --amber-dim: rgba(190, 120, 25, 0.11);
-  --mark: rgba(220, 140, 30, 0.3);
+  /* the accent — black on light */
+  --accent: #17191d;
+  --accent-hi: #000000;
+  --accent-dim: rgba(23, 25, 29, 0.06);
+  --mark: rgba(23, 25, 29, 0.16);
 
-  --c-user: #b06f10;
-  --c-assistant: #1f7a68;
-  --c-tool: #4a5f96;
-  --c-side: #17756a;
+  /* role rails — shades of the same ink */
+  --c-user: #1d2026;
+  --c-assistant: #7a8090;
+  --c-tool: #c3c7d1;
+  --c-side: #5b616c;
   --c-error: #b03a2c;
-  --c-dim: #a6adb9;
-  --c-ok: #2e8b4f;
+  --c-dim: #d5d8e0;
+  --c-ok: #9096a1;
 
   --diff-add-bg: rgba(60, 140, 90, 0.13);
   --diff-add-tx: #1d6b3d;
@@ -134,14 +136,14 @@
 
   --shadow: 0 6px 24px rgba(35, 45, 70, 0.14);
   --grain: rgba(30, 40, 60, 0.012);
-  --wash: rgba(235, 140, 60, 0.13);
-  --wash2: rgba(140, 130, 205, 0.12);
+  --wash: rgba(150, 160, 220, 0.16);
+  --wash2: rgba(185, 175, 225, 0.14);
 
   --card: #ffffff;
-  --card-line: #e6e9ef;
+  --card-line: #e8eaf1;
   --card-shadow: 0 12px 32px rgba(40, 55, 90, 0.08);
-  --contrast-bg: linear-gradient(150deg, #2a2e38 0%, #15171d 75%);
-  --contrast-tx: #edeef2;
+  --contrast-bg: linear-gradient(150deg, #24272e 0%, #101215 75%);
+  --contrast-tx: #f2f3f5;
   --contrast-tx-dim: #9aa1ad;
   --contrast-line: rgba(255, 255, 255, 0.08);
 }
@@ -182,11 +184,11 @@ body {
 }
 
 a {
-  color: var(--amber);
+  color: var(--accent);
   text-decoration: none;
 }
 a:hover {
-  color: var(--amber-hi);
+  color: var(--accent-hi);
 }
 
 button {
@@ -211,7 +213,7 @@ select {
 input:focus-visible,
 select:focus-visible,
 button:focus-visible {
-  outline: 1px solid var(--amber);
+  outline: 1px solid var(--accent);
   outline-offset: 1px;
 }
 input::placeholder {

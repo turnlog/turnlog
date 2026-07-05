@@ -15,7 +15,7 @@ function Wordmark() {
         <rect width="32" height="32" rx="6" fill="var(--bg3)" />
         <path
           d="M8 10h16M8 16h11M8 22h14"
-          stroke="var(--amber)"
+          stroke="var(--accent)"
           strokeWidth="3"
           strokeLinecap="round"
         />
