@@ -146,9 +146,9 @@ export default function Home() {
           <section className="card accent-card">
             <div className="accent-card-head">
               <h2>Est. spend</h2>
-              <span className="circle circle-sm circle-onaccent">
+              <a className="circle circle-sm circle-onaccent" href="#/spend" aria-label="Open spend view">
                 <ArrowUpRight />
-              </span>
+              </a>
             </div>
             <strong className="accent-big">{s ? fmtCost(s.costUsd) : <Skel w={140} h={34} className="skel-onaccent" />}</strong>
             <p>computed locally from the shipped pricing table</p>

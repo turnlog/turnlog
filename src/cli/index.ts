@@ -98,7 +98,10 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
     pricingOverrides: settings.modelPricing,
   });
 
-  const { server, url } = await startServer({ db, driver, token }, { port: opts.port });
+  const { server, url } = await startServer(
+    { db, driver, token, pricingOverrides: settings.modelPricing },
+    { port: opts.port },
+  );
 
   console.log(`turnlog ${APP_VERSION}`);
   console.log(`  UI:       ${url}`);

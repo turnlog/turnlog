@@ -125,6 +125,20 @@ Derived from `turnlog-feature-brainstorm.md` §4: the fix for "it's just a scrol
 
 ---
 
+## Phase 2.6 — Spend view (individual · local · search-powered)
+
+Decision 2026-07-05, refining the brainstorm's 🔴 on cost dashboards with guardrails: an individual, Claude Code-only, 100% local spend screen ships **inside Turnlog**, because the hard 20% of any spend tracker (parsers, pricing, watcher, backfill) *is* our existing index — a spend view is a query layer over it. The positioning trap is avoided two ways: every number is fusable with a search query (the brainstorm's one 🟢 cost angle — "what did work-matching-X cost me", which no content-blind tracker can copy), and spend is a launch *hook* (shareable screenshot, content posts), never the headline — the landing page still leads with search & replay. **Team mode is explicitly not a Turnlog feature**: any sync path breaks the absolute no-network promise; if demand appears it becomes a separate product sharing the parser core. Cost attribution is session-level (start date) — one source of truth with every other number in the app; per-message daily attribution would need the cache-TTL split we don't store per row.
+
+- [x] Per-project cost rollup (finishes the table stakes: `ProjectInfo` gains cost/turns)
+- [x] Search aggregates: `SearchResponse.aggregates` computed over the **full** match set, not the truncated page (sessions, est. cost, turns, tokens, unpriced count); quiet strip on the search screen
+- [x] `/api/spend`: daily rollups over sessions (start-date attribution), splits by model and project, period param, optional `q=` FTS filter, cache-savings estimate from the pricing table
+- [x] Spend screen: daily bars (hand-rolled SVG, design-system palette — no chart dependency), model/project breakdowns with legend dots, cache-efficiency stat, 7/30/90d toggle, search filter, CSV/JSON export; header nav entry + home spend card links to it
+- [ ] Explicitly not building: budgets/alerts, menu-bar live cost, rate-limit prediction, team sync, non-CC tools until their *search* adapter exists
+
+**Exit criteria:** "what did work-matching-X cost me" is one query; the spend screenshot is shareable without Turnlog reading as a stats tool.
+
+---
+
 ## Phase 3 — Licensing, backend, packaging (weeks 4–5)
 
 Turns the working tool into a sellable product. Depends on Phase 0's keypair and Paddle approval.

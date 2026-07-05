@@ -129,7 +129,16 @@ export default function Search({ query }: { query: string }) {
             <span>
               {fmtCount(search.data?.totalHits ?? 0)} hit
               {(search.data?.totalHits ?? 0) === 1 ? '' : 's'} in {groups.length} session
-              {groups.length === 1 ? '' : 's'} · <kbd>↑↓</kbd> navigate · <kbd>Enter</kbd> open
+              {groups.length === 1 ? '' : 's'}
+              {search.data?.aggregates && search.data.aggregates.matchedSessions > 0 && (
+                <>
+                  {' · '}this work cost <strong>{fmtCost(search.data.aggregates.totalCostUsd)}</strong> est.
+                  {' across '}
+                  {fmtCount(search.data.aggregates.totalTurns)} turns
+                </>
+              )}
+              {' · '}
+              <kbd>↑↓</kbd> navigate · <kbd>Enter</kbd> open
             </span>
           )}
         </div>

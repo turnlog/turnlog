@@ -1,11 +1,14 @@
 import type Database from 'better-sqlite3';
+import { pricingForModel, type ModelPricing } from '../cost/pricing.js';
 import type {
   MessageListResponse,
   MessageRow,
   ProjectInfo,
+  SearchAggregates,
   SearchResponse,
   SessionListResponse,
   SessionMeta,
+  SpendResponse,
   StatsResponse,
   TurnsResponse,
   TurnSummary,
@@ -253,12 +256,40 @@ export function toFtsQuery(input: string): string | null {
   return parts.length > 0 ? parts.join(' ') : null;
 }
 
+const MATCHED_SESSIONS_SQL = `SELECT DISTINCT m.session_id
+  FROM messages_fts JOIN messages m ON m.rowid = messages_fts.rowid
+  WHERE messages_fts MATCH ?`;
+
+function searchAggregates(db: Database.Database, match: string): SearchAggregates | null {
+  try {
+    const row = db
+      .prepare(
+        `SELECT COUNT(*) AS n,
+                COALESCE(SUM(cost_usd), 0) AS cost,
+                SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END) AS unpriced,
+                COALESCE(SUM(turn_count), 0) AS turns,
+                COALESCE(SUM(input_tokens + output_tokens), 0) AS tokens
+         FROM sessions WHERE id IN (${MATCHED_SESSIONS_SQL})`,
+      )
+      .get(match) as any;
+    return {
+      matchedSessions: row.n,
+      totalCostUsd: row.cost,
+      unpricedSessions: row.unpriced ?? 0,
+      totalTurns: row.turns,
+      totalTokens: row.tokens,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function searchMessages(
   db: Database.Database,
   q: { query: string; limit?: number; sessionId?: string },
 ): SearchResponse {
   const match = toFtsQuery(q.query);
-  const empty: SearchResponse = { query: q.query, groups: [], totalHits: 0 };
+  const empty: SearchResponse = { query: q.query, groups: [], totalHits: 0, aggregates: null };
   if (!match) return empty;
   const limit = Math.min(Math.max(q.limit ?? 100, 1), 500);
 
@@ -308,13 +339,20 @@ export function searchMessages(
     });
   }
 
-  return { query: q.query, groups: [...groups.values()], totalHits: rows.length };
+  return {
+    query: q.query,
+    groups: [...groups.values()],
+    totalHits: rows.length,
+    // Session-scoped find doesn't need money attached to it.
+    aggregates: q.sessionId === undefined ? searchAggregates(db, match) : null,
+  };
 }
 
 export function listProjects(db: Database.Database): ProjectInfo[] {
   const rows = db
     .prepare(
-      `SELECT project_key, MAX(project_path) AS project_path, COUNT(*) AS n
+      `SELECT project_key, MAX(project_path) AS project_path, COUNT(*) AS n,
+              COALESCE(SUM(cost_usd), 0) AS cost
        FROM sessions GROUP BY project_key ORDER BY n DESC`,
     )
     .all();
@@ -322,7 +360,89 @@ export function listProjects(db: Database.Database): ProjectInfo[] {
     projectKey: r.project_key,
     projectPath: r.project_path,
     sessionCount: r.n,
+    costUsd: r.cost,
   }));
+}
+
+/**
+ * The spend view (roadmap Phase 2.6): daily rollups and splits over the
+ * session index, optionally narrowed to sessions matching an FTS query —
+ * "what did this kind of work cost me". Session-start attribution.
+ */
+export function getSpend(
+  db: Database.Database,
+  q: { days?: number; query?: string; pricingOverrides?: Record<string, Partial<ModelPricing>> },
+): SpendResponse {
+  const sinceDays = Math.min(Math.max(Math.floor(q.days ?? 30), 1), 3650);
+  const cutoff = new Date(Date.now() - sinceDays * 86_400_000).toISOString();
+  const match = q.query ? toFtsQuery(q.query) : null;
+  const matchSql = match ? `AND id IN (${MATCHED_SESSIONS_SQL.replace('?', '@match')})` : '';
+  const where = `FROM sessions WHERE started_at >= @cutoff ${matchSql}`;
+  const params = match ? { cutoff, match } : { cutoff };
+
+  const run = <T>(sql: string): T[] => db.prepare(sql).all(params) as T[];
+
+  const days = run<{ date: string; cost: number; tokens: number; n: number }>(
+    `SELECT substr(started_at, 1, 10) AS date, COALESCE(SUM(cost_usd), 0) AS cost,
+            COALESCE(SUM(input_tokens + output_tokens), 0) AS tokens, COUNT(*) AS n
+     ${where} GROUP BY date ORDER BY date`,
+  );
+  const byModel = run<{ key: string | null; cost: number; tokens: number; n: number; cr: number }>(
+    `SELECT model AS key, COALESCE(SUM(cost_usd), 0) AS cost,
+            COALESCE(SUM(input_tokens + output_tokens), 0) AS tokens, COUNT(*) AS n,
+            COALESCE(SUM(cache_read_tokens), 0) AS cr
+     ${where} GROUP BY model ORDER BY cost DESC`,
+  );
+  const byProject = run<{ key: string | null; cost: number; tokens: number; n: number }>(
+    `SELECT project_key AS key, COALESCE(SUM(cost_usd), 0) AS cost,
+            COALESCE(SUM(input_tokens + output_tokens), 0) AS tokens, COUNT(*) AS n
+     ${where} GROUP BY project_key ORDER BY cost DESC`,
+  );
+  const totals = db
+    .prepare(
+      `SELECT COUNT(*) AS n, COALESCE(SUM(cost_usd), 0) AS cost,
+              SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END) AS unpriced,
+              COALESCE(SUM(input_tokens), 0) AS tin, COALESCE(SUM(output_tokens), 0) AS tout,
+              COALESCE(SUM(cache_read_tokens), 0) AS cr, COALESCE(SUM(cache_write_tokens), 0) AS cw
+       ${where}`,
+    )
+    .get(params) as any;
+
+  // Cache savings: reads billed at cacheRead instead of the full input rate.
+  let cacheSavedUsd = 0;
+  for (const m of byModel) {
+    if (!m.key || m.cr === 0) continue;
+    const p = pricingForModel(m.key, q.pricingOverrides);
+    if (p) cacheSavedUsd += (m.cr * (p.input - p.cacheRead)) / 1_000_000;
+  }
+
+  return {
+    days: days.map((d) => ({ date: d.date, costUsd: d.cost, tokens: d.tokens, sessions: d.n })),
+    byModel: byModel.map((m) => ({
+      key: m.key ?? 'unknown',
+      costUsd: m.cost,
+      tokens: m.tokens,
+      sessions: m.n,
+    })),
+    byProject: byProject.map((p) => ({
+      key: p.key ?? 'unknown',
+      costUsd: p.cost,
+      tokens: p.tokens,
+      sessions: p.n,
+    })),
+    totals: {
+      costUsd: totals.cost,
+      unpricedSessions: totals.unpriced ?? 0,
+      sessions: totals.n,
+      inputTokens: totals.tin,
+      outputTokens: totals.tout,
+      cacheReadTokens: totals.cr,
+      cacheWriteTokens: totals.cw,
+      cacheSavedUsd,
+    },
+    sinceDays,
+    query: match ? q.query! : null,
+  };
 }
 
 export function getStats(db: Database.Database): StatsResponse {

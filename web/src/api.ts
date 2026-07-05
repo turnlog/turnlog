@@ -7,6 +7,7 @@ import {
 import type {
   MessageListResponse,
   MessageRow,
+  SpendResponse,
   ProjectInfo,
   SearchResponse,
   SessionListResponse,
@@ -212,6 +213,19 @@ export function useErrorIdxs(sessionId: string) {
       return res.messages.filter((m) => m.isError).map((m) => m.idx);
     },
     staleTime: 60_000,
+  });
+}
+
+export function useSpend(days: number, q: string) {
+  const query = q.trim();
+  return useQuery({
+    queryKey: ['spend', days, query],
+    queryFn: () =>
+      apiFetch<SpendResponse>(
+        `/api/spend?days=${days}${query ? `&q=${encodeURIComponent(query)}` : ''}`,
+      ),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
   });
 }
 

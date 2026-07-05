@@ -6,6 +6,7 @@ import type Database from 'better-sqlite3';
 import type { IndexDriver } from '../indexer/driver.js';
 import {
   getSession,
+  getSpend,
   getStats,
   isLens,
   listMessages,
@@ -14,6 +15,7 @@ import {
   listTurns,
   searchMessages,
 } from './api.js';
+import type { ModelPricing } from '../cost/pricing.js';
 import { placeholderHtml } from './placeholder.js';
 import { APP_VERSION } from '../version.js';
 
@@ -22,6 +24,8 @@ export interface ServerContext {
   driver: IndexDriver;
   /** Random per-launch token; required on every /api request. */
   token: string;
+  /** Bedrock/enterprise per-model rate overrides from settings.json. */
+  pricingOverrides?: Record<string, Partial<ModelPricing>>;
 }
 
 const ALLOWED_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '[::1]']);
@@ -196,6 +200,17 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
   }
   if (p === '/api/projects') {
     return sendJson(res, 200, listProjects(db));
+  }
+  if (p === '/api/spend') {
+    return sendJson(
+      res,
+      200,
+      getSpend(db, {
+        days: q.has('days') ? Number(q.get('days')) : undefined,
+        query: q.get('q') ?? undefined,
+        pricingOverrides: ctx.pricingOverrides,
+      }),
+    );
   }
   if (p === '/api/sessions') {
     return sendJson(

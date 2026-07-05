@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { hasToken, useStatus } from './api';
-import { MagniferIcon, MoonIcon, SidebarIcon, SunIcon } from './icons';
+import { MagniferIcon, MoonIcon, SidebarIcon, SunIcon, WalletIcon } from './icons';
 import { navigate, searchHash, useRoute } from './router';
 import Home from './screens/Home';
 import Replay from './screens/Replay';
 import Search from './screens/Search';
+import Spend from './screens/Spend';
 import Sidebar from './Sidebar';
 import { setTheme, useTheme } from './theme';
 
@@ -150,6 +151,14 @@ export default function App() {
         </a>
         <div className="header-right">
           <TopSearch />
+          <a
+            className={`circle ${route.name === 'spend' ? 'circle-active' : ''}`}
+            href="#/spend"
+            aria-label="Spend"
+            title="Spend"
+          >
+            <WalletIcon size={17} />
+          </a>
           <button
             className="circle"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -168,6 +177,7 @@ export default function App() {
         <main className="screen">
           {route.name === 'library' && <Home />}
           {route.name === 'search' && <Search query={route.query} />}
+          {route.name === 'spend' && <Spend />}
           {route.name === 'session' && (
             <Replay
               key={route.id}

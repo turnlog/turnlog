@@ -26,7 +26,8 @@ export type Route =
       lens: Lens | null;
       view: ViewParam | null;
     }
-  | { name: 'search'; query: string };
+  | { name: 'search'; query: string }
+  | { name: 'spend' };
 
 export function parseRoute(hash: string): Route {
   const h = hash.startsWith('#') ? hash.slice(1) : hash;
@@ -50,6 +51,9 @@ export function parseRoute(hash: string): Route {
   }
   if (path === '/search') {
     return { name: 'search', query: params.get('q') ?? '' };
+  }
+  if (path === '/spend') {
+    return { name: 'spend' };
   }
   return { name: 'library' };
 }

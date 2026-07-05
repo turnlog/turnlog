@@ -80,10 +80,25 @@ export interface SearchGroup {
   hits: SearchHit[];
 }
 
+/**
+ * Aggregates over the FULL match set (not the truncated hit page) — the
+ * "what did this kind of work cost me" number nobody without a content
+ * index can compute.
+ */
+export interface SearchAggregates {
+  matchedSessions: number;
+  totalCostUsd: number;
+  /** Sessions excluded from the sum (unknown model, no override). */
+  unpricedSessions: number;
+  totalTurns: number;
+  totalTokens: number;
+}
+
 export interface SearchResponse {
   query: string;
   groups: SearchGroup[];
   totalHits: number;
+  aggregates: SearchAggregates | null;
 }
 
 /**
@@ -125,6 +140,43 @@ export interface ProjectInfo {
   projectKey: string;
   projectPath: string | null;
   sessionCount: number;
+  /** Estimated — sum of the project's session costs. */
+  costUsd: number;
+}
+
+export interface SpendDay {
+  /** YYYY-MM-DD (session start date — cost attributes to the day it began). */
+  date: string;
+  costUsd: number;
+  tokens: number;
+  sessions: number;
+}
+
+export interface SpendSplit {
+  /** Model id or project key. */
+  key: string;
+  costUsd: number;
+  tokens: number;
+  sessions: number;
+}
+
+export interface SpendResponse {
+  days: SpendDay[];
+  byModel: SpendSplit[];
+  byProject: SpendSplit[];
+  totals: {
+    costUsd: number;
+    unpricedSessions: number;
+    sessions: number;
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    cacheWriteTokens: number;
+    /** Est. saved by prompt caching vs. paying input rate for read tokens. */
+    cacheSavedUsd: number;
+  };
+  sinceDays: number;
+  query: string | null;
 }
 
 export interface StatsResponse {
