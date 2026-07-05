@@ -1,5 +1,5 @@
-Nunito Sans
-Copyright © 2014 The Nunito Project Authors, with Reserved Font Name "Nunito Sans"
+Instrument Sans
+Copyright © 2022 The Instrument Sans Project Authors
 
 Fira Code
 Copyright © 2014–present The Fira Code Project Authors

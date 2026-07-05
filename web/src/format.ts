@@ -84,3 +84,10 @@ export function fmtModel(model: string | null): string {
 export function shortId(id: string): string {
   return id.length > 8 ? id.slice(0, 8) : id;
 }
+
+/** Rotating tile colors for project marks (reference: orange / navy / blue). */
+export function tileClass(key: string | null): string {
+  let h = 0;
+  for (const ch of key ?? '') h = (h * 31 + ch.charCodeAt(0)) | 0;
+  return `tile-${['a', 'b', 'c'][Math.abs(h) % 3]}`;
+}

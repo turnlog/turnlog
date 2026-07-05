@@ -8,40 +8,17 @@ import Search from './screens/Search';
 import Sidebar from './Sidebar';
 import { setTheme, useTheme } from './theme';
 
-function Wordmark() {
+export function Brandmark({ size = 40 }: { size?: number }) {
   return (
-    <a href="#/" className="wordmark" aria-label="Turnlog — library">
-      <svg width="18" height="18" viewBox="0 0 32 32" aria-hidden>
-        <rect width="32" height="32" rx="6" fill="var(--bg3)" />
-        <path
-          d="M8 10h16M8 16h11M8 22h14"
-          stroke="var(--accent)"
-          strokeWidth="3"
-          strokeLinecap="round"
-        />
-      </svg>
-      <span>turnlog</span>
-    </a>
-  );
-}
-
-function StatusChip() {
-  const { data } = useStatus();
-  if (!data) return null;
-  const indexing = data.state === 'indexing';
-  return (
-    <div className="status-chip" title={data.lastError ?? undefined}>
-      <span className={`status-dot ${indexing ? 'busy' : 'idle'}`} />
-      {indexing ? (
-        <span>
-          indexing {data.filesDone}/{data.filesTotal}
-        </span>
-      ) : (
-        <span>index up to date</span>
-      )}
-      {data.lastError && <span className="status-err">!</span>}
-      <span className="status-version">v{data.appVersion}</span>
-    </div>
+    <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden>
+      <circle cx="20" cy="20" r="20" fill="var(--contrast-solid)" />
+      <path
+        d="M12 14h16M12 20h11M12 26h14"
+        stroke="var(--contrast-on)"
+        strokeWidth="2.6"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
@@ -50,7 +27,6 @@ function TopSearch() {
   const [value, setValue] = useState(route.name === 'search' ? route.query : '');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Keep the box in sync when navigation changes the query elsewhere.
   useEffect(() => {
     if (route.name === 'search') setValue(route.query);
   }, [route.name === 'search' ? route.query : null]);
@@ -76,7 +52,7 @@ function TopSearch() {
         if (value.trim()) navigate(searchHash(value.trim()));
       }}
     >
-      <MagniferIcon className="top-search-icon" size={14} />
+      <MagniferIcon size={15} className="top-search-ico" />
       <input
         ref={inputRef}
         value={value}
@@ -84,39 +60,33 @@ function TopSearch() {
         onKeyDown={(e) => {
           if (e.key === 'Escape') (e.target as HTMLInputElement).blur();
         }}
-        placeholder="Search every session…"
+        placeholder="Start searching here…"
         aria-label="Search all sessions"
       />
-      <kbd>/</kbd>
     </form>
   );
 }
 
-function ThemeToggle() {
-  const theme = useTheme();
-  const dark = theme === 'dark';
+function StatusCircle() {
+  const { data } = useStatus();
+  const indexing = data?.state === 'indexing';
   return (
-    <button
-      className="icon-btn"
-      onClick={() => setTheme(dark ? 'light' : 'dark')}
-      aria-label={`Switch to ${dark ? 'light' : 'dark'} theme`}
-      title={`Switch to ${dark ? 'light' : 'dark'} theme`}
+    <div
+      className="circle"
+      title={
+        data
+          ? data.lastError ??
+            (indexing
+              ? `indexing ${data.filesDone}/${data.filesTotal}`
+              : `index up to date · v${data.appVersion}`)
+          : 'connecting…'
+      }
+      aria-label="Index status"
     >
-      {dark ? <SunIcon size={16} /> : <MoonIcon size={16} />}
-    </button>
-  );
-}
-
-function SidebarToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
-  return (
-    <button
-      className={`icon-btn ${open ? 'active' : ''}`}
-      onClick={onToggle}
-      aria-label={`${open ? 'Hide' : 'Show'} session sidebar`}
-      title={`${open ? 'Hide' : 'Show'} sessions`}
-    >
-      <SidebarIcon size={16} />
-    </button>
+      <span
+        className={`status-dot ${indexing ? 'busy' : 'idle'} ${data?.lastError ? 'err' : ''}`}
+      />
+    </div>
   );
 }
 
@@ -141,6 +111,7 @@ function NoToken() {
 
 export default function App() {
   const route = useRoute();
+  const theme = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(
     () => localStorage.getItem('turnlog-sidebar') !== '0',
   );
@@ -151,17 +122,43 @@ export default function App() {
     });
   };
 
+  useEffect(() => {
+    const onOpenSidebar = () => setSidebarOpen(true);
+    window.addEventListener('turnlog:open-sidebar', onOpenSidebar);
+    return () => window.removeEventListener('turnlog:open-sidebar', onOpenSidebar);
+  }, []);
+
   if (!hasToken()) return <NoToken />;
 
   return (
     <div className="app">
-      <header className="topbar">
-        <SidebarToggle open={sidebarOpen} onToggle={toggleSidebar} />
-        <Wordmark />
-        <TopSearch />
-        <div className="topbar-right">
-          <ThemeToggle />
-          <StatusChip />
+      <header className="header">
+        <button
+          className={`circle ${sidebarOpen ? 'circle-active' : ''}`}
+          onClick={toggleSidebar}
+          aria-label={`${sidebarOpen ? 'Hide' : 'Show'} sessions`}
+          title="Sessions"
+        >
+          <SidebarIcon size={17} />
+        </button>
+        <a href="#/" className="header-brand" aria-label="Turnlog — overview">
+          <Brandmark />
+          <span className="header-title">
+            Turnlog
+            <em>Search &amp; replay</em>
+          </span>
+        </a>
+        <div className="header-right">
+          <TopSearch />
+          <button
+            className="circle"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+            title="Theme"
+          >
+            {theme === 'dark' ? <SunIcon size={16} /> : <MoonIcon size={16} />}
+          </button>
+          <StatusCircle />
         </div>
       </header>
       <div className="app-body">

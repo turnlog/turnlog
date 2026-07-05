@@ -9,7 +9,8 @@ import {
   type SessionsQuery,
 } from './api';
 import Dropdown from './components/Dropdown';
-import { fmtCost, fmtCount, fmtDate, fmtModel, projectName } from './format';
+import { setProjectFilter, useProjectFilter } from './filterStore';
+import { fmtCost, fmtCount, fmtDate, fmtModel, projectName, tileClass } from './format';
 import { LockIcon } from './icons';
 import { navigate, sessionHash } from './router';
 import type { SessionMeta } from './types';
@@ -47,16 +48,21 @@ function Item({
       aria-disabled={locked}
       aria-current={active ? 'page' : undefined}
     >
-      <div className="side-item-top">
-        <span className="side-item-project">{projectName(s)}</span>
-        <span className="side-item-cost">{fmtCost(s.costUsd)}</span>
-      </div>
-      <div className="side-item-sub">
-        {locked && <LockGlyph />}
-        <span>{fmtDate(s.startedAt)}</span>
-        <span>· {fmtCount(s.turnCount)}t</span>
-        {s.model && <span className="side-item-model">{fmtModel(s.model)}</span>}
-      </div>
+      <span className={`tile tile-sm ${tileClass(s.projectKey)}`}>
+        {projectName(s)[0]?.toUpperCase() ?? '·'}
+      </span>
+      <span className="side-item-main">
+        <span className="side-item-top">
+          <span className="side-item-project">{projectName(s)}</span>
+          <span className="side-item-cost">{fmtCost(s.costUsd)}</span>
+        </span>
+        <span className="side-item-sub">
+          {locked && <LockGlyph />}
+          <span>{fmtDate(s.startedAt)}</span>
+          <span>· {fmtCount(s.turnCount)}t</span>
+          {s.model && <span className="side-item-model">{fmtModel(s.model)}</span>}
+        </span>
+      </span>
     </button>
   );
 }
@@ -64,7 +70,8 @@ function Item({
 export default function Sidebar({ activeId }: { activeId: string | null }) {
   const [sort, setSort] = useState<NonNullable<SessionsQuery['sort']>>('started_at');
   const [dir, setDir] = useState<'asc' | 'desc'>('desc');
-  const [project, setProject] = useState('');
+  const project = useProjectFilter();
+  const setProject = setProjectFilter;
 
   const status = useStatus();
   const projects = useProjects();
