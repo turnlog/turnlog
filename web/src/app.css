@@ -2389,26 +2389,42 @@
 }
 .calendar-block {
   position: absolute;
-  border-radius: 8px;
-  padding: 4px 8px;
+  border-radius: 7px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 0;
   text-align: left;
   transition: filter 80ms;
+  box-shadow: 0 0 0 1.5px var(--card);
 }
 .calendar-block:hover {
   filter: brightness(1.08);
-  z-index: 2;
+  z-index: 3;
+}
+.calendar-block.tier-full {
+  padding: 4px 8px;
+  justify-content: flex-start;
+  gap: 0;
+}
+.calendar-block.tier-compact {
+  padding: 2px 7px;
+  justify-content: center;
+}
+.calendar-block.tier-bar {
+  padding: 0;
+  border-radius: 4px;
 }
 .calendar-block-name {
   font-size: 11px;
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.tier-compact .calendar-block-name {
+  font-size: 10px;
+  font-weight: 600;
 }
 .calendar-block-meta {
   font-family: var(--mono);

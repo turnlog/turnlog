@@ -14,8 +14,8 @@ import type { SessionMeta } from '../types';
 
 const DAY_MS = 86_400_000;
 const MIN_SPAN_H = 8;
-const MIN_BLOCK_PX = 22;
 const COL_H = 640;
+const INNER_H = COL_H - 34; // column body height below the day header, px
 
 type Mode = 'week' | 'month';
 
@@ -278,14 +278,21 @@ function WeekGrid({
                 {placed.map(({ s, startH, endH, lane, lanes }) => {
                   const locked = isLocked(s);
                   const top = yPct(startH);
-                  const height = Math.max(yPct(endH) - top, (MIN_BLOCK_PX / (COL_H - 34)) * 100);
+                  // Real height in px — never inflated, so blocks never bleed
+                  // over their neighbours. Content degrades to fit the space:
+                  // full (name + cost) → compact (name) → bar (color only,
+                  // details on hover). Many concurrent lanes force compact.
+                  const realPx = ((yPct(endH) - top) / 100) * INNER_H;
+                  const tier =
+                    realPx >= 42 && lanes <= 2 ? 'full' : realPx >= 20 ? 'compact' : 'bar';
+                  const heightPx = Math.max(realPx, tier === 'bar' ? 5 : realPx);
                   return (
                     <Tooltip key={s.id} content={<BlockTip s={s} locked={locked} />}>
                       <button
-                        className={`calendar-block ${tileClass(s.projectKey)} ${locked ? 'locked' : ''}`}
+                        className={`calendar-block tier-${tier} ${tileClass(s.projectKey)} ${locked ? 'locked' : ''}`}
                         style={{
                           top: `${top}%`,
-                          height: `${height}%`,
+                          height: `${heightPx}px`,
                           left: `${(lane / lanes) * 100}%`,
                           width: `calc(${100 / lanes}% - 3px)`,
                         }}
@@ -293,8 +300,12 @@ function WeekGrid({
                           if (!locked) navigate(sessionHash(s.id));
                         }}
                       >
-                        <span className="calendar-block-name">{projectName(s)}</span>
-                        <span className="calendar-block-meta">{fmtCost(s.costUsd)}</span>
+                        {tier !== 'bar' && (
+                          <span className="calendar-block-name">{projectName(s)}</span>
+                        )}
+                        {tier === 'full' && (
+                          <span className="calendar-block-meta">{fmtCost(s.costUsd)}</span>
+                        )}
                       </button>
                     </Tooltip>
                   );
