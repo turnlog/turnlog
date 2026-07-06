@@ -2164,36 +2164,73 @@
 .spend-chart {
   position: relative;
 }
-.spend-chart svg {
-  display: block;
-  width: 100%;
-  height: 190px;
+.spend-plot {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  height: 168px;
 }
-.spend-bar {
-  fill: var(--tx0);
-}
-.spend-bar.hovered {
-  fill: var(--accent);
-}
-.spend-grid {
-  stroke: var(--line-soft);
-  stroke-width: 1;
-  stroke-dasharray: 3 5;
+.spend-gridline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--line-soft);
+  pointer-events: none;
 }
 .spend-baseline {
-  stroke: var(--line);
-  stroke-width: 1;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-top: 1px solid var(--line);
+  pointer-events: none;
 }
-.spend-xlabel {
-  font-family: var(--mono);
-  font-size: 10px;
-  fill: var(--tx2);
+.spend-col {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
 }
-.spend-peak-label {
+.spend-bar {
+  width: 100%;
+  min-height: 2px;
+  background: var(--tx0);
+  border-radius: 4px 4px 0 0;
+  transition: background 80ms;
+}
+.spend-col:hover .spend-bar {
+  background: var(--accent);
+}
+.spend-peak {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 500;
-  fill: var(--tx1);
+  color: var(--tx1);
+  white-space: nowrap;
+  pointer-events: none;
+  transition: opacity 80ms;
+}
+.spend-plot:hover .spend-peak {
+  opacity: 0;
+}
+.spend-axis {
+  display: flex;
+  margin-top: 7px;
+  overflow: visible;
+}
+.spend-axis span {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--tx2);
+  white-space: nowrap;
 }
 
 .split-list {

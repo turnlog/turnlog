@@ -16,9 +16,6 @@ const PERIODS = [7, 30, 90] as const;
    carries the one direct label; every day has a full-height hover
    target with a tooltip. */
 
-const CHART_H = 168;
-const LABEL_ZONE = 22;
-
 function fillDays(days: SpendDay[], sinceDays: number): SpendDay[] {
   const byDate = new Map(days.map((d) => [d.date, d]));
   const out: SpendDay[] = [];
@@ -36,99 +33,70 @@ function shortDate(iso: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+/**
+ * HTML/div bars, not SVG — a full-width SVG with preserveAspectRatio="none"
+ * stretches its text labels. Divs scale the bars and leave text at natural
+ * size. Single series (magnitude over time): ink bars, accent on hover,
+ * recessive grid, one direct label on the peak. Bars top out at 88% to leave
+ * headroom for that label; hit target is the full-height column; the portal
+ * Tooltip carries per-day detail.
+ */
+const BAR_MAX_PCT = 88;
+
 function SpendChart({ data }: { data: SpendResponse }) {
   const days = useMemo(() => fillDays(data.days, data.sinceDays), [data]);
-  const [hover, setHover] = useState<number | null>(null);
-
   const max = Math.max(...days.map((d) => d.costUsd), 0.01);
   const peak = days.reduce((best, d, i) => (d.costUsd > days[best]!.costUsd ? i : best), 0);
   const n = days.length;
-  const W = 1000;
-  const gap = n > 60 ? 2 : 4; // ≥2px surface gap between marks
-  const bw = (W - gap * (n - 1)) / n;
-  const plotH = CHART_H - LABEL_ZONE;
-  const y = (v: number) => (v / max) * (plotH - 18);
-
-  // Recessive grid: three quarter lines, labels in muted ink.
-  const ticks = [0.25, 0.5, 0.75].map((f) => ({ f, v: max * f }));
+  const gap = n > 45 ? 2 : 4; // ≥2px surface gap between marks
   const tickEvery = Math.max(1, Math.ceil(n / 6));
+  const barPct = (v: number) => (v > 0 ? Math.max((v / max) * BAR_MAX_PCT, 1.5) : 0);
 
   return (
-    <div className="spend-chart">
-      <svg
-        viewBox={`0 0 ${W} ${CHART_H}`}
-        preserveAspectRatio="none"
-        role="img"
-        aria-label={`Daily spend, last ${data.sinceDays} days. Total ${fmtCost(
-          data.totals.costUsd,
-        )}, peak day ${shortDate(days[peak]!.date)} at ${fmtCost(days[peak]!.costUsd)}.`}
-      >
-        {ticks.map((t) => (
-          <line
-            key={t.f}
-            x1={0}
-            x2={W}
-            y1={plotH - y(t.v)}
-            y2={plotH - y(t.v)}
-            className="spend-grid"
-          />
+    <div
+      className="spend-chart"
+      role="img"
+      aria-label={`Daily spend, last ${data.sinceDays} days. Total ${fmtCost(
+        data.totals.costUsd,
+      )}, peak ${shortDate(days[peak]!.date)} at ${fmtCost(days[peak]!.costUsd)}.`}
+    >
+      <div className="spend-plot" style={{ gap }}>
+        {[0.25, 0.5, 0.75].map((f) => (
+          <div key={f} className="spend-gridline" style={{ bottom: `${f * BAR_MAX_PCT}%` }} />
         ))}
-        <line x1={0} x2={W} y1={plotH} y2={plotH} className="spend-baseline" />
-        {days.map((d, i) => {
-          const h = d.costUsd > 0 ? Math.max(y(d.costUsd), 2) : 0;
-          const x = i * (bw + gap);
-          const r = Math.min(4, bw / 2);
-          return (
-            <g key={d.date}>
-              {h > 0 && (
-                <path
-                  className={`spend-bar ${hover === i ? 'hovered' : ''}`}
-                  d={`M${x},${plotH} v${-(h - r)} q0,${-r} ${r},${-r} h${bw - 2 * r} q${r},0 ${r},${r} v${h - r} z`}
-                />
-              )}
-              {/* full-height hit target (larger than the mark); the Tooltip
-                  portals to body so edge bars never clip against the card. */}
-              <Tooltip
-                content={
-                  <>
-                    <strong>{fmtCost(d.costUsd)}</strong>
-                    <span>
-                      {shortDate(d.date)} · {fmtCount(d.sessions)} session
-                      {d.sessions === 1 ? '' : 's'} · {fmtTokens(d.tokens)} tok
-                    </span>
-                  </>
-                }
-              >
-                <rect
-                  x={x - gap / 2}
-                  y={0}
-                  width={bw + gap}
-                  height={plotH}
-                  fill="transparent"
-                  onMouseEnter={() => setHover(i)}
-                  onMouseLeave={() => setHover(null)}
-                />
-              </Tooltip>
-              {i % tickEvery === 0 && (
-                <text x={x + bw / 2} y={CHART_H - 6} className="spend-xlabel" textAnchor="middle">
-                  {shortDate(d.date)}
-                </text>
-              )}
-            </g>
-          );
-        })}
-        {/* the one direct label: the peak day */}
-        {days[peak]!.costUsd > 0 && hover === null && (
-          <text
-            x={Math.min(Math.max(peak * (bw + gap) + bw / 2, 30), W - 30)}
-            y={Math.max(plotH - y(days[peak]!.costUsd) - 8, 12)}
-            className="spend-peak-label"
-            textAnchor="middle"
+        <div className="spend-baseline" />
+        {days.map((d, i) => (
+          <Tooltip
+            key={d.date}
+            content={
+              <>
+                <strong>{fmtCost(d.costUsd)}</strong>
+                <span>
+                  {shortDate(d.date)} · {fmtCount(d.sessions)} session
+                  {d.sessions === 1 ? '' : 's'} · {fmtTokens(d.tokens)} tok
+                </span>
+              </>
+            }
           >
-            {fmtCost(days[peak]!.costUsd)}
-          </text>
-        )}
-      </svg>
+            {/* the column is the full-height hit target */}
+            <div className="spend-col">
+              {d.costUsd > 0 && (
+                <div className="spend-bar" style={{ height: `${barPct(d.costUsd)}%` }} />
+              )}
+              {i === peak && d.costUsd > 0 && (
+                <span className="spend-peak" style={{ bottom: `calc(${barPct(d.costUsd)}% + 5px)` }}>
+                  {fmtCost(d.costUsd)}
+                </span>
+              )}
+            </div>
+          </Tooltip>
+        ))}
+      </div>
+      <div className="spend-axis" style={{ gap }}>
+        {days.map((d, i) => (
+          <span key={d.date}>{i % tickEvery === 0 ? shortDate(d.date) : ''}</span>
+        ))}
+      </div>
     </div>
   );
 }
