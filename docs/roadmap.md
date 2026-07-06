@@ -10,12 +10,13 @@ Timeline map: Phase 0 = days 1–3 · Phase 1 = weeks 1–2 · Phase 2 = weeks 2
 
 Nothing here is code, but all of it gates later phases: the name gates the package, Paddle gates selling, the keypair gates licensing, the corpus gates the parser.
 
-- [ ] **Claim the name** (npm was available at check time; it will not stay that way):
-  - [ ] `npm publish` a 0.0.1 placeholder for `turnlog` (2FA enabled on the npm account)
-  - [ ] Register `turnlog.dev`
-  - [ ] Claim GitHub org (`turnlogdev`/`turnlogapp` — bare name is squatted) and X handle
+- [x] **Claim the name** (npm was available at check time; it will not stay that way):
+  - [x] npm name registered (as an org)
+  - [x] Register `turnlog.dev` (owned)
+  - [x] GitHub org claimed (`github.com/turnlog/turnlog`)
   - [ ] 10-minute EUIPO class check on turnLOG® (§0.2 of deep-dive)
-- [ ] **Submit Paddle seller application** — longest external dependency. Requires a live landing-page skeleton first: single static page on `turnlog.dev` (tagline, screenshot placeholder, price, privacy statement).
+  - [ ] X handle
+- [ ] **Submit Paddle seller application** — longest external dependency. **Landing skeleton built** (`site/index.html` — full-bleed on-brand page: tagline, `npx turnlog` CTA, product preview, features, pricing $19/launch $15, `lsof` privacy statement, FAQ; deploy `site/` to Cloudflare Pages). Remaining: deploy to `turnlog.dev`, add reachable `/privacy` + `/terms` (Paddle requires them), then submit.
 - [ ] **Generate Ed25519 keypair.** Private key → Cloudflare Worker secret + one offline backup. Public key → will be embedded in the package. Losing the private key = reissuing every customer.
 - [ ] **Build the test corpus:** own `~/.claude/projects/` (scrubbed) into a private fixtures repo + donated JSONL files from 3–5 devs on different Claude Code versions/OSes. The parser is only as good as this corpus.
 - [ ] 30-minute competitive re-scan (GitHub/X) — the space moves monthly.
