@@ -24,6 +24,27 @@ npm i -g turnlog     # or install globally
 Requires **Node.js 22+** (the runtime Claude Code already installs with).
 macOS, Linux, Windows. No build step, no installer, no postinstall scripts.
 
+### Opening the UI
+
+`turnlog` starts the local server and prints a URL, then opens your browser to it:
+
+```
+turnlog 0.1.0
+  UI:       http://127.0.0.1:52431/?token=a1b2c3…
+  Projects: /Users/you/.claude/projects
+```
+
+Turnlog picks a random free port each run, so the URL is different every time.
+**If the browser doesn't open** — over SSH, on a headless box, or with no default
+browser — copy that `UI:` line into a browser yourself. The `?token=…` is
+generated fresh each launch and is required on every request, so open the whole
+URL, not just `127.0.0.1:<port>`.
+
+- `--port <n>` — pin the port instead of choosing a random one.
+- `--no-open` — start the server without launching a browser (handy when
+  port-forwarding from a remote machine: `ssh -L 52431:127.0.0.1:52431 …`).
+- `Ctrl-C` stops the server.
+
 ## What it does
 
 - **Search everything** — full-text FTS5 across your whole history, grouped by
