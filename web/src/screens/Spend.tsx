@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useProjects, useSpend } from '../api';
+import { navigate } from '../router';
+import Calendar from './Calendar';
 import { Skel, SkeletonRows } from '../components/Skeleton';
 import { fmtCost, fmtCount, fmtModel, fmtTokens, projectName, tileClass } from '../format';
 import type { SpendDay, SpendResponse } from '../types';
@@ -154,7 +156,7 @@ function toCsv(data: SpendResponse): string {
 
 /* ── screen ──────────────────────────────────────────────────────── */
 
-export default function Spend() {
+export default function Spend({ view = 'overview' }: { view?: 'overview' | 'calendar' }) {
   const [days, setDays] = useState<number>(30);
   const [q, setQ] = useState('');
   const [applied, setApplied] = useState('');
@@ -177,6 +179,25 @@ export default function Spend() {
     <div className="spend">
       <div className="spend-head">
         <h1>Spend</h1>
+        <div className="view-toggle" role="tablist" aria-label="Spend view">
+          <button
+            role="tab"
+            aria-selected={view === 'overview'}
+            className={view === 'overview' ? 'active' : ''}
+            onClick={() => navigate('#/spend')}
+          >
+            overview
+          </button>
+          <button
+            role="tab"
+            aria-selected={view === 'calendar'}
+            className={view === 'calendar' ? 'active' : ''}
+            onClick={() => navigate('#/spend?v=calendar')}
+          >
+            calendar
+          </button>
+        </div>
+        {view === 'overview' && (
         <div className="view-toggle" role="tablist" aria-label="Period">
           {PERIODS.map((p) => (
             <button
@@ -190,6 +211,8 @@ export default function Spend() {
             </button>
           ))}
         </div>
+        )}
+        {view === 'overview' && (
         <form
           className="spend-filter"
           onSubmit={(e) => {
@@ -204,7 +227,8 @@ export default function Spend() {
             aria-label="Filter spend by search query"
           />
         </form>
-        {d && (
+        )}
+        {view === 'overview' && d && (
           <div className="spend-actions">
             <button className="pill" onClick={() => download('turnlog-spend.csv', 'text/csv', toCsv(d))}>
               CSV
@@ -221,7 +245,9 @@ export default function Spend() {
         )}
       </div>
 
-      {d === undefined ? (
+      {view === 'calendar' ? (
+        <Calendar />
+      ) : d === undefined ? (
         <SkeletonRows n={7} tile={28} />
       ) : (
         <div className="spend-grid-layout">

@@ -222,6 +222,8 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
         project: q.get('project') ?? undefined,
         limit: q.has('limit') ? Number(q.get('limit')) : undefined,
         offset: q.has('offset') ? Number(q.get('offset')) : undefined,
+        since: q.get('since') ?? undefined,
+        until: q.get('until') ?? undefined,
       }),
     );
   }

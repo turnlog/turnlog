@@ -152,12 +152,11 @@ export default function App() {
         <div className="header-right">
           <TopSearch />
           <a
-            className={`circle ${route.name === 'spend' ? 'circle-active' : ''}`}
+            className={`header-pill ${route.name === 'spend' ? 'active' : ''}`}
             href="#/spend"
-            aria-label="Spend"
-            title="Spend"
           >
-            <WalletIcon size={17} />
+            <WalletIcon size={16} />
+            Spend
           </a>
           <button
             className="circle"
@@ -177,7 +176,7 @@ export default function App() {
         <main className="screen">
           {route.name === 'library' && <Home />}
           {route.name === 'search' && <Search query={route.query} />}
-          {route.name === 'spend' && <Spend />}
+          {route.name === 'spend' && <Spend view={route.view} />}
           {route.name === 'session' && (
             <Replay
               key={route.id}

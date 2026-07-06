@@ -128,8 +128,13 @@ weight, blue only where the agent speaks.
   turn list card), log (single virtualized card), or files (touched-file
   list card + cumulative per-file diffs card). Match bar floats
   bottom-center; error-nav pill bottom-right.
-- **Search**: pill input (vermilion focus ring), meta line, white group cards
-  with hairline hits, blue `--mark` highlights.
+- **Search**: pill input (vermilion focus ring), meta line with the cost-of-
+  this-work aggregate, white group cards with hairline hits, blue `--mark`
+  highlights.
+- **Spend** (`#/spend`): headline total, single-series ink bar chart (hover in
+  accent, contrast tooltip), split list cards, prompt-caching dark card.
+- **Calendar** (`#/calendar`): week grid of `--bg1` day columns, sessions as
+  project-tile-colored blocks at real times, black today-circle.
 
 ## 7. Rules of thumb
 

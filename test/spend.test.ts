@@ -72,3 +72,18 @@ describe('search aggregates + project rollup', () => {
     expect(projects.some((p) => p.costUsd > 0)).toBe(true);
   });
 });
+
+describe('listSessions date range', () => {
+  it('bounds by started_at', async () => {
+    const { listSessions } = await import('../src/server/api.js');
+    const day = listSessions(db, { since: '2026-07-02T00:00:00Z', until: '2026-07-03T00:00:00Z' });
+    expect(day.total).toBeGreaterThanOrEqual(1);
+    expect(
+      day.sessions.every(
+        (s) => s.startedAt !== null && s.startedAt >= '2026-07-02' && s.startedAt < '2026-07-03',
+      ),
+    ).toBe(true);
+    const none = listSessions(db, { since: '2030-01-01T00:00:00Z' });
+    expect(none.total).toBe(0);
+  });
+});

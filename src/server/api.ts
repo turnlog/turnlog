@@ -52,6 +52,9 @@ export interface ListSessionsQuery {
   project?: string;
   limit?: number;
   offset?: number;
+  /** ISO bounds on started_at (calendar range queries). */
+  since?: string;
+  until?: string;
 }
 
 export function listSessions(db: Database.Database, q: ListSessionsQuery): SessionListResponse {
@@ -59,8 +62,21 @@ export function listSessions(db: Database.Database, q: ListSessionsQuery): Sessi
   const dir = q.dir === 'asc' ? 'ASC' : 'DESC';
   const limit = Math.min(Math.max(q.limit ?? 100, 1), 1000);
   const offset = Math.max(q.offset ?? 0, 0);
-  const where = q.project ? `WHERE project_key = ?` : '';
-  const params: unknown[] = q.project ? [q.project] : [];
+  const clauses: string[] = [];
+  const params: unknown[] = [];
+  if (q.project) {
+    clauses.push('project_key = ?');
+    params.push(q.project);
+  }
+  if (q.since) {
+    clauses.push('started_at >= ?');
+    params.push(q.since);
+  }
+  if (q.until) {
+    clauses.push('started_at < ?');
+    params.push(q.until);
+  }
+  const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
 
   const rows = db
     .prepare(

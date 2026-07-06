@@ -27,7 +27,7 @@ export type Route =
       view: ViewParam | null;
     }
   | { name: 'search'; query: string }
-  | { name: 'spend' };
+  | { name: 'spend'; view: 'overview' | 'calendar' };
 
 export function parseRoute(hash: string): Route {
   const h = hash.startsWith('#') ? hash.slice(1) : hash;
@@ -53,7 +53,7 @@ export function parseRoute(hash: string): Route {
     return { name: 'search', query: params.get('q') ?? '' };
   }
   if (path === '/spend') {
-    return { name: 'spend' };
+    return { name: 'spend', view: params.get('v') === 'calendar' ? 'calendar' : 'overview' };
   }
   return { name: 'library' };
 }

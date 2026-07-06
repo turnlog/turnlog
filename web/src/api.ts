@@ -216,6 +216,20 @@ export function useErrorIdxs(sessionId: string) {
   });
 }
 
+/** Sessions within a started_at range (calendar week queries). */
+export function useSessionsRange(sinceIso: string, untilIso: string) {
+  return useQuery({
+    queryKey: ['sessions-range', sinceIso, untilIso],
+    queryFn: async (): Promise<SessionMeta[]> => {
+      const res = await apiFetch<SessionListResponse>(
+        `/api/sessions?since=${encodeURIComponent(sinceIso)}&until=${encodeURIComponent(untilIso)}&sort=started_at&dir=asc&limit=1000`,
+      );
+      return res.sessions;
+    },
+    staleTime: 30_000,
+  });
+}
+
 export function useSpend(days: number, q: string) {
   const query = q.trim();
   return useQuery({
