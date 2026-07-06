@@ -174,9 +174,9 @@ Turns the working tool into a sellable product. Depends on Phase 0's keypair and
 
 ### 3.3 Export (§2.5)
 
-- [ ] Markdown serializer over the normalized model: prompts as blockquotes, assistant prose verbatim, tool calls as `<details>`, diffs as fenced ```diff
-- [ ] Footer attribution link on by default, plainly removable in settings
-- [ ] "Copy session as markdown" (clipboard is how it spreads) + `turnlog export <id>` for scripting
+- [x] Markdown serializer over the normalized model (`src/export/markdown.ts`): prompts as blockquotes, assistant prose verbatim, tool calls as `<details>`, Edit/Write as fenced ```diff (minimal ±line, dependency-free); results folded under their tool_use; enormous results/writes capped; fence auto-escalates past embedded ```
+- [x] Footer attribution link on by default, removable via `settings.json` `exportFooter:false`, `--no-footer`, or `?footer=0`
+- [x] "Copy session as markdown" + download in the replay header (clipboard is how it spreads); `turnlog export <id>` (exact id or unique prefix) → stdout; `GET /api/sessions/:id/export` (text/markdown)
 
 ### 3.4 Packaging & hardening polish
 

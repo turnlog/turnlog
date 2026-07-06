@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { dbPath, defaultProjectsDir, loadSettings } from '../config.js';
+import { getSessionExport, resolveSessionId } from '../server/api.js';
 import { openDb } from '../indexer/db.js';
 import { Indexer } from '../indexer/indexer.js';
 import { WorkerDriver } from '../indexer/workerDriver.js';
@@ -18,12 +19,13 @@ Usage:
   turnlog index               Incrementally index ~/.claude/projects and exit
   turnlog index --rebuild     Drop the index and rebuild from scratch
   turnlog license <key>       Activate a license (coming soon)
-  turnlog export <id>         Export a session as markdown (coming soon)
+  turnlog export <id>         Print a session as markdown (id or unique prefix)
 
 Options:
   --port <n>       Fixed port instead of a random one
   --projects <dir> Claude projects dir (default: ~/.claude/projects)
   --no-open        Don't open the browser
+  --no-footer      Omit the attribution footer from export
   -V, --version    Print version
   -h, --help       Show this help
 
@@ -40,6 +42,7 @@ async function main(): Promise<void> {
       port: { type: 'string' },
       projects: { type: 'string' },
       'no-open': { type: 'boolean' },
+      'no-footer': { type: 'boolean' },
       rebuild: { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
       version: { type: 'boolean', short: 'V' },
@@ -71,8 +74,7 @@ async function main(): Promise<void> {
       fail('License activation ships in a later release. Follow along at turnlog.dev.');
       break;
     case 'export':
-      fail('Markdown export ships in a later release.');
-      break;
+      return runExport(positionals[1], values['no-footer'] === true);
     default:
       fail(`Unknown command "${command}". Run turnlog --help.`);
   }
@@ -99,7 +101,13 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
   });
 
   const { server, url } = await startServer(
-    { db, driver, token, pricingOverrides: settings.modelPricing },
+    {
+      db,
+      driver,
+      token,
+      pricingOverrides: settings.modelPricing,
+      exportFooter: settings.exportFooter,
+    },
     { port: opts.port },
   );
 
@@ -164,6 +172,22 @@ async function runIndex(projectsDir: string, rebuild: boolean): Promise<void> {
     console.error(`  skipped ${err.file}: ${err.message}`);
   }
   db.close();
+}
+
+async function runExport(idArg: string | undefined, noFooter: boolean): Promise<void> {
+  if (!idArg) fail('Usage: turnlog export <session-id>  (accepts a unique id prefix)');
+  const db = openDb(dbPath());
+  try {
+    const id = resolveSessionId(db, idArg);
+    if (!id) fail(`No session matches "${idArg}". Run turnlog and copy an id from the URL.`);
+    const settings = loadSettings();
+    const attribution = noFooter ? false : (settings.exportFooter ?? true);
+    const md = getSessionExport(db, id, { attribution });
+    if (md === null) fail(`Session "${id}" not found.`);
+    process.stdout.write(md);
+  } finally {
+    db.close();
+  }
 }
 
 main().catch((err) => {

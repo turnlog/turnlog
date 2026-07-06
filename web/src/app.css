@@ -2607,3 +2607,13 @@
 .month-cell-wrap {
   display: contents;
 }
+
+/* export control (replay header) */
+.export-ctl {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+.stats-toggle.icon {
+  padding: 7px 11px;
+}

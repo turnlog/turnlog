@@ -7,6 +7,7 @@ import {
 } from 'react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import {
+  fetchExport,
   fetchMessages,
   useErrorIdxs,
   useSearch,
@@ -379,6 +380,39 @@ const LENS_LABELS: { value: Lens; label: string; dot: string }[] = [
   { value: 'prompts', label: 'prompts', dot: 'dot-ink' },
 ];
 
+function ExportButton({ sessionId }: { sessionId: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(await fetchExport(sessionId));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* clipboard denied — ignore */
+    }
+  };
+  const download = async () => {
+    const md = await fetchExport(sessionId).catch(() => null);
+    if (md === null) return;
+    const url = URL.createObjectURL(new Blob([md], { type: 'text/markdown' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${sessionId.slice(0, 8)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  return (
+    <div className="export-ctl">
+      <button className="stats-toggle" onClick={copy} title="Copy session as markdown">
+        {copied ? 'copied ✓' : 'copy md'}
+      </button>
+      <button className="stats-toggle icon" onClick={download} title="Download markdown" aria-label="Download markdown">
+        ↓
+      </button>
+    </div>
+  );
+}
+
 export default function Replay({
   sessionId,
   jumpIdx,
@@ -551,6 +585,7 @@ export default function Replay({
               );
             })}
           </div>
+          <ExportButton sessionId={sessionId} />
           <button
             className={`stats-toggle ${statsOpen ? 'active' : ''}`}
             onClick={() => setStatsOpen(!statsOpen)}

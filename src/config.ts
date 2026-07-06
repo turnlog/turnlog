@@ -31,6 +31,8 @@ export function defaultProjectsDir(): string {
 export interface Settings {
   /** Per-model pricing overrides (USD per MTok), for Bedrock/enterprise rates. */
   modelPricing?: Record<string, Partial<ModelPricing>>;
+  /** Append the "Exported with Turnlog" footer to markdown exports (default true). */
+  exportFooter?: boolean;
 }
 
 export function loadSettings(): Settings {

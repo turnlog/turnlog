@@ -243,6 +243,15 @@ export function useSpend(days: number, q: string) {
   });
 }
 
+/** Session as markdown (text, not JSON) — copy/download from replay. */
+export async function fetchExport(sessionId: string): Promise<string> {
+  const res = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/export`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new ApiError(res.status, 'export failed');
+  return res.text();
+}
+
 export function hasToken(): boolean {
   return token !== null || import.meta.env.DEV;
 }

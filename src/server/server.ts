@@ -6,6 +6,7 @@ import type Database from 'better-sqlite3';
 import type { IndexDriver } from '../indexer/driver.js';
 import {
   getSession,
+  getSessionExport,
   getSpend,
   getStats,
   isLens,
@@ -26,6 +27,8 @@ export interface ServerContext {
   token: string;
   /** Bedrock/enterprise per-model rate overrides from settings.json. */
   pricingOverrides?: Record<string, Partial<ModelPricing>>;
+  /** Append the export attribution footer (settings.json, default true). */
+  exportFooter?: boolean;
 }
 
 const ALLOWED_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '[::1]']);
@@ -244,6 +247,23 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
     const result = listTurns(db, decodeURIComponent(turnsMatch[1]!));
     if (!result) return sendJson(res, 404, { error: 'session not found' });
     return sendJson(res, 200, result);
+  }
+
+  const exportMatch = /^\/api\/sessions\/([^/]+)\/export$/.exec(p);
+  if (exportMatch) {
+    const footerParam = q.get('footer');
+    const attribution =
+      footerParam === '0' || footerParam === 'false' ? false : (ctx.exportFooter ?? true);
+    const md = getSessionExport(db, decodeURIComponent(exportMatch[1]!), { attribution });
+    if (md === null) return sendJson(res, 404, { error: 'session not found' });
+    const payload = Buffer.from(md, 'utf8');
+    res.writeHead(200, {
+      'Content-Type': 'text/markdown; charset=utf-8',
+      'Content-Length': payload.length,
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(payload);
+    return;
   }
 
   const messagesMatch = /^\/api\/sessions\/([^/]+)\/messages$/.exec(p);

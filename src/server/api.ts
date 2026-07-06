@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import { pricingForModel, type ModelPricing } from '../cost/pricing.js';
+import { sessionToMarkdown, type ExportOptions } from '../export/markdown.js';
 import type {
   MessageListResponse,
   MessageRow,
@@ -147,7 +148,16 @@ export function listMessages(
     .prepare(`SELECT COUNT(*) AS n FROM messages WHERE session_id = @sid ${lensSql}`)
     .get({ sid: sessionId }) as { n: number };
 
-  const messages: MessageRow[] = rows.map((r: any) => ({
+  const messages: MessageRow[] = rows.map(rowToMessage);
+
+  return { sessionId, messages, total: total.n };
+}
+
+const MESSAGE_COLUMNS = `uuid, parent_uuid, idx, role, kind, tool_name, tool_use_id, ts,
+  is_sidechain, is_error, tokens_in, tokens_out, cost_usd, model, text, raw_json`;
+
+function rowToMessage(r: any): MessageRow {
+  return {
     uuid: r.uuid,
     parentUuid: r.parent_uuid,
     idx: r.idx,
@@ -164,9 +174,34 @@ export function listMessages(
     model: r.model,
     text: r.text,
     raw: r.raw_json,
-  }));
+  };
+}
 
-  return { sessionId, messages, total: total.n };
+/** Resolve an exact session id or a unique prefix (CLI convenience). */
+export function resolveSessionId(db: Database.Database, idOrPrefix: string): string | null {
+  const exact = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(idOrPrefix) as
+    | { id: string }
+    | undefined;
+  if (exact) return exact.id;
+  const matches = db
+    .prepare(`SELECT id FROM sessions WHERE id LIKE ? LIMIT 2`)
+    .all(`${idOrPrefix}%`) as { id: string }[];
+  return matches.length === 1 ? matches[0]!.id : null;
+}
+
+/** Full session as markdown (deep-dive §2.5) — CLI export + copy-as-markdown. */
+export function getSessionExport(
+  db: Database.Database,
+  id: string,
+  opts: ExportOptions = {},
+): string | null {
+  const session = getSession(db, id);
+  if (!session) return null;
+  const rows = db
+    .prepare(`SELECT ${MESSAGE_COLUMNS} FROM messages WHERE session_id = ? ORDER BY idx`)
+    .all(id)
+    .map(rowToMessage);
+  return sessionToMarkdown(session, rows, opts);
 }
 
 const READ_TOOLS = new Set(['Read', 'Grep', 'Glob', 'LS', 'NotebookRead']);
