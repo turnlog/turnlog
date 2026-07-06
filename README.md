@@ -86,11 +86,10 @@ turnlog export <id>         Print a session as markdown (id or unique prefix)
 The index lives in `~/.config/turnlog/` (`%APPDATA%\turnlog` on Windows);
 override with `TURNLOG_DATA_DIR`.
 
-## Trial & license
+## License
 
-Free to try: `npx turnlog` indexes everything and opens your 10 most recent
-sessions. A one-time license unlocks your full history — see
-[turnlog.dev](https://turnlog.dev).
+[MIT](LICENSE) — free and open source. Index and open every session, no limits.
+Fork it, ship it, build on it.
 
 ## Development
 
