@@ -3,6 +3,7 @@ import { useProjects, useSpend } from '../api';
 import { navigate } from '../router';
 import Calendar from './Calendar';
 import { Skel, SkeletonRows } from '../components/Skeleton';
+import Tooltip from '../components/Tooltip';
 import { fmtCost, fmtCount, fmtModel, fmtTokens, projectName, tileClass } from '../format';
 import type { SpendDay, SpendResponse } from '../types';
 
@@ -52,8 +53,6 @@ function SpendChart({ data }: { data: SpendResponse }) {
   const ticks = [0.25, 0.5, 0.75].map((f) => ({ f, v: max * f }));
   const tickEvery = Math.max(1, Math.ceil(n / 6));
 
-  const hovered = hover !== null ? days[hover] : null;
-
   return (
     <div className="spend-chart">
       <svg
@@ -87,16 +86,29 @@ function SpendChart({ data }: { data: SpendResponse }) {
                   d={`M${x},${plotH} v${-(h - r)} q0,${-r} ${r},${-r} h${bw - 2 * r} q${r},0 ${r},${r} v${h - r} z`}
                 />
               )}
-              {/* full-height hit target, larger than the mark */}
-              <rect
-                x={x - gap / 2}
-                y={0}
-                width={bw + gap}
-                height={plotH}
-                fill="transparent"
-                onMouseEnter={() => setHover(i)}
-                onMouseLeave={() => setHover(null)}
-              />
+              {/* full-height hit target (larger than the mark); the Tooltip
+                  portals to body so edge bars never clip against the card. */}
+              <Tooltip
+                content={
+                  <>
+                    <strong>{fmtCost(d.costUsd)}</strong>
+                    <span>
+                      {shortDate(d.date)} · {fmtCount(d.sessions)} session
+                      {d.sessions === 1 ? '' : 's'} · {fmtTokens(d.tokens)} tok
+                    </span>
+                  </>
+                }
+              >
+                <rect
+                  x={x - gap / 2}
+                  y={0}
+                  width={bw + gap}
+                  height={plotH}
+                  fill="transparent"
+                  onMouseEnter={() => setHover(i)}
+                  onMouseLeave={() => setHover(null)}
+                />
+              </Tooltip>
               {i % tickEvery === 0 && (
                 <text x={x + bw / 2} y={CHART_H - 6} className="spend-xlabel" textAnchor="middle">
                   {shortDate(d.date)}
@@ -117,19 +129,6 @@ function SpendChart({ data }: { data: SpendResponse }) {
           </text>
         )}
       </svg>
-      {hovered && (
-        <div
-          className="spend-tooltip"
-          style={{ left: `${((hover! + 0.5) / n) * 100}%` }}
-          role="status"
-        >
-          <strong>{fmtCost(hovered.costUsd)}</strong>
-          <span>
-            {shortDate(hovered.date)} · {fmtCount(hovered.sessions)} session
-            {hovered.sessions === 1 ? '' : 's'} · {fmtTokens(hovered.tokens)} tok
-          </span>
-        </div>
-      )}
     </div>
   );
 }

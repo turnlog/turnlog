@@ -401,7 +401,11 @@ function MonthGrid({
               {cell}
             </Tooltip>
           ) : (
-            <div key={i}>{cell}</div>
+            // display:contents wrapper so the button is the grid item and
+            // stretches to the column (Tooltip does this for filled cells).
+            <div key={i} className="month-cell-wrap">
+              {cell}
+            </div>
           );
         })}
       </div>
