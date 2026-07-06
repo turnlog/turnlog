@@ -1,6 +1,7 @@
 # turnlog.dev — landing page
 
 Single static page, zero build step. Deploy the `site/` folder to any static host.
+**Requirements + design tokens (colors, fonts, spacing): `docs/landing-prd.md`.**
 
 **Cloudflare Pages** (the planned host — free tier, cookieless Web Analytics):
 - Connect the repo, set the build output directory to `site/`, no build command.
