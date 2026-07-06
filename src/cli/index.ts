@@ -10,6 +10,7 @@ import { WorkerDriver } from '../indexer/workerDriver.js';
 import { watchProjects } from '../indexer/watcher.js';
 import { startServer } from '../server/server.js';
 import { openBrowser } from './open.js';
+import { checkForUpdate, updateCheckEnabled } from './updateCheck.js';
 import { APP_VERSION } from '../version.js';
 
 const HELP = `turnlog ${APP_VERSION} — search and replay your Claude Code sessions, locally.
@@ -37,18 +38,24 @@ function fail(message: string): never {
 }
 
 async function main(): Promise<void> {
-  const { values, positionals } = parseArgs({
-    options: {
-      port: { type: 'string' },
-      projects: { type: 'string' },
-      'no-open': { type: 'boolean' },
-      'no-footer': { type: 'boolean' },
-      rebuild: { type: 'boolean' },
-      help: { type: 'boolean', short: 'h' },
-      version: { type: 'boolean', short: 'V' },
-    },
-    allowPositionals: true,
-  });
+  let parsed;
+  try {
+    parsed = parseArgs({
+      options: {
+        port: { type: 'string' },
+        projects: { type: 'string' },
+        'no-open': { type: 'boolean' },
+        'no-footer': { type: 'boolean' },
+        rebuild: { type: 'boolean' },
+        help: { type: 'boolean', short: 'h' },
+        version: { type: 'boolean', short: 'V' },
+      },
+      allowPositionals: true,
+    });
+  } catch (err) {
+    fail(`${err instanceof Error ? err.message : err}\nRun turnlog --help.`);
+  }
+  const { values, positionals } = parsed;
 
   if (values.version) {
     console.log(APP_VERSION);
@@ -111,11 +118,20 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
     { port: opts.port },
   );
 
+  const knownSessions = (
+    db.prepare(`SELECT COUNT(*) AS n FROM sessions`).get() as { n: number }
+  ).n;
+  const firstRun = knownSessions === 0;
+
   console.log(`turnlog ${APP_VERSION}`);
   console.log(`  UI:       ${url}`);
   console.log(`  Projects: ${projectsDir}`);
   console.log(`  Index:    ${dbFile}`);
   console.log(`  Bound to 127.0.0.1 only — verify with: lsof -iTCP -sTCP:LISTEN | grep node`);
+  if (firstRun) {
+    console.log('\nFirst run — building the index. This is a one-time pass;');
+    console.log('sessions appear in the UI as they are parsed.');
+  }
 
   if (opts.open) openBrowser(url);
 
@@ -123,12 +139,23 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
     .scan()
     .then((summary) => {
       console.log(
-        `Index up to date: ${summary.filesSeen} session files` +
+        (firstRun ? 'Indexed ' : 'Index up to date: ') +
+          `${summary.filesSeen} session files` +
           (summary.linesParsed > 0 ? `, ${summary.linesParsed} new lines parsed` : '') +
           (summary.errors.length > 0 ? `, ${summary.errors.length} files skipped (errors)` : ''),
       );
     })
     .catch((err) => console.error(`Indexing failed: ${err.message}`));
+
+  if (updateCheckEnabled(settings.checkUpdates)) {
+    void checkForUpdate(APP_VERSION).then((latest) => {
+      if (latest) {
+        console.log(
+          `\nUpdate available: ${APP_VERSION} → ${latest}. Run: npm i -g turnlog@latest`,
+        );
+      }
+    });
+  }
 
   const stopWatching = watchProjects(projectsDir, (filePath) => {
     driver.indexFile(filePath).catch(() => undefined);

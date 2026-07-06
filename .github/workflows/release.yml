@@ -1,0 +1,31 @@
+name: Release
+
+# Tag a version (git tag v0.2.0 && git push --tags) → build, gate, publish.
+# npm is the entire distribution and update channel (deep-dive §5).
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  id-token: write # required for npm provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      # prepack runs `npm run build`, so publish packs a fresh bin/dist/web/dist.
+      # publishConfig sets access:public + provenance (needs id-token: write).
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

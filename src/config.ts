@@ -33,6 +33,8 @@ export interface Settings {
   modelPricing?: Record<string, Partial<ModelPricing>>;
   /** Append the "Exported with Turnlog" footer to markdown exports (default true). */
   exportFooter?: boolean;
+  /** Check the npm registry for a newer version on startup (default true). */
+  checkUpdates?: boolean;
 }
 
 export function loadSettings(): Settings {

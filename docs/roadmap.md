@@ -180,12 +180,14 @@ Turns the working tool into a sellable product. Depends on Phase 0's keypair and
 
 ### 3.4 Packaging & hardening polish
 
-- [ ] **No postinstall scripts** (trust smell); `--help` that doesn't embarrass; friendly first-run output
-- [ ] Release pipeline: tag → GitHub Actions → build frontend → corpus snapshot tests → `npm publish --provenance`
-- [ ] Optional update-available notice for global installs (version compare against registry — opt-out-able and documented, or skipped for purity)
-- [ ] Crash-free filesystem edges: permissions errors, symlinks, iCloud-offloaded files, 0-byte JSONLs, mid-write partial lines
+- [x] **No postinstall scripts** (trust smell); `--help` that doesn't embarrass; friendly first-run output
+- [x] Release pipeline: tag → GitHub Actions → build frontend → corpus snapshot tests → `npm publish --provenance`
+- [x] Optional update-available notice for global installs (version compare against registry — opt-out-able and documented, or skipped for purity)
+- [x] Crash-free filesystem edges: permissions errors, symlinks, iCloud-offloaded files, 0-byte JSONLs, mid-write partial lines
 
 **Exit criteria:** full buy → key email → paste → licensed flow works end to end against Paddle sandbox; `npx turnlog` from a clean machine reaches a working UI in under 30 seconds.
+
+**Status 2026-07-07 — 3.4 packaging/hardening complete** (3.1 licensing + 3.2 Worker still open, so the buy→licensed half of the exit criteria awaits Phase 0's keypair + Paddle). Update check is fail-silent with a 2s abort, off via `TURNLOG_NO_UPDATE_CHECK=1` or `checkUpdates:false` — the only sanctioned network touch (`src/cli/updateCheck.ts`). No install scripts ship: `prepack` (build) runs at pack time only. `release.yml` gates on typecheck+lint+`npm test` (golden corpus snapshots included) before `npm publish` with provenance via `id-token: write` + `publishConfig`. Filesystem edges are crash-free by the indexer's own try/catches (`listFiles` per-dir, `scanAll` per-file → `summary.errors`); `test/fsedges.test.ts` asserts garbage-lines→unknown, mid-write partial trailing line, and a broken-symlink project dir. README rewritten to launch quality. 89 tests green.
 
 ---
 
