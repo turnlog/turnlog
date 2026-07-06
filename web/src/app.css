@@ -2447,3 +2447,135 @@
 .calendar-head {
   padding-top: 0;
 }
+
+/* ── tooltip component ─────────────────────────────────────────────── */
+
+.tooltip {
+  position: fixed;
+  z-index: 100;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: var(--contrast-solid);
+  color: var(--contrast-on);
+  border-radius: 12px;
+  padding: 8px 13px;
+  box-shadow: var(--shadow);
+  font-size: 12.5px;
+  max-width: 300px;
+  text-align: center;
+  animation: tip-in 90ms ease-out;
+}
+.tooltip.below {
+  transform: translate(-50%, 0);
+}
+.tooltip strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.tooltip span {
+  color: var(--contrast-dim);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+@keyframes tip-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ── month grid ────────────────────────────────────────────────────── */
+
+.calendar-card.month {
+  padding: 16px 18px 18px;
+}
+.month-dow-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.month-dow {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tx2);
+}
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  min-height: 440px;
+}
+.month-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-height: 84px;
+  padding: 8px 9px;
+  border-radius: 12px;
+  background: var(--bg1);
+  text-align: left;
+  transition: filter 80ms;
+}
+.month-cell.has {
+  cursor: pointer;
+}
+.month-cell.has:hover {
+  filter: brightness(0.97);
+}
+.month-cell.other {
+  opacity: 0.42;
+}
+.month-date {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--tx1);
+}
+.month-date.today {
+  background: var(--contrast-solid);
+  color: var(--contrast-on);
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.month-cost {
+  margin-top: auto;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tx0);
+}
+.month-dots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.tile-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.tile-dot.tile-a {
+  background: var(--accent);
+}
+.tile-dot.tile-b {
+  background: var(--contrast-solid);
+}
+.tile-dot.tile-c {
+  background: var(--blue);
+}
+.month-count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--tx2);
+}

@@ -141,11 +141,13 @@ Decision 2026-07-05, refining the brainstorm's 🔴 on cost dashboards with guar
 
 ## Phase 2.7 — Calendar view (when did I work)
 
+*Custom `Tooltip` component (portal, contrast pill, replaces native `title`) added alongside — used on calendar blocks and month cells.*
+
 Temporal browsing to complement the sidebar list: a week grid — day columns × a time axis — with sessions as project-colored blocks at their actual start times and durations. Click opens the session; hover shows project/time/turns/cost; locked sessions dim under the trial. Answers "what was I doing Tuesday afternoon" the way the spine answers "what happened in this session".
 
 - [x] `since`/`until` range params on the sessions endpoint (indexed by `started_at`)
 - [x] Calendar as a Spend view (`#/spend?v=calendar`, labeled Spend pill in the header): Mon-start week grid, dynamic hour window (min 8h span), greedy lane layout for overlapping sessions, prev/this/next week navigation; project tile colors, trial dimming, multi-day sessions clamp at midnight
-- [ ] Month grid (counts per day → click into week) — later, only if the week view feels insufficient
+- [x] Month grid (per-day cost heat, project dots, count → click drills into that week); week|month toggle inside the calendar
 
 ---
 

@@ -133,8 +133,11 @@ weight, blue only where the agent speaks.
   highlights.
 - **Spend** (`#/spend`): headline total, single-series ink bar chart (hover in
   accent, contrast tooltip), split list cards, prompt-caching dark card.
-- **Calendar** (`#/calendar`): week grid of `--bg1` day columns, sessions as
-  project-tile-colored blocks at real times, black today-circle.
+- **Calendar** (Spend view): week grid of `--bg1` day columns with sessions as
+  project-tile-colored blocks at real times, and a month grid with per-day
+  cost-heat cells + project dots; black today-circle; `Tooltip` on both.
+- **`Tooltip`** (`components/Tooltip.tsx`) — portal contrast pill, clones its
+  single child to attach hover/focus; replaces native `title` for rich content.
 
 ## 7. Rules of thumb
 

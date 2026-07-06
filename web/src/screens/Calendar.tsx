@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useSessionsRange, useStatus, useTrialOpenIds } from '../api';
 import { SkeletonRows } from '../components/Skeleton';
+import Tooltip from '../components/Tooltip';
 import { fmtCost, fmtCount, fmtTime, projectName, tileClass } from '../format';
 import { navigate, sessionHash } from '../router';
 import type { SessionMeta } from '../types';
 
 /**
- * The calendar (roadmap Phase 2.7): a week of day columns × a time axis,
- * sessions as project-colored blocks at their real start times and
- * durations — "what was I doing Tuesday afternoon".
+ * The calendar (roadmap Phase 2.7): sessions placed in time. Week view is a
+ * day-column × time-axis grid; month view is a per-day heat of cost/count.
+ * "When did I work / what was I doing Tuesday afternoon".
  */
 
 const DAY_MS = 86_400_000;
@@ -16,15 +17,28 @@ const MIN_SPAN_H = 8;
 const MIN_BLOCK_PX = 22;
 const COL_H = 640;
 
+type Mode = 'week' | 'month';
+
+function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
 function startOfWeek(d: Date): Date {
-  const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const date = startOfDay(d);
   const dow = (date.getDay() + 6) % 7; // Monday = 0
   return new Date(date.getTime() - dow * DAY_MS);
+}
+function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+    d.getDate(),
+  ).padStart(2, '0')}`;
+}
+function sameDay(a: Date, b: Date): boolean {
+  return a.toDateString() === b.toDateString();
 }
 
 interface Placed {
   s: SessionMeta;
-  startH: number; // hours since local midnight
+  startH: number;
   endH: number;
   lane: number;
   lanes: number;
@@ -47,10 +61,23 @@ function placeDay(sessions: { s: SessionMeta; startH: number; endH: number }[]):
   return placed.map((p) => ({ ...p, lanes }));
 }
 
+function BlockTip({ s, locked }: { s: SessionMeta; locked: boolean }) {
+  return (
+    <>
+      <strong>{projectName(s)}</strong>
+      <span>
+        {fmtTime(s.startedAt)}
+        {s.endedAt ? `–${fmtTime(s.endedAt)}` : ''} · {fmtCount(s.turnCount)} turns ·{' '}
+        {fmtCost(s.costUsd)}
+        {locked ? ' · locked' : ''}
+      </span>
+    </>
+  );
+}
+
 export default function Calendar() {
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
-  const weekEnd = useMemo(() => new Date(weekStart.getTime() + 7 * DAY_MS), [weekStart]);
-  const sessions = useSessionsRange(weekStart.toISOString(), weekEnd.toISOString());
+  const [mode, setMode] = useState<Mode>('week');
+  const [anchor, setAnchor] = useState(() => new Date());
 
   const status = useStatus();
   const licensed = status.data?.licensed ?? true;
@@ -58,33 +85,149 @@ export default function Calendar() {
   const isLocked = (s: SessionMeta) =>
     !licensed && trialOpen.data !== undefined && !trialOpen.data.has(s.id);
 
-  const days = useMemo(() => {
-    const buckets: { s: SessionMeta; startH: number; endH: number }[][] = Array.from(
-      { length: 7 },
-      () => [],
-    );
+  // Fetch range depends on mode.
+  const weekStart = useMemo(() => startOfWeek(anchor), [anchor]);
+  const monthGrid = useMemo(() => {
+    const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+    const gridStart = startOfWeek(first);
+    const daysInMonth = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate();
+    const offset = (first.getDay() + 6) % 7;
+    const weeks = Math.ceil((offset + daysInMonth) / 7);
+    return { gridStart, weeks, month: anchor.getMonth() };
+  }, [anchor]);
+
+  const [rangeStart, rangeEnd] =
+    mode === 'week'
+      ? [weekStart, new Date(weekStart.getTime() + 7 * DAY_MS)]
+      : [monthGrid.gridStart, new Date(monthGrid.gridStart.getTime() + monthGrid.weeks * 7 * DAY_MS)];
+  const sessions = useSessionsRange(rangeStart.toISOString(), rangeEnd.toISOString());
+
+  const buckets = useMemo(() => {
+    const map = new Map<string, SessionMeta[]>();
     for (const s of sessions.data ?? []) {
       if (!s.startedAt) continue;
-      const start = new Date(s.startedAt);
-      const end = s.endedAt ? new Date(s.endedAt) : new Date(start.getTime() + 15 * 60_000);
-      const dayIdx = Math.floor(
-        (startOfWeek(start).getTime() === weekStart.getTime()
-          ? start.getTime() - weekStart.getTime()
-          : -1) / DAY_MS,
-      );
-      if (dayIdx < 0 || dayIdx > 6) continue;
-      const startH = start.getHours() + start.getMinutes() / 60;
-      // Blocks clamp to their start day — multi-day sessions cap at midnight.
-      const endSameDay = Math.min(
-        (end.getTime() - (weekStart.getTime() + dayIdx * DAY_MS)) / 3_600_000,
-        24,
-      );
-      buckets[dayIdx]!.push({ s, startH, endH: Math.max(endSameDay, startH + 0.25) });
+      const key = dayKey(new Date(s.startedAt));
+      (map.get(key) ?? map.set(key, []).get(key)!).push(s);
     }
-    return buckets.map(placeDay);
-  }, [sessions.data, weekStart]);
+    return map;
+  }, [sessions.data]);
 
-  // Dynamic hour window over the whole week, minimum 8h span.
+  const today = new Date();
+  const jump = (deltaDays: number) => setAnchor(new Date(anchor.getTime() + deltaDays * DAY_MS));
+  const jumpMonth = (delta: number) =>
+    setAnchor(new Date(anchor.getFullYear(), anchor.getMonth() + delta, 1));
+
+  const rangeLabel =
+    mode === 'week'
+      ? `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(
+          weekStart.getTime() + 6 * DAY_MS,
+        ).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+      : anchor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  const isCurrentPeriod =
+    mode === 'week'
+      ? startOfWeek(today).getTime() === weekStart.getTime()
+      : today.getFullYear() === anchor.getFullYear() && today.getMonth() === anchor.getMonth();
+
+  return (
+    <div className="calendar">
+      <div className="calendar-head">
+        <div className="view-toggle" role="tablist" aria-label="Calendar mode">
+          <button
+            role="tab"
+            aria-selected={mode === 'week'}
+            className={mode === 'week' ? 'active' : ''}
+            onClick={() => setMode('week')}
+          >
+            week
+          </button>
+          <button
+            role="tab"
+            aria-selected={mode === 'month'}
+            className={mode === 'month' ? 'active' : ''}
+            onClick={() => setMode('month')}
+          >
+            month
+          </button>
+        </div>
+        <span className="calendar-range">{rangeLabel}</span>
+        <div className="calendar-nav">
+          <button
+            className="circle circle-sm"
+            onClick={() => (mode === 'week' ? jump(-7) : jumpMonth(-1))}
+            aria-label={mode === 'week' ? 'Previous week' : 'Previous month'}
+          >
+            ←
+          </button>
+          <button className="pill" disabled={isCurrentPeriod} onClick={() => setAnchor(new Date())}>
+            {mode === 'week' ? 'This week' : 'This month'}
+          </button>
+          <button
+            className="circle circle-sm"
+            onClick={() => (mode === 'week' ? jump(7) : jumpMonth(1))}
+            aria-label={mode === 'week' ? 'Next week' : 'Next month'}
+            disabled={isCurrentPeriod}
+          >
+            →
+          </button>
+        </div>
+      </div>
+
+      {sessions.isLoading ? (
+        <SkeletonRows n={6} tile={30} />
+      ) : mode === 'week' ? (
+        <WeekGrid
+          weekStart={weekStart}
+          buckets={buckets}
+          today={today}
+          isLocked={isLocked}
+        />
+      ) : (
+        <MonthGrid
+          grid={monthGrid}
+          buckets={buckets}
+          today={today}
+          onPickDay={(d) => {
+            setAnchor(d);
+            setMode('week');
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ── week grid ───────────────────────────────────────────────────────── */
+
+function WeekGrid({
+  weekStart,
+  buckets,
+  today,
+  isLocked,
+}: {
+  weekStart: Date;
+  buckets: Map<string, SessionMeta[]>;
+  today: Date;
+  isLocked: (s: SessionMeta) => boolean;
+}) {
+  const days = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(weekStart.getTime() + i * DAY_MS);
+      const list = buckets.get(dayKey(date)) ?? [];
+      const placed = list.map((s) => {
+        const start = new Date(s.startedAt!);
+        const end = s.endedAt ? new Date(s.endedAt) : new Date(start.getTime() + 15 * 60_000);
+        const startH = start.getHours() + start.getMinutes() / 60;
+        const endH = Math.min(
+          (end.getTime() - startOfDay(start).getTime()) / 3_600_000,
+          24,
+        );
+        return { s, startH, endH: Math.max(endH, startH + 0.25) };
+      });
+      return placeDay(placed);
+    });
+  }, [weekStart, buckets]);
+
   const [h0, h1] = useMemo(() => {
     const all = days.flat();
     if (all.length === 0) return [9, 9 + MIN_SPAN_H];
@@ -94,16 +237,11 @@ export default function Calendar() {
       if (lo > 0) lo--;
       else hi++;
     }
-    return [Math.max(0, lo - 0), Math.min(24, hi)];
+    return [Math.max(0, lo), Math.min(24, hi)];
   }, [days]);
   const span = h1 - h0;
   const yPct = (h: number) => ((h - h0) / span) * 100;
-
-  const today = new Date();
   const isThisWeek = startOfWeek(today).getTime() === weekStart.getTime();
-  const fmtRange = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(
-    weekEnd.getTime() - DAY_MS,
-  ).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
 
   const hourTicks = useMemo(() => {
     const step = span > 14 ? 4 : 2;
@@ -113,103 +251,149 @@ export default function Calendar() {
   }, [h0, h1, span]);
 
   return (
-    <div className="calendar">
-      <div className="calendar-head">
-        <span className="calendar-range">{fmtRange}</span>
-        <div className="calendar-nav">
-          <button
-            className="circle circle-sm"
-            onClick={() => setWeekStart(new Date(weekStart.getTime() - 7 * DAY_MS))}
-            aria-label="Previous week"
-          >
-            ←
-          </button>
-          <button
-            className="pill"
-            disabled={isThisWeek}
-            onClick={() => setWeekStart(startOfWeek(new Date()))}
-          >
-            This week
-          </button>
-          <button
-            className="circle circle-sm"
-            onClick={() => setWeekStart(new Date(weekStart.getTime() + 7 * DAY_MS))}
-            aria-label="Next week"
-            disabled={isThisWeek}
-          >
-            →
-          </button>
+    <div className="card calendar-card">
+      <div className="calendar-grid" style={{ height: COL_H }}>
+        <div className="calendar-gutter">
+          {hourTicks.map((h) => (
+            <span key={h} className="calendar-hour" style={{ top: `${yPct(h)}%` }}>
+              {String(h).padStart(2, '0')}:00
+            </span>
+          ))}
         </div>
-      </div>
-
-      {sessions.isLoading ? (
-        <SkeletonRows n={6} tile={30} />
-      ) : (
-        <div className="card calendar-card">
-          <div className="calendar-grid" style={{ height: COL_H }}>
-            <div className="calendar-gutter">
-              {hourTicks.map((h) => (
-                <span key={h} className="calendar-hour" style={{ top: `${yPct(h)}%` }}>
-                  {String(h).padStart(2, '0')}:00
+        {days.map((placed, i) => {
+          const date = new Date(weekStart.getTime() + i * DAY_MS);
+          const isToday = sameDay(date, today) && isThisWeek;
+          return (
+            <div key={i} className={`calendar-day ${isToday ? 'today' : ''}`}>
+              <div className="calendar-day-head">
+                <span className="calendar-dow">
+                  {date.toLocaleDateString('en-US', { weekday: 'short' })}
                 </span>
-              ))}
+                <span className={`calendar-date ${isToday ? 'today' : ''}`}>{date.getDate()}</span>
+              </div>
+              <div className="calendar-col">
+                {hourTicks.map((h) => (
+                  <span key={h} className="calendar-line" style={{ top: `${yPct(h)}%` }} />
+                ))}
+                {placed.map(({ s, startH, endH, lane, lanes }) => {
+                  const locked = isLocked(s);
+                  const top = yPct(startH);
+                  const height = Math.max(yPct(endH) - top, (MIN_BLOCK_PX / (COL_H - 34)) * 100);
+                  return (
+                    <Tooltip key={s.id} content={<BlockTip s={s} locked={locked} />}>
+                      <button
+                        className={`calendar-block ${tileClass(s.projectKey)} ${locked ? 'locked' : ''}`}
+                        style={{
+                          top: `${top}%`,
+                          height: `${height}%`,
+                          left: `${(lane / lanes) * 100}%`,
+                          width: `calc(${100 / lanes}% - 3px)`,
+                        }}
+                        onClick={() => {
+                          if (!locked) navigate(sessionHash(s.id));
+                        }}
+                      >
+                        <span className="calendar-block-name">{projectName(s)}</span>
+                        <span className="calendar-block-meta">{fmtCost(s.costUsd)}</span>
+                      </button>
+                    </Tooltip>
+                  );
+                })}
+              </div>
             </div>
-            {days.map((placed, i) => {
-              const date = new Date(weekStart.getTime() + i * DAY_MS);
-              const isToday =
-                date.toDateString() === today.toDateString() && isThisWeek;
-              return (
-                <div key={i} className={`calendar-day ${isToday ? 'today' : ''}`}>
-                  <div className="calendar-day-head">
-                    <span className="calendar-dow">
-                      {date.toLocaleDateString('en-US', { weekday: 'short' })}
-                    </span>
-                    <span className={`calendar-date ${isToday ? 'today' : ''}`}>
-                      {date.getDate()}
-                    </span>
-                  </div>
-                  <div className="calendar-col">
-                    {hourTicks.map((h) => (
-                      <span key={h} className="calendar-line" style={{ top: `${yPct(h)}%` }} />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── month grid ──────────────────────────────────────────────────────── */
+
+const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function MonthGrid({
+  grid,
+  buckets,
+  today,
+  onPickDay,
+}: {
+  grid: { gridStart: Date; weeks: number; month: number };
+  buckets: Map<string, SessionMeta[]>;
+  today: Date;
+  onPickDay: (d: Date) => void;
+}) {
+  const maxCost = useMemo(() => {
+    let m = 0;
+    for (let i = 0; i < grid.weeks * 7; i++) {
+      const d = new Date(grid.gridStart.getTime() + i * DAY_MS);
+      const list = buckets.get(dayKey(d)) ?? [];
+      m = Math.max(m, list.reduce((n, s) => n + (s.costUsd ?? 0), 0));
+    }
+    return Math.max(m, 0.01);
+  }, [grid, buckets]);
+
+  return (
+    <div className="card calendar-card month">
+      <div className="month-dow-row">
+        {DOW.map((d) => (
+          <span key={d} className="month-dow">
+            {d}
+          </span>
+        ))}
+      </div>
+      <div className="month-grid" style={{ gridTemplateRows: `repeat(${grid.weeks}, 1fr)` }}>
+        {Array.from({ length: grid.weeks * 7 }, (_, i) => {
+          const date = new Date(grid.gridStart.getTime() + i * DAY_MS);
+          const list = buckets.get(dayKey(date)) ?? [];
+          const cost = list.reduce((n, s) => n + (s.costUsd ?? 0), 0);
+          const other = date.getMonth() !== grid.month;
+          const isToday = sameDay(date, today);
+          const projects = [...new Set(list.map((s) => s.projectKey))].slice(0, 4);
+          const heat = cost > 0 ? 0.06 + (cost / maxCost) * 0.32 : 0;
+          const cell = (
+            <button
+              className={`month-cell ${other ? 'other' : ''} ${list.length ? 'has' : ''}`}
+              style={heat > 0 ? { background: `rgba(240,102,63,${heat})` } : undefined}
+              onClick={() => list.length && onPickDay(date)}
+              disabled={list.length === 0}
+            >
+              <span className={`month-date ${isToday ? 'today' : ''}`}>{date.getDate()}</span>
+              {list.length > 0 && (
+                <>
+                  <span className="month-cost">{fmtCost(cost)}</span>
+                  <span className="month-dots">
+                    {projects.map((p) => (
+                      <span key={p ?? '·'} className={`tile-dot ${tileClass(p)}`} />
                     ))}
-                    {placed.map(({ s, startH, endH, lane, lanes }) => {
-                      const locked = isLocked(s);
-                      const top = yPct(startH);
-                      const height = Math.max(
-                        yPct(endH) - top,
-                        (MIN_BLOCK_PX / (COL_H - 34)) * 100,
-                      );
-                      return (
-                        <button
-                          key={s.id}
-                          className={`calendar-block ${tileClass(s.projectKey)} ${locked ? 'locked' : ''}`}
-                          style={{
-                            top: `${top}%`,
-                            height: `${height}%`,
-                            left: `${(lane / lanes) * 100}%`,
-                            width: `calc(${100 / lanes}% - 3px)`,
-                          }}
-                          onClick={() => {
-                            if (!locked) navigate(sessionHash(s.id));
-                          }}
-                          title={`${projectName(s)} · ${fmtTime(s.startedAt)}–${fmtTime(
-                            s.endedAt,
-                          )} · ${fmtCount(s.turnCount)} turns · ${fmtCost(s.costUsd)}${
-                            locked ? ' · locked (trial)' : ''
-                          }`}
-                        >
-                          <span className="calendar-block-name">{projectName(s)}</span>
-                          <span className="calendar-block-meta">{fmtCost(s.costUsd)}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+                    <span className="month-count">{list.length}</span>
+                  </span>
+                </>
+              )}
+            </button>
+          );
+          return list.length > 0 ? (
+            <Tooltip
+              key={i}
+              content={
+                <>
+                  <strong>
+                    {date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                  </strong>
+                  <span>
+                    {fmtCount(list.length)} session{list.length === 1 ? '' : 's'} · {fmtCost(cost)} ·{' '}
+                    {projects.map((p) => projectName({ projectKey: p, projectPath: null })).join(', ')}
+                  </span>
+                </>
+              }
+            >
+              {cell}
+            </Tooltip>
+          ) : (
+            <div key={i}>{cell}</div>
+          );
+        })}
+      </div>
     </div>
   );
 }
