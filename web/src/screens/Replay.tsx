@@ -30,6 +30,7 @@ import { navigate, sessionHash } from '../router';
 import { BlockView } from '../replay/blocks';
 import FilesView from '../replay/Files';
 import SpineView from '../replay/Spine';
+import Tooltip from '../components/Tooltip';
 import { buildBlocks, idxToBlockMap } from '../replay/thread';
 import { SkeletonRows } from '../components/Skeleton';
 import type { MessageRow, SessionMeta, TurnSummary } from '../types';
@@ -406,9 +407,11 @@ function ExportButton({ sessionId }: { sessionId: string }) {
       <button className="stats-toggle" onClick={copy} title="Copy session as markdown">
         {copied ? 'copied ✓' : 'copy md'}
       </button>
-      <button className="stats-toggle icon" onClick={download} title="Download markdown" aria-label="Download markdown">
-        ↓
-      </button>
+      <Tooltip content="Download markdown">
+        <button className="stats-toggle icon" onClick={download} aria-label="Download markdown">
+          ↓
+        </button>
+      </Tooltip>
     </div>
   );
 }
@@ -515,9 +518,11 @@ export default function Replay({
     <div className="replay">
       <div className="replay-head">
         <div className="replay-title">
-          <a href="#/" className="back-link">
-            ←
-          </a>
+          <Tooltip content="Back to library">
+            <a href="#/" className="back-link" aria-label="Back to library">
+              ←
+            </a>
+          </Tooltip>
           <span className="replay-project">{s ? projectName(s) : '…'}</span>
           <span className="replay-id">{shortId(sessionId)}</span>
           {s?.model && <span className="chip">{fmtModel(s.model)}</span>}
@@ -630,12 +635,16 @@ export default function Replay({
         <div className="error-nav" title="Jump between failing tool results">
           <span className="dot dot-accent" />
           <span className="error-nav-count">{errorIdxs.data!.length}</span>
-          <button onClick={() => jumpError(-1)} aria-label="Previous error">
-            ↑
-          </button>
-          <button onClick={() => jumpError(1)} aria-label="Next error">
-            ↓
-          </button>
+          <Tooltip content="Previous error">
+            <button onClick={() => jumpError(-1)} aria-label="Previous error">
+              ↑
+            </button>
+          </Tooltip>
+          <Tooltip content="Next error">
+            <button onClick={() => jumpError(1)} aria-label="Next error">
+              ↓
+            </button>
+          </Tooltip>
         </div>
       )}
 
@@ -645,24 +654,30 @@ export default function Replay({
           <span className="match-count">
             {hitPos === -1 ? '–' : hitPos + 1}/{hitIdxs.length}
           </span>
-          <button
-            onClick={() => goToHit(hitIdxs[(hitPos - 1 + hitIdxs.length) % hitIdxs.length]!)}
-            aria-label="Previous match"
-          >
-            ↑
-          </button>
-          <button
-            onClick={() => goToHit(hitIdxs[(hitPos + 1) % hitIdxs.length]!)}
-            aria-label="Next match"
-          >
-            ↓
-          </button>
-          <button
-            aria-label="Clear match navigation"
-            onClick={() => navigate(sessionHash(sessionId))}
-          >
-            ✕
-          </button>
+          <Tooltip content="Previous match">
+            <button
+              onClick={() => goToHit(hitIdxs[(hitPos - 1 + hitIdxs.length) % hitIdxs.length]!)}
+              aria-label="Previous match"
+            >
+              ↑
+            </button>
+          </Tooltip>
+          <Tooltip content="Next match">
+            <button
+              onClick={() => goToHit(hitIdxs[(hitPos + 1) % hitIdxs.length]!)}
+              aria-label="Next match"
+            >
+              ↓
+            </button>
+          </Tooltip>
+          <Tooltip content="Clear search">
+            <button
+              aria-label="Clear match navigation"
+              onClick={() => navigate(sessionHash(sessionId))}
+            >
+              ✕
+            </button>
+          </Tooltip>
         </div>
       )}
     </div>

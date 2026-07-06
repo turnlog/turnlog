@@ -137,7 +137,11 @@ weight, blue only where the agent speaks.
   project-tile-colored blocks at real times, and a month grid with per-day
   cost-heat cells + project dots; black today-circle; `Tooltip` on both.
 - **`Tooltip`** (`components/Tooltip.tsx`) — portal contrast pill, clones its
-  single child to attach hover/focus; replaces native `title` for rich content.
+  single child to attach hover/focus; replaces native `title`. Used for rich
+  content (calendar blocks/cells, spend bars) and for labelling **icon-only
+  buttons** (header sidebar/theme/status circles, replay back/download, error
+  & match nav arrows, calendar prev/next, sidebar sort direction). Text
+  buttons carry their own label — no tooltip.
 
 ## 7. Rules of thumb
 

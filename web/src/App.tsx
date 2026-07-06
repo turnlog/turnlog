@@ -7,6 +7,7 @@ import Replay from './screens/Replay';
 import Search from './screens/Search';
 import Spend from './screens/Spend';
 import Sidebar from './Sidebar';
+import Tooltip from './components/Tooltip';
 import { setTheme, useTheme } from './theme';
 
 export function Brandmark({ size = 40 }: { size?: number }) {
@@ -71,23 +72,20 @@ function TopSearch() {
 function StatusCircle() {
   const { data } = useStatus();
   const indexing = data?.state === 'indexing';
+  const label = data
+    ? (data.lastError ??
+      (indexing
+        ? `Indexing ${data.filesDone}/${data.filesTotal}`
+        : `Index up to date · v${data.appVersion}`))
+    : 'Connecting…';
   return (
-    <div
-      className="circle"
-      title={
-        data
-          ? data.lastError ??
-            (indexing
-              ? `indexing ${data.filesDone}/${data.filesTotal}`
-              : `index up to date · v${data.appVersion}`)
-          : 'connecting…'
-      }
-      aria-label="Index status"
-    >
-      <span
-        className={`status-dot ${indexing ? 'busy' : 'idle'} ${data?.lastError ? 'err' : ''}`}
-      />
-    </div>
+    <Tooltip content={label}>
+      <div className="circle" aria-label="Index status">
+        <span
+          className={`status-dot ${indexing ? 'busy' : 'idle'} ${data?.lastError ? 'err' : ''}`}
+        />
+      </div>
+    </Tooltip>
   );
 }
 
@@ -134,14 +132,15 @@ export default function App() {
   return (
     <div className="app">
       <header className="header">
-        <button
-          className={`circle ${sidebarOpen ? 'circle-active' : ''}`}
-          onClick={toggleSidebar}
-          aria-label={`${sidebarOpen ? 'Hide' : 'Show'} sessions`}
-          title="Sessions"
-        >
-          <SidebarIcon size={17} />
-        </button>
+        <Tooltip content={`${sidebarOpen ? 'Hide' : 'Show'} sessions`}>
+          <button
+            className={`circle ${sidebarOpen ? 'circle-active' : ''}`}
+            onClick={toggleSidebar}
+            aria-label={`${sidebarOpen ? 'Hide' : 'Show'} sessions`}
+          >
+            <SidebarIcon size={17} />
+          </button>
+        </Tooltip>
         <a href="#/" className="header-brand" aria-label="Turnlog — overview">
           <Brandmark />
           <span className="header-title">
@@ -158,14 +157,15 @@ export default function App() {
             <WalletIcon size={16} />
             Spend
           </a>
-          <button
-            className="circle"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
-            title="Theme"
-          >
-            {theme === 'dark' ? <SunIcon size={16} /> : <MoonIcon size={16} />}
-          </button>
+          <Tooltip content={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
+            <button
+              className="circle"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+            >
+              {theme === 'dark' ? <SunIcon size={16} /> : <MoonIcon size={16} />}
+            </button>
+          </Tooltip>
           <StatusCircle />
         </div>
       </header>

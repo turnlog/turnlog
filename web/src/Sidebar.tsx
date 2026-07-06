@@ -10,6 +10,7 @@ import {
 } from './api';
 import Dropdown from './components/Dropdown';
 import { SkeletonRows } from './components/Skeleton';
+import Tooltip from './components/Tooltip';
 import { setProjectFilter, useProjectFilter } from './filterStore';
 import { fmtCost, fmtCount, fmtDate, fmtModel, projectName, tileClass } from './format';
 import { LockIcon } from './icons';
@@ -110,13 +111,15 @@ export default function Sidebar({ activeId }: { activeId: string | null }) {
             ariaLabel="Sort by"
             options={SORTS.map((s) => ({ value: s.value, label: `by ${s.label}` }))}
           />
-          <button
-            className="dir-toggle"
-            onClick={() => setDir(dir === 'desc' ? 'asc' : 'desc')}
-            aria-label={`Direction: ${dir}`}
-          >
-            {dir === 'desc' ? '↓' : '↑'}
-          </button>
+          <Tooltip content={dir === 'desc' ? 'Newest first' : 'Oldest first'}>
+            <button
+              className="dir-toggle"
+              onClick={() => setDir(dir === 'desc' ? 'asc' : 'desc')}
+              aria-label={`Direction: ${dir}`}
+            >
+              {dir === 'desc' ? '↓' : '↑'}
+            </button>
+          </Tooltip>
           <span className="sidebar-count">{fmtCount(total)}</span>
         </div>
         {!licensed && (

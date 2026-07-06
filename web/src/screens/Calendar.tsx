@@ -152,24 +152,28 @@ export default function Calendar() {
         </div>
         <span className="calendar-range">{rangeLabel}</span>
         <div className="calendar-nav">
-          <button
-            className="circle circle-sm"
-            onClick={() => (mode === 'week' ? jump(-7) : jumpMonth(-1))}
-            aria-label={mode === 'week' ? 'Previous week' : 'Previous month'}
-          >
-            ←
-          </button>
+          <Tooltip content={mode === 'week' ? 'Previous week' : 'Previous month'}>
+            <button
+              className="circle circle-sm"
+              onClick={() => (mode === 'week' ? jump(-7) : jumpMonth(-1))}
+              aria-label={mode === 'week' ? 'Previous week' : 'Previous month'}
+            >
+              ←
+            </button>
+          </Tooltip>
           <button className="pill" disabled={isCurrentPeriod} onClick={() => setAnchor(new Date())}>
             {mode === 'week' ? 'This week' : 'This month'}
           </button>
-          <button
-            className="circle circle-sm"
-            onClick={() => (mode === 'week' ? jump(7) : jumpMonth(1))}
-            aria-label={mode === 'week' ? 'Next week' : 'Next month'}
-            disabled={isCurrentPeriod}
-          >
-            →
-          </button>
+          <Tooltip content={mode === 'week' ? 'Next week' : 'Next month'}>
+            <button
+              className="circle circle-sm"
+              onClick={() => (mode === 'week' ? jump(7) : jumpMonth(1))}
+              aria-label={mode === 'week' ? 'Next week' : 'Next month'}
+              disabled={isCurrentPeriod}
+            >
+              →
+            </button>
+          </Tooltip>
         </div>
       </div>
 
