@@ -87,8 +87,12 @@ weight, blue only where the agent speaks.
 - **`.circle`** — white circular icon button; `.circle-sm` gray inset;
   `.circle-active` pressed state (`--bg3`); `.circle-onaccent` translucent
   white on vermilion.
-- **`.tile`** — rounded-square project mark with initial; color rotates
-  vermilion/black/blue by project-key hash (`tileClass` in `format.ts`).
+- **`.tile`** — rounded-square project mark with initial; a white glyph on one
+  of **8 categorical hues** (`--tile-0…7`) chosen by project-key hash
+  (`tileClass` in `format.ts`), so a project keeps its color everywhere. The
+  eight are validated as a categorical set (all-pairs CVD ΔE 11.8, white-text
+  ≥ 3.49:1) and theme-invariant; the hash follows the key, never list position,
+  and the initial + name are the secondary encoding past 8 projects.
 - **`.dot`** — 8px data dots labeling numbers and legend entries.
 - **Lens legend** — the four session dimensions own fixed colors everywhere
   they appear (pills, spine summary counts, tool dots): **diffs = mint**,

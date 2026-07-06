@@ -259,16 +259,36 @@
   border-radius: 9px;
   font-size: 12px;
 }
-.tile-a {
-  background: var(--accent);
+.tile-0 {
+  background: var(--tile-0);
   color: #fff;
 }
-.tile-b {
-  background: var(--contrast-solid);
-  color: var(--contrast-on);
+.tile-1 {
+  background: var(--tile-1);
+  color: #fff;
 }
-.tile-c {
-  background: var(--blue);
+.tile-2 {
+  background: var(--tile-2);
+  color: #fff;
+}
+.tile-3 {
+  background: var(--tile-3);
+  color: #fff;
+}
+.tile-4 {
+  background: var(--tile-4);
+  color: #fff;
+}
+.tile-5 {
+  background: var(--tile-5);
+  color: #fff;
+}
+.tile-6 {
+  background: var(--tile-6);
+  color: #fff;
+}
+.tile-7 {
+  background: var(--tile-7);
   color: #fff;
 }
 
@@ -2588,14 +2608,29 @@
   height: 8px;
   border-radius: 50%;
 }
-.tile-dot.tile-a {
-  background: var(--accent);
+.tile-dot.tile-0 {
+  background: var(--tile-0);
 }
-.tile-dot.tile-b {
-  background: var(--contrast-solid);
+.tile-dot.tile-1 {
+  background: var(--tile-1);
 }
-.tile-dot.tile-c {
-  background: var(--blue);
+.tile-dot.tile-2 {
+  background: var(--tile-2);
+}
+.tile-dot.tile-3 {
+  background: var(--tile-3);
+}
+.tile-dot.tile-4 {
+  background: var(--tile-4);
+}
+.tile-dot.tile-5 {
+  background: var(--tile-5);
+}
+.tile-dot.tile-6 {
+  background: var(--tile-6);
+}
+.tile-dot.tile-7 {
+  background: var(--tile-7);
 }
 .month-count {
   margin-left: auto;

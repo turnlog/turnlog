@@ -75,6 +75,20 @@
   --purple-tx: #b6a7f5;
   --mark: rgba(107, 147, 247, 0.28);
 
+  /* project tile palette — theme-invariant. 8 categorical hues assigned by
+     project-key hash (tileClass in format.ts), white glyph on each. Validated
+     with the data-viz palette checker: all-pairs CVD ΔE 11.8 (protan/deutan),
+     chroma & lightness bands pass, white-text ≥ 3.49:1. Fixed order — never
+     reordered (the letter + name are the always-present secondary encoding). */
+  --tile-0: #3e6df5; /* blue    */
+  --tile-1: #0d7ec0; /* azure   */
+  --tile-2: #0f97a6; /* teal    */
+  --tile-3: #1f9d57; /* green   */
+  --tile-4: #e8542f; /* orange  */
+  --tile-5: #db3b4a; /* red     */
+  --tile-6: #c43d8c; /* magenta */
+  --tile-7: #8b34d4; /* purple  */
+
   /* the near-black surface — inverts to white on dark */
   --contrast-solid: #eceef2;
   --contrast-on: #14161b;

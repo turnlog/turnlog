@@ -85,9 +85,15 @@ export function shortId(id: string): string {
   return id.length > 8 ? id.slice(0, 8) : id;
 }
 
-/** Rotating tile colors for project marks (reference: orange / navy / blue). */
+/**
+ * Deterministic per-project tile color: hash the project key into one of 8
+ * validated categorical hues (`--tile-0…7`, defined in theme.css). Color
+ * follows the project key, never its position in a list, so filtering/sorting
+ * never repaints a project. Collisions past 8 projects are disambiguated by the
+ * tile's initial + the project name (the required secondary encoding).
+ */
 export function tileClass(key: string | null): string {
   let h = 0;
   for (const ch of key ?? '') h = (h * 31 + ch.charCodeAt(0)) | 0;
-  return `tile-${['a', 'b', 'c'][Math.abs(h) % 3]}`;
+  return `tile-${Math.abs(h) % 8}`;
 }
