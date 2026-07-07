@@ -70,7 +70,9 @@ lsof -iTCP -sTCP:LISTEN | grep node
 ```
 
 The single optional network touch is a version-check against the npm registry
-on startup, printed as a subtle "update available" notice. Turn it off with
+on startup — surfaced as a subtle "update available" notice in the terminal and
+a dismissible banner in the web UI. The browser never contacts npm itself; the
+result rides along on the local status API. Turn it off with
 `TURNLOG_NO_UPDATE_CHECK=1` or `"checkUpdates": false` in
 `~/.config/turnlog/settings.json`.
 
@@ -103,8 +105,8 @@ npm run dev            # server + Vite together (scripts/dev.mjs)
 Claude Code's JSONL format is undocumented and changes without notice. The
 parser's rule is *never crash, never drop*: unrecognized records are stored as
 `kind='unknown'` with the raw line preserved. Adapter changes ship with corpus
-fixtures and regenerated golden files (`npm run golden:update`). Architecture
-lives in `docs/` (`turnlog-deep-dive.md`, `roadmap.md`, `design-system.md`).
+fixtures and regenerated golden files (`npm run golden:update`). Architecture and
+conventions are documented in `CLAUDE.md`.
 
 ---
 

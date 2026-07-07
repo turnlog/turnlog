@@ -151,10 +151,6 @@
   padding: 1px 7px;
   font-size: 12.5px;
 }
-.locked-meta {
-  font-family: var(--mono);
-  font-size: 12.5px;
-}
 
 /* ── shared primitives ─────────────────────────────────────────────── */
 
@@ -177,22 +173,6 @@
 .btn-accent:hover {
   background: var(--accent-hi);
 }
-.btn-onaccent {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  background: #fff;
-  color: #17191f;
-  border-radius: 999px;
-  padding: 11px 20px;
-  font-size: 14px;
-  font-weight: 600;
-}
-.btn-onaccent:hover {
-  color: #17191f;
-  opacity: 0.92;
-}
-
 .pill {
   display: inline-flex;
   align-items: center;
@@ -465,17 +445,6 @@
   font-size: 11px;
   color: var(--tx2);
 }
-.sidebar-trial {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--accent);
-  background: var(--accent-dim);
-  border-radius: 999px;
-  padding: 6px 12px;
-}
 
 .sidebar-list {
   flex: 1;
@@ -535,10 +504,6 @@
   white-space: nowrap;
   overflow: hidden;
 }
-.side-item-sub .lock-glyph {
-  color: var(--accent);
-  flex: none;
-}
 .side-item-model {
   margin-left: auto;
   font-family: var(--mono);
@@ -551,16 +516,6 @@
 }
 .side-item.active .side-item-model {
   background: var(--card);
-}
-.side-item.locked .tile,
-.side-item.locked .side-item-main {
-  opacity: 0.45;
-}
-.side-item.locked {
-  cursor: default;
-}
-.side-item.locked:hover {
-  background: transparent;
 }
 
 /* ── home: hero + bento ────────────────────────────────────────────── */
@@ -703,11 +658,6 @@
   color: rgba(255, 255, 255, 0.75);
   margin: 0 0 4px;
 }
-.accent-card .btn-onaccent {
-  align-self: flex-start;
-  margin-top: 14px;
-}
-
 /* list cards (recent sessions / projects) */
 .list-card {
   padding: 20px 26px 10px;
@@ -891,19 +841,31 @@
   opacity: 0.4;
   cursor: default;
 }
-.stats-toggle {
+/* replay-header action cluster: icon-only copy · download · stats */
+.replay-actions {
   margin-left: auto;
-  font-size: 12.5px;
-  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.replay-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
   color: var(--tx1);
   background: var(--bg2);
-  border-radius: 999px;
-  padding: 7px 15px;
+  transition: color 0.12s, background 0.12s;
 }
-.stats-toggle:hover,
-.stats-toggle.active {
+.replay-action:hover,
+.replay-action.active {
   color: var(--tx0);
   background: var(--bg3);
+}
+.replay-action.ok {
+  color: var(--mint);
 }
 .replay-stats {
   margin-top: 12px;
@@ -2461,11 +2423,6 @@
   overflow: hidden;
   white-space: nowrap;
 }
-.calendar-block.locked {
-  opacity: 0.35;
-  cursor: default;
-}
-
 /* labeled header pill (Spend) */
 .header-pill {
   display: inline-flex;
@@ -2485,6 +2442,74 @@
 .header-pill.active {
   background: var(--contrast-solid);
   color: var(--contrast-on);
+}
+
+/* update-available strip, under the header, full width */
+.update-banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 28px 4px;
+  padding: 9px 14px;
+  border-radius: 12px;
+  background: var(--accent-dim);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  font-size: 13px;
+  color: var(--tx0);
+}
+.update-banner-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.update-banner-text {
+  color: var(--tx1);
+}
+.update-banner-text strong {
+  color: var(--tx0);
+  font-weight: 600;
+}
+.update-banner-cmd {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--tx1);
+  font-size: 12px;
+}
+.update-banner-cmd:hover {
+  color: var(--tx0);
+  border-color: var(--accent);
+}
+.update-banner-cmd code {
+  font-family: var(--mono, ui-monospace, monospace);
+  color: var(--tx0);
+}
+.update-banner-copy {
+  color: var(--tx2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 10px;
+}
+.update-banner-x {
+  margin-left: auto;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--tx2);
+}
+.update-banner-x:hover {
+  color: var(--tx0);
+  background: var(--card);
 }
 
 /* calendar embedded in spend: tighter head */
@@ -2644,11 +2669,3 @@
 }
 
 /* export control (replay header) */
-.export-ctl {
-  margin-left: auto;
-  display: flex;
-  gap: 4px;
-}
-.stats-toggle.icon {
-  padding: 7px 11px;
-}

@@ -29,6 +29,12 @@ export interface ServerContext {
   pricingOverrides?: Record<string, Partial<ModelPricing>>;
   /** Append the export attribution footer (settings.json, default true). */
   exportFooter?: boolean;
+  /**
+   * Latest newer version from the CLI's startup registry check, or null.
+   * Read live (not captured once) so /api/status reflects the result the
+   * moment the async check resolves — the web UI polls status already.
+   */
+  getUpdate?: () => string | null;
 }
 
 const ALLOWED_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '[::1]']);
@@ -195,7 +201,7 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
     return sendJson(res, 200, {
       ...driver.status(),
       appVersion: APP_VERSION,
-      licensed: process.env.TURNLOG_UNLICENSED !== '1',
+      updateAvailable: ctx.getUpdate?.() ?? null,
     });
   }
   if (p === '/api/stats') {

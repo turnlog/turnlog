@@ -27,10 +27,15 @@ interface Res {
   json: () => any;
 }
 
-function request(reqPath: string, headers: Record<string, string> = {}, method = 'GET'): Promise<Res> {
+function request(
+  reqPath: string,
+  headers: Record<string, string> = {},
+  method = 'GET',
+  reqPort = port,
+): Promise<Res> {
   return new Promise((resolve, reject) => {
     const req = http.request(
-      { host: '127.0.0.1', port, path: reqPath, method, headers },
+      { host: '127.0.0.1', port: reqPort, path: reqPath, method, headers },
       (res) => {
         let body = '';
         res.on('data', (chunk) => (body += chunk));
@@ -179,10 +184,29 @@ describe('API', () => {
     const status = (await request(withToken('/api/status'))).json();
     expect(status.state).toBe('idle');
     expect(status.appVersion).toBeDefined();
+    // No getUpdate wired on this server → no update surfaced.
+    expect(status.updateAvailable).toBeNull();
 
     const stats = (await request(withToken('/api/stats'))).json();
     expect(stats.sessions).toBe(4);
     expect(stats.projects.length).toBe(2);
+  });
+
+  it('surfaces the CLI update check on /api/status via getUpdate', async () => {
+    const { server: s, port: p } = await startServer({
+      db,
+      driver: stubDriver,
+      token: TOKEN,
+      getUpdate: () => '9.9.9',
+    });
+    try {
+      const status = (
+        await request(`/api/status?token=${TOKEN}`, {}, 'GET', p)
+      ).json();
+      expect(status.updateAvailable).toBe('9.9.9');
+    } finally {
+      s.close();
+    }
   });
 
   it('404s unknown API routes', async () => {

@@ -89,6 +89,58 @@ function StatusCircle() {
   );
 }
 
+/**
+ * Surfaces the CLI's startup update check inside the browser: the Node process
+ * is the only thing that ever talks to npm, so the version arrives on
+ * /api/status (already polled) rather than a fetch from here. Dismissal is
+ * keyed by version, so a newer release re-notifies.
+ */
+function UpdateBanner() {
+  const { data } = useStatus();
+  const latest = data?.updateAvailable ?? null;
+  const [dismissed, setDismissed] = useState(() =>
+    localStorage.getItem('turnlog-update-dismissed'),
+  );
+  const [copied, setCopied] = useState(false);
+
+  if (!latest || dismissed === latest) return null;
+
+  const cmd = 'npm i -g turnlog@latest';
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(cmd);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard denied — ignore */
+    }
+  };
+  const dismiss = () => {
+    localStorage.setItem('turnlog-update-dismissed', latest);
+    setDismissed(latest);
+  };
+
+  return (
+    <div className="update-banner" role="status">
+      <span className="update-banner-dot" aria-hidden />
+      <span className="update-banner-text">
+        Turnlog <strong>{latest}</strong> is available — you&rsquo;re on {data?.appVersion}.
+      </span>
+      <button className="update-banner-cmd" onClick={copy} title="Copy install command">
+        <code>{cmd}</code>
+        <span className="update-banner-copy">{copied ? 'copied' : 'copy'}</span>
+      </button>
+      <button
+        className="update-banner-x"
+        onClick={dismiss}
+        aria-label="Dismiss update notice"
+      >
+        &times;
+      </button>
+    </div>
+  );
+}
+
 /** Opened without the per-launch token: API calls will all 401. Explain. */
 function NoToken() {
   return (
@@ -169,6 +221,7 @@ export default function App() {
           <StatusCircle />
         </div>
       </header>
+      <UpdateBanner />
       <div className="app-body">
         {sidebarOpen && (
           <Sidebar activeId={route.name === 'session' ? route.id : null} />

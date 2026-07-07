@@ -109,20 +109,6 @@ export function flattenSessions(
   return data?.pages.flatMap((p) => p.sessions) ?? [];
 }
 
-/** The trial-open set: ids of the 10 newest sessions. Only fetched when unlicensed. */
-export function useTrialOpenIds(enabled: boolean) {
-  return useQuery({
-    queryKey: ['trial-open'],
-    queryFn: async () => {
-      const res = await apiFetch<SessionListResponse>(
-        '/api/sessions?sort=started_at&dir=desc&limit=10',
-      );
-      return new Set(res.sessions.map((s) => s.id));
-    },
-    enabled,
-  });
-}
-
 export function useSession(id: string | null) {
   return useQuery({
     queryKey: ['session', id],

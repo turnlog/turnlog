@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useSessionsRange, useStatus, useTrialOpenIds } from '../api';
+import { useSessionsRange } from '../api';
 import { SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
 import { fmtCost, fmtCount, fmtTime, projectName, tileClass } from '../format';
@@ -61,7 +61,7 @@ function placeDay(sessions: { s: SessionMeta; startH: number; endH: number }[]):
   return placed.map((p) => ({ ...p, lanes }));
 }
 
-function BlockTip({ s, locked }: { s: SessionMeta; locked: boolean }) {
+function BlockTip({ s }: { s: SessionMeta }) {
   return (
     <>
       <strong>{projectName(s)}</strong>
@@ -69,7 +69,6 @@ function BlockTip({ s, locked }: { s: SessionMeta; locked: boolean }) {
         {fmtTime(s.startedAt)}
         {s.endedAt ? `–${fmtTime(s.endedAt)}` : ''} · {fmtCount(s.turnCount)} turns ·{' '}
         {fmtCost(s.costUsd)}
-        {locked ? ' · locked' : ''}
       </span>
     </>
   );
@@ -78,12 +77,6 @@ function BlockTip({ s, locked }: { s: SessionMeta; locked: boolean }) {
 export default function Calendar() {
   const [mode, setMode] = useState<Mode>('week');
   const [anchor, setAnchor] = useState(() => new Date());
-
-  const status = useStatus();
-  const licensed = status.data?.licensed ?? true;
-  const trialOpen = useTrialOpenIds(!licensed);
-  const isLocked = (s: SessionMeta) =>
-    !licensed && trialOpen.data !== undefined && !trialOpen.data.has(s.id);
 
   // Fetch range depends on mode.
   const weekStart = useMemo(() => startOfWeek(anchor), [anchor]);
@@ -180,12 +173,7 @@ export default function Calendar() {
       {sessions.isLoading ? (
         <SkeletonRows n={6} tile={30} />
       ) : mode === 'week' ? (
-        <WeekGrid
-          weekStart={weekStart}
-          buckets={buckets}
-          today={today}
-          isLocked={isLocked}
-        />
+        <WeekGrid weekStart={weekStart} buckets={buckets} today={today} />
       ) : (
         <MonthGrid
           grid={monthGrid}
@@ -207,12 +195,10 @@ function WeekGrid({
   weekStart,
   buckets,
   today,
-  isLocked,
 }: {
   weekStart: Date;
   buckets: Map<string, SessionMeta[]>;
   today: Date;
-  isLocked: (s: SessionMeta) => boolean;
 }) {
   const days = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
@@ -280,7 +266,6 @@ function WeekGrid({
                   <span key={h} className="calendar-line" style={{ top: `${yPct(h)}%` }} />
                 ))}
                 {placed.map(({ s, startH, endH, lane, lanes }) => {
-                  const locked = isLocked(s);
                   const top = yPct(startH);
                   // Real height in px — never inflated, so blocks never bleed
                   // over their neighbours. Content degrades to fit the space:
@@ -291,18 +276,16 @@ function WeekGrid({
                     realPx >= 42 && lanes <= 2 ? 'full' : realPx >= 20 ? 'compact' : 'bar';
                   const heightPx = Math.max(realPx, tier === 'bar' ? 5 : realPx);
                   return (
-                    <Tooltip key={s.id} content={<BlockTip s={s} locked={locked} />}>
+                    <Tooltip key={s.id} content={<BlockTip s={s} />}>
                       <button
-                        className={`calendar-block tier-${tier} ${tileClass(s.projectKey)} ${locked ? 'locked' : ''}`}
+                        className={`calendar-block tier-${tier} ${tileClass(s.projectKey)}`}
                         style={{
                           top: `${top}%`,
                           height: `${heightPx}px`,
                           left: `${(lane / lanes) * 100}%`,
                           width: `calc(${100 / lanes}% - 3px)`,
                         }}
-                        onClick={() => {
-                          if (!locked) navigate(sessionHash(s.id));
-                        }}
+                        onClick={() => navigate(sessionHash(s.id))}
                       >
                         {tier !== 'bar' && (
                           <span className="calendar-block-name">{projectName(s)}</span>

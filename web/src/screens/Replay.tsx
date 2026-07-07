@@ -12,8 +12,6 @@ import {
   useErrorIdxs,
   useSearch,
   useSession,
-  useStatus,
-  useTrialOpenIds,
   useTurns,
 } from '../api';
 import {
@@ -31,6 +29,7 @@ import { BlockView } from '../replay/blocks';
 import FilesView from '../replay/Files';
 import SpineView from '../replay/Spine';
 import Tooltip from '../components/Tooltip';
+import { ChartIcon, CheckIcon, CopyIcon, DownloadIcon } from '../icons';
 import { buildBlocks, idxToBlockMap } from '../replay/thread';
 import { SkeletonRows } from '../components/Skeleton';
 import type { MessageRow, SessionMeta, TurnSummary } from '../types';
@@ -289,29 +288,6 @@ function StatsPanel({ s }: { s: SessionMeta }) {
   );
 }
 
-function LockedPanel({ s }: { s: SessionMeta | undefined }) {
-  return (
-    <div className="fullscreen-note">
-      <div>
-        <h1>This session is part of your locked history</h1>
-        {s && (
-          <p className="locked-meta">
-            {projectName(s)} · {fmtDate(s.startedAt)} · {fmtCount(s.turnCount)} turns ·{' '}
-            {fmtCost(s.costUsd)}
-          </p>
-        )}
-        <p>
-          The trial opens your 10 newest sessions. A license unlocks everything Turnlog
-          has already indexed — including this one.
-        </p>
-        <p>
-          <a href="#/">← back to the library</a>
-        </p>
-      </div>
-    </div>
-  );
-}
-
 /** In-session find (4e): drives the same ?q= the global search uses. */
 function FindBar({
   sessionId,
@@ -403,16 +379,26 @@ function ExportButton({ sessionId }: { sessionId: string }) {
     URL.revokeObjectURL(url);
   };
   return (
-    <div className="export-ctl">
-      <button className="stats-toggle" onClick={copy} title="Copy session as markdown">
-        {copied ? 'copied ✓' : 'copy md'}
-      </button>
-      <Tooltip content="Download markdown">
-        <button className="stats-toggle icon" onClick={download} aria-label="Download markdown">
-          ↓
+    <>
+      <Tooltip content={copied ? 'Copied ✓' : 'Copy as markdown'}>
+        <button
+          className={`replay-action ${copied ? 'ok' : ''}`}
+          onClick={copy}
+          aria-label="Copy session as markdown"
+        >
+          {copied ? <CheckIcon size={16} /> : <CopyIcon size={16} />}
         </button>
       </Tooltip>
-    </div>
+      <Tooltip content="Download markdown">
+        <button
+          className="replay-action"
+          onClick={download}
+          aria-label="Download session as markdown"
+        >
+          <DownloadIcon size={16} />
+        </button>
+      </Tooltip>
+    </>
   );
 }
 
@@ -430,12 +416,6 @@ export default function Replay({
   view?: ViewParam | null;
 }) {
   const session = useSession(sessionId);
-  const status = useStatus();
-  const licensed = status.data?.licensed ?? true;
-  const trialOpen = useTrialOpenIds(!licensed);
-  const locked =
-    !licensed && trialOpen.data !== undefined && !trialOpen.data.has(sessionId);
-
   const turns = useTurns(sessionId);
   const [mode, setMode] = useState<ViewMode>(() => {
     if (view) return view; // ?v= deep link wins over the persisted choice
@@ -509,8 +489,6 @@ export default function Replay({
   const goToHit = (idx: number) => {
     navigate(sessionHash(sessionId, { m: idx, q: searchQuery ?? undefined }));
   };
-
-  if (locked) return <LockedPanel s={session.data} />;
 
   const s = session.data;
 
@@ -590,13 +568,19 @@ export default function Replay({
               );
             })}
           </div>
-          <ExportButton sessionId={sessionId} />
-          <button
-            className={`stats-toggle ${statsOpen ? 'active' : ''}`}
-            onClick={() => setStatsOpen(!statsOpen)}
-          >
-            stats
-          </button>
+          <div className="replay-actions">
+            <ExportButton sessionId={sessionId} />
+            <Tooltip content={statsOpen ? 'Hide stats' : 'Session stats'}>
+              <button
+                className={`replay-action ${statsOpen ? 'active' : ''}`}
+                onClick={() => setStatsOpen(!statsOpen)}
+                aria-label="Session stats"
+                aria-pressed={statsOpen}
+              >
+                <ChartIcon size={16} />
+              </button>
+            </Tooltip>
+          </div>
         </div>
         {statsOpen && s && <StatsPanel s={s} />}
         {(findOpen || searchQuery) && (

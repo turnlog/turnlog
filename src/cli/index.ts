@@ -19,7 +19,6 @@ Usage:
   turnlog                     Start the local server and open the UI
   turnlog index               Incrementally index ~/.claude/projects and exit
   turnlog index --rebuild     Drop the index and rebuild from scratch
-  turnlog license <key>       Activate a license (coming soon)
   turnlog export <id>         Print a session as markdown (id or unique prefix)
 
 Options:
@@ -77,9 +76,6 @@ async function main(): Promise<void> {
       });
     case 'index':
       return runIndex(projectsDir, values.rebuild === true);
-    case 'license':
-      fail('License activation ships in a later release. Follow along at turnlog.dev.');
-      break;
     case 'export':
       return runExport(positionals[1], values['no-footer'] === true);
     default:
@@ -107,6 +103,12 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
     pricingOverrides: settings.modelPricing,
   });
 
+  // Set once the startup registry check resolves (below); read live by
+  // /api/status so the web UI surfaces the same "update available" notice.
+  // TURNLOG_FAKE_UPDATE=x.y.z seeds it up front to preview the CLI line + web
+  // banner without a published newer release.
+  let latestUpdate: string | null = process.env.TURNLOG_FAKE_UPDATE ?? null;
+
   const { server, url } = await startServer(
     {
       db,
@@ -114,6 +116,7 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
       token,
       pricingOverrides: settings.modelPricing,
       exportFooter: settings.exportFooter,
+      getUpdate: () => latestUpdate,
     },
     { port: opts.port },
   );
@@ -150,6 +153,7 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
   if (updateCheckEnabled(settings.checkUpdates)) {
     void checkForUpdate(APP_VERSION).then((latest) => {
       if (latest) {
+        latestUpdate = latest;
         console.log(
           `\nUpdate available: ${APP_VERSION} → ${latest}. Run: npm i -g turnlog@latest`,
         );

@@ -58,7 +58,6 @@ export default function Home() {
   const stats = useStats();
   const status = useStatus();
   const recent = useSessions({ sort: 'started_at', dir: 'desc' });
-  const licensed = status.data?.licensed ?? true;
   const [query, setQuery] = useState('');
 
   const s = stats.data;
@@ -142,37 +141,16 @@ export default function Home() {
           </div>
         </section>
 
-        {licensed ? (
-          <section className="card accent-card">
-            <div className="accent-card-head">
-              <h2>Est. spend</h2>
-              <a className="circle circle-sm circle-onaccent" href="#/spend" aria-label="Open spend view">
-                <ArrowUpRight />
-              </a>
-            </div>
-            <strong className="accent-big">{s ? fmtCost(s.costUsd) : <Skel w={140} h={34} className="skel-onaccent" />}</strong>
-            <p>computed locally from the shipped pricing table</p>
-          </section>
-        ) : (
-          <section className="card accent-card">
-            <div className="accent-card-head">
-              <h2>Unlock full history</h2>
-            </div>
-            <p>
-              The trial opens your 10 newest sessions — everything older is indexed and
-              waiting.
-            </p>
-            <a
-              className="btn-onaccent"
-              href="https://turnlog.dev"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Upgrade now
+        <section className="card accent-card">
+          <div className="accent-card-head">
+            <h2>Est. spend</h2>
+            <a className="circle circle-sm circle-onaccent" href="#/spend" aria-label="Open spend view">
               <ArrowUpRight />
             </a>
-          </section>
-        )}
+          </div>
+          <strong className="accent-big">{s ? fmtCost(s.costUsd) : <Skel w={140} h={34} className="skel-onaccent" />}</strong>
+          <p>computed locally from the shipped pricing table</p>
+        </section>
 
         <section className="card list-card">
           <div className="list-card-head">

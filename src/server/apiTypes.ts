@@ -196,9 +196,11 @@ export interface StatusResponse {
   lastScanAt: string | null;
   appVersion: string;
   /**
-   * Drives the trial treatment in the UI: when false, only the 10 newest
-   * sessions are openable. Real Ed25519 verification lands in Phase 3; until
-   * then the server reports true (TURNLOG_UNLICENSED=1 previews trial mode).
+   * A newer published version if the CLI's startup registry check found one,
+   * else null (also null while the check is in flight, or when it's disabled
+   * via TURNLOG_NO_UPDATE_CHECK / `checkUpdates:false`). The browser never
+   * contacts npm itself — this mirrors the CLI's one sanctioned network touch
+   * (src/cli/updateCheck.ts) so the web UI can surface the same notice.
    */
-  licensed: boolean;
+  updateAvailable: string | null;
 }

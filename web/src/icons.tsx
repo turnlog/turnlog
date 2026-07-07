@@ -1,7 +1,8 @@
 /**
  * Solar Icons (outline style) by 480 Design, licensed CC BY 4.0.
  * Path data vendored at build time via Iconify; the app itself never loads
- * anything from the network.
+ * anything from the network. A few custom stroke marks (bottom of file) are
+ * hand-authored, not Solar.
  */
 
 interface IconProps {
@@ -28,13 +29,6 @@ const MAGNIFERICON_BODY =
 
 export function MagniferIcon(props: IconProps) {
   return <SolarIcon body={MAGNIFERICON_BODY} {...props} />;
-}
-
-const LOCKICON_BODY =
-  '<g fill="currentColor" fill-rule="evenodd" clip-rule="evenodd"><path d="M9.25 16a2.75 2.75 0 1 1 5.5 0a2.75 2.75 0 0 1-5.5 0M12 14.75a1.25 1.25 0 1 0 0 2.5a1.25 1.25 0 0 0 0-2.5"/><path d="M5.25 9.303V8a6.75 6.75 0 0 1 13.5 0v1.303q.34.023.642.064c.9.12 1.658.38 2.26.981c.602.602.86 1.36.982 2.26c.116.867.116 1.97.116 3.337v.11c0 1.367 0 2.47-.116 3.337c-.122.9-.38 1.658-.982 2.26s-1.36.86-2.26.982c-.867.116-1.97.116-3.337.116h-8.11c-1.367 0-2.47 0-3.337-.116c-.9-.122-1.658-.38-2.26-.982s-.86-1.36-.981-2.26c-.117-.867-.117-1.97-.117-3.337v-.11c0-1.367 0-2.47.117-3.337c.12-.9.38-1.658.981-2.26c.602-.602 1.36-.86 2.26-.981q.301-.041.642-.064M6.75 8a5.25 5.25 0 0 1 10.5 0v1.253q-.56-.004-1.195-.003h-8.11q-.634 0-1.195.003zm-1.942 2.853c-.734.099-1.122.28-1.399.556c-.277.277-.457.665-.556 1.4c-.101.755-.103 1.756-.103 3.191s.002 2.436.103 3.192c.099.734.28 1.122.556 1.399c.277.277.665.457 1.4.556c.754.101 1.756.103 3.191.103h8c1.435 0 2.436-.002 3.192-.103c.734-.099 1.122-.28 1.399-.556c.277-.277.457-.665.556-1.4c.101-.755.103-1.756.103-3.191s-.002-2.437-.103-3.192c-.099-.734-.28-1.122-.556-1.399c-.277-.277-.665-.457-1.4-.556c-.755-.101-1.756-.103-3.191-.103H8c-1.435 0-2.437.002-3.192.103"/></g>';
-
-export function LockIcon(props: IconProps) {
-  return <SolarIcon body={LOCKICON_BODY} {...props} />;
 }
 
 const SUNICON_BODY =
@@ -91,4 +85,38 @@ const CALENDARICON_BODY =
 
 export function CalendarIcon(props: IconProps) {
   return <SolarIcon body={CALENDARICON_BODY} {...props} />;
+}
+
+/**
+ * Custom line icons (not Solar) — simple stroke marks authored to read cleanly
+ * at 16px for the icon-only action buttons in the replay header. Same 24×24
+ * box and currentColor as the Solar set so they sit alongside it.
+ */
+
+const COPYICON_BODY =
+  '<rect x="9" y="9" width="11" height="11" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>';
+
+export function CopyIcon(props: IconProps) {
+  return <SolarIcon body={COPYICON_BODY} {...props} />;
+}
+
+const DOWNLOADICON_BODY =
+  '<path d="M12 4v10m0 0 3.5-3.5M12 14l-3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 16v1.5A2.5 2.5 0 0 0 7.5 20h9a2.5 2.5 0 0 0 2.5-2.5V16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>';
+
+export function DownloadIcon(props: IconProps) {
+  return <SolarIcon body={DOWNLOADICON_BODY} {...props} />;
+}
+
+const CHARTICON_BODY =
+  '<path d="M4.5 20h15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M7.5 20v-4.5M12 20v-9M16.5 20v-6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+
+export function ChartIcon(props: IconProps) {
+  return <SolarIcon body={CHARTICON_BODY} {...props} />;
+}
+
+const CHECKICON_BODY =
+  '<path d="m5 12.5 4.5 4.5L19 7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>';
+
+export function CheckIcon(props: IconProps) {
+  return <SolarIcon body={CHECKICON_BODY} {...props} />;
 }
