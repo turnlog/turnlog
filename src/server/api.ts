@@ -46,6 +46,7 @@ const SORTABLE: Record<string, string> = {
   ended_at: 'ended_at',
   cost_usd: 'cost_usd',
   turn_count: 'turn_count',
+  tokens: '(input_tokens + output_tokens)',
 };
 
 export interface ListSessionsQuery {

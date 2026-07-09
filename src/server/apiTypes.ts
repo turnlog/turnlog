@@ -195,6 +195,16 @@ export interface StatsResponse {
   projects: ProjectInfo[];
 }
 
+/**
+ * Payload of the `indexed` SSE event on `GET /api/events` — emitted after the
+ * watcher reindexes a changed session file, or with sessionId null for broad
+ * changes (startup scan, subagent transcripts that roll into a parent).
+ */
+export interface IndexedEvent {
+  sessionId: string | null;
+  at: string;
+}
+
 export interface StatusResponse {
   state: 'idle' | 'indexing';
   filesTotal: number;

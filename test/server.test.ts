@@ -3,7 +3,7 @@ import http from 'node:http';
 import type Database from 'better-sqlite3';
 import { Indexer } from '../src/indexer/indexer.js';
 import type { IndexDriver } from '../src/indexer/driver.js';
-import { startServer } from '../src/server/server.js';
+import { SseHub, startServer } from '../src/server/server.js';
 import { SESSION_A, SESSION_C, copyCorpus, testDb, tmpDir } from './helpers.js';
 
 const TOKEN = 'test-token-1234567890abcdef';
@@ -56,15 +56,18 @@ function request(
 
 const withToken = (p: string) => `${p}${p.includes('?') ? '&' : '?'}token=${TOKEN}`;
 
+const hub = new SseHub();
+
 beforeAll(async () => {
   db = testDb(tmpDir('turnlog-server-'));
   await new Indexer(db, { projectsDir: copyCorpus() }).scanAll();
-  const started = await startServer({ db, driver: stubDriver, token: TOKEN });
+  const started = await startServer({ db, driver: stubDriver, token: TOKEN, events: hub });
   server = started.server;
   port = started.port;
 });
 
 afterAll(() => {
+  hub.close();
   server.close();
   db.close();
 });
@@ -224,6 +227,37 @@ describe('API', () => {
     // Valid numbers still work.
     const ok = await request(withToken('/api/sessions?limit=5'));
     expect(ok.status).toBe(200);
+  });
+
+  it('guards the event stream with the same token as every API route', async () => {
+    const res = await request('/api/events');
+    expect(res.status).toBe(401);
+  });
+
+  it('streams indexed events over SSE', async () => {
+    const received = await new Promise<string>((resolve, reject) => {
+      const req = http.request(
+        { host: '127.0.0.1', port, path: withToken('/api/events'), method: 'GET' },
+        (res) => {
+          expect(res.statusCode).toBe(200);
+          expect(res.headers['content-type']).toBe('text/event-stream');
+          let buf = '';
+          res.on('data', (chunk: Buffer) => {
+            buf += chunk.toString();
+            if (buf.includes('event: indexed')) {
+              res.destroy();
+              resolve(buf);
+            }
+          });
+          // Connection is open — now broadcast into it.
+          hub.broadcast('indexed', { sessionId: SESSION_A, at: 'now' });
+        },
+      );
+      req.on('error', reject);
+      req.end();
+      setTimeout(() => reject(new Error('no SSE frame within 3s')), 3000);
+    });
+    expect(received).toContain(`data: {"sessionId":"${SESSION_A}","at":"now"}`);
   });
 
   it('404s unknown API routes', async () => {

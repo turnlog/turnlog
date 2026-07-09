@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { hasToken, useStatus } from './api';
+import { hasToken, useLiveEvents, useStatus } from './api';
 import { MagniferIcon, MoonIcon, SidebarIcon, SunIcon, WalletIcon } from './icons';
 import { navigate, searchHash, useRoute } from './router';
 import Home from './screens/Home';
@@ -163,6 +163,7 @@ function NoToken() {
 export default function App() {
   const route = useRoute();
   const theme = useTheme();
+  useLiveEvents(); // SSE: refresh index-derived queries the moment a session file reindexes
   const [sidebarOpen, setSidebarOpen] = useState(
     () => localStorage.getItem('turnlog-sidebar') !== '0',
   );

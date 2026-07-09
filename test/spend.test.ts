@@ -103,6 +103,14 @@ describe('search aggregates + project rollup', () => {
 });
 
 describe('listSessions date range', () => {
+  it('sorts by total tokens', async () => {
+    const { listSessions } = await import('../src/server/api.js');
+    const res = listSessions(db, { sort: 'tokens', dir: 'desc' });
+    const totals = res.sessions.map((s) => s.inputTokens + s.outputTokens);
+    expect(totals).toEqual([...totals].sort((a, b) => b - a));
+    expect(totals[0]).toBeGreaterThan(0);
+  });
+
   it('bounds by started_at', async () => {
     const { listSessions } = await import('../src/server/api.js');
     const day = listSessions(db, { since: '2026-07-02T00:00:00Z', until: '2026-07-03T00:00:00Z' });

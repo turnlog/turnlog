@@ -4,6 +4,34 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] — 2026-07-09
+
+### Added
+
+- Spend chart: a daily | weekly toggle — weekly buckets group into
+  Monday-start calendar weeks, with range tooltips.
+- Token usage surfaced where money already was: session rows in the sidebar
+  show total tokens, the spend headline shows the period's token total, and
+  the session list can sort by tokens.
+- Live updates, pushed: a dependency-free SSE stream (`GET /api/events`,
+  token-guarded like every API route) notifies the UI the moment the watcher
+  reindexes a changed session file — list, replay spine, stats, and spend
+  refresh in about a second. The status poll remains as a fallback, and the
+  spine's old 7-second blind poll is gone.
+
+### Changed
+
+- Calendar week view transposed into a timeline: days are now rows and time
+  runs across, so sessions read as horizontal blocks with the project name
+  and cost inline. Same trimmed hour window, overlap lanes, tooltips, and
+  today treatment as before.
+
+### Fixed
+
+- Spend chart zero-fill now uses local calendar days, matching the server's
+  local-time day buckets (the 0.2.0 change left the client generating UTC
+  keys, misplacing bars for anyone not on UTC), and is DST-safe.
+
 ## [0.2.0] — 2026-07-09
 
 ### Fixed
@@ -56,5 +84,6 @@ Initial public release.
   session token, no CORS. 100% local — no telemetry, no accounts; the only
   network touch is an opt-out-able npm update check.
 
+[0.2.1]: https://github.com/turnlog/turnlog/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/turnlog/turnlog/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/turnlog/turnlog/releases/tag/v0.1.0

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSessionsRange } from '../api';
 import { SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
@@ -8,14 +8,15 @@ import type { SessionMeta } from '../types';
 
 /**
  * The calendar (roadmap Phase 2.7): sessions placed in time. Week view is a
- * day-column × time-axis grid; month view is a per-day heat of cost/count.
- * "When did I work / what was I doing Tuesday afternoon".
+ * day-row × time-axis timeline (days stack vertically, hours run across —
+ * sessions read as horizontal Gantt-style blocks); month view is a per-day
+ * heat of cost/count. "When did I work / what was I doing Tuesday afternoon".
  */
 
 const DAY_MS = 86_400_000;
 const MIN_SPAN_H = 8;
-const COL_H = 640;
-const INNER_H = COL_H - 34; // column body height below the day header, px
+const ROW_H = 56; // px per day row; lanes divide it when sessions overlap
+const HEAD_W = 64; // day-label gutter (row head width + gap), px
 
 type Mode = 'week' | 'month';
 
@@ -189,7 +190,23 @@ export default function Calendar() {
   );
 }
 
-/* ── week grid ───────────────────────────────────────────────────────── */
+/* ── week grid (day rows × time columns) ─────────────────────────────── */
+
+/** Track width in px, kept current via ResizeObserver — tier decisions need it. */
+function useTrackWidth(): [React.RefObject<HTMLDivElement>, number] {
+  const ref = useRef<HTMLDivElement>(null);
+  const [w, setW] = useState(960);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setW(Math.max(el.clientWidth - HEAD_W, 1));
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    measure();
+    return () => ro.disconnect();
+  }, []);
+  return [ref, w];
+}
 
 function WeekGrid({
   weekStart,
@@ -230,8 +247,9 @@ function WeekGrid({
     return [Math.max(0, lo), Math.min(24, hi)];
   }, [days]);
   const span = h1 - h0;
-  const yPct = (h: number) => ((h - h0) / span) * 100;
+  const xPct = (h: number) => ((h - h0) / span) * 100;
   const isThisWeek = startOfWeek(today).getTime() === weekStart.getTime();
+  const [gridRef, trackW] = useTrackWidth();
 
   const hourTicks = useMemo(() => {
     const step = span > 14 ? 4 : 2;
@@ -242,10 +260,10 @@ function WeekGrid({
 
   return (
     <div className="card calendar-card">
-      <div className="calendar-grid" style={{ height: COL_H }}>
-        <div className="calendar-gutter">
+      <div className="calendar-week" ref={gridRef}>
+        <div className="calendar-axis">
           {hourTicks.map((h) => (
-            <span key={h} className="calendar-hour" style={{ top: `${yPct(h)}%` }}>
+            <span key={h} className="calendar-axis-hour" style={{ left: `${xPct(h)}%` }}>
               {String(h).padStart(2, '0')}:00
             </span>
           ))}
@@ -254,36 +272,40 @@ function WeekGrid({
           const date = new Date(weekStart.getTime() + i * DAY_MS);
           const isToday = sameDay(date, today) && isThisWeek;
           return (
-            <div key={i} className={`calendar-day ${isToday ? 'today' : ''}`}>
-              <div className="calendar-day-head">
+            <div key={i} className={`calendar-week-row ${isToday ? 'today' : ''}`}>
+              <div className="calendar-row-head">
                 <span className="calendar-dow">
                   {date.toLocaleDateString('en-US', { weekday: 'short' })}
                 </span>
                 <span className={`calendar-date ${isToday ? 'today' : ''}`}>{date.getDate()}</span>
               </div>
-              <div className="calendar-col">
+              <div className="calendar-row-track" style={{ height: ROW_H }}>
                 {hourTicks.map((h) => (
-                  <span key={h} className="calendar-line" style={{ top: `${yPct(h)}%` }} />
+                  <span key={h} className="calendar-vline" style={{ left: `${xPct(h)}%` }} />
                 ))}
                 {placed.map(({ s, startH, endH, lane, lanes }) => {
-                  const top = yPct(startH);
-                  // Real height in px — never inflated, so blocks never bleed
+                  const left = xPct(startH);
+                  // Real width in px — never inflated, so blocks never bleed
                   // over their neighbours. Content degrades to fit the space:
                   // full (name + cost) → compact (name) → bar (color only,
-                  // details on hover). Many concurrent lanes force compact.
-                  const realPx = ((yPct(endH) - top) / 100) * INNER_H;
+                  // details on hover). Stacked lanes shrink the row share.
+                  const widthPx = ((xPct(endH) - left) / 100) * trackW;
+                  const laneH = ROW_H / lanes;
                   const tier =
-                    realPx >= 42 && lanes <= 2 ? 'full' : realPx >= 20 ? 'compact' : 'bar';
-                  const heightPx = Math.max(realPx, tier === 'bar' ? 5 : realPx);
+                    widthPx >= 96 && laneH >= 18
+                      ? 'full'
+                      : widthPx >= 40 && laneH >= 13
+                        ? 'compact'
+                        : 'bar';
                   return (
                     <Tooltip key={s.id} content={<BlockTip s={s} />}>
                       <button
                         className={`calendar-block tier-${tier} ${tileClass(s.projectKey)}`}
                         style={{
-                          top: `${top}%`,
-                          height: `${heightPx}px`,
-                          left: `${(lane / lanes) * 100}%`,
-                          width: `calc(${100 / lanes}% - 3px)`,
+                          left: `${left}%`,
+                          width: `max(${Math.max(widthPx, 0)}px, 5px)`,
+                          top: `calc(${(lane / lanes) * 100}% + 1.5px)`,
+                          height: `calc(${100 / lanes}% - 3px)`,
                         }}
                         onClick={() => navigate(sessionHash(s.id))}
                       >

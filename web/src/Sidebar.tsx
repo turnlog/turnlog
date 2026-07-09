@@ -11,7 +11,7 @@ import Dropdown from './components/Dropdown';
 import { SkeletonRows } from './components/Skeleton';
 import Tooltip from './components/Tooltip';
 import { setProjectFilter, useProjectFilter } from './filterStore';
-import { fmtCost, fmtCount, fmtDate, fmtModel, projectName, tileClass } from './format';
+import { fmtCost, fmtCount, fmtDate, fmtModel, fmtTokens, projectName, tileClass } from './format';
 import { navigate, sessionHash } from './router';
 import type { SessionMeta } from './types';
 
@@ -19,6 +19,7 @@ const SORTS: { value: NonNullable<SessionsQuery['sort']>; label: string }[] = [
   { value: 'started_at', label: 'date' },
   { value: 'cost_usd', label: 'cost' },
   { value: 'turn_count', label: 'turns' },
+  { value: 'tokens', label: 'tokens' },
 ];
 
 function Item({
@@ -45,6 +46,7 @@ function Item({
         <span className="side-item-sub">
           <span>{fmtDate(s.startedAt)}</span>
           <span>· {fmtCount(s.turnCount)}t</span>
+          <span>· {fmtTokens(s.inputTokens + s.outputTokens)} tok</span>
           {s.model && <span className="side-item-model">{fmtModel(s.model)}</span>}
         </span>
       </span>

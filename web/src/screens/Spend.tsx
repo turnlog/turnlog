@@ -16,14 +16,44 @@ const PERIODS = [7, 30, 90] as const;
    carries the one direct label; every day has a full-height hover
    target with a tooltip. */
 
+function localKey(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 function fillDays(days: SpendDay[], sinceDays: number): SpendDay[] {
   const byDate = new Map(days.map((d) => [d.date, d]));
   const out: SpendDay[] = [];
   const now = new Date();
   for (let i = sinceDays - 1; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 86_400_000);
-    const key = d.toISOString().slice(0, 10);
+    // Local calendar dates — the server buckets by the machine's local day,
+    // and day-constructor arithmetic (unlike ms math) survives DST shifts.
+    const key = localKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - i));
     out.push(byDate.get(key) ?? { date: key, costUsd: 0, tokens: 0, sessions: 0 });
+  }
+  return out;
+}
+
+/** A chart mark: one day, or a Monday-start week when endDate is set. */
+interface SpendBucket extends SpendDay {
+  endDate?: string;
+}
+
+/** Group zero-filled days into calendar weeks (Monday start, local). */
+function bucketWeeks(days: SpendDay[]): SpendBucket[] {
+  const out: SpendBucket[] = [];
+  let cur: SpendBucket | null = null;
+  for (const d of days) {
+    const monday = new Date(`${d.date}T00:00:00`).getDay() === 1;
+    if (cur === null || monday) {
+      cur = { ...d };
+      out.push(cur);
+    } else {
+      cur.costUsd += d.costUsd;
+      cur.tokens += d.tokens;
+      cur.sessions += d.sessions;
+      cur.endDate = d.date;
+    }
   }
   return out;
 }
@@ -31,6 +61,10 @@ function fillDays(days: SpendDay[], sinceDays: number): SpendDay[] {
 function shortDate(iso: string): string {
   const d = new Date(`${iso}T00:00:00`);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function rangeLabel(b: SpendBucket): string {
+  return b.endDate ? `${shortDate(b.date)} – ${shortDate(b.endDate)}` : shortDate(b.date);
 }
 
 /**
@@ -43,11 +77,20 @@ function shortDate(iso: string): string {
  */
 const BAR_MAX_PCT = 88;
 
-function SpendChart({ data }: { data: SpendResponse }) {
-  const days = useMemo(() => fillDays(data.days, data.sinceDays), [data]);
-  const max = Math.max(...days.map((d) => d.costUsd), 0.01);
-  const peak = days.reduce((best, d, i) => (d.costUsd > days[best]!.costUsd ? i : best), 0);
-  const n = days.length;
+function SpendChart({
+  data,
+  granularity,
+}: {
+  data: SpendResponse;
+  granularity: 'day' | 'week';
+}) {
+  const buckets = useMemo(() => {
+    const filled = fillDays(data.days, data.sinceDays);
+    return granularity === 'week' ? bucketWeeks(filled) : filled;
+  }, [data, granularity]);
+  const max = Math.max(...buckets.map((d) => d.costUsd), 0.01);
+  const peak = buckets.reduce((best, d, i) => (d.costUsd > buckets[best]!.costUsd ? i : best), 0);
+  const n = buckets.length;
   const gap = n > 45 ? 2 : 4; // ≥2px surface gap between marks
   const tickEvery = Math.max(1, Math.ceil(n / 6));
   const barPct = (v: number) => (v > 0 ? Math.max((v / max) * BAR_MAX_PCT, 1.5) : 0);
@@ -56,23 +99,25 @@ function SpendChart({ data }: { data: SpendResponse }) {
     <div
       className="spend-chart"
       role="img"
-      aria-label={`Daily spend, last ${data.sinceDays} days. Total ${fmtCost(
+      aria-label={`${granularity === 'week' ? 'Weekly' : 'Daily'} spend, last ${
+        data.sinceDays
+      } days. Total ${fmtCost(
         data.totals.costUsd,
-      )}, peak ${shortDate(days[peak]!.date)} at ${fmtCost(days[peak]!.costUsd)}.`}
+      )}, peak ${rangeLabel(buckets[peak]!)} at ${fmtCost(buckets[peak]!.costUsd)}.`}
     >
       <div className="spend-plot" style={{ gap }}>
         {[0.25, 0.5, 0.75].map((f) => (
           <div key={f} className="spend-gridline" style={{ bottom: `${f * BAR_MAX_PCT}%` }} />
         ))}
         <div className="spend-baseline" />
-        {days.map((d, i) => (
+        {buckets.map((d, i) => (
           <Tooltip
             key={d.date}
             content={
               <>
                 <strong>{fmtCost(d.costUsd)}</strong>
                 <span>
-                  {shortDate(d.date)} · {fmtCount(d.sessions)} session
+                  {rangeLabel(d)} · {fmtCount(d.sessions)} session
                   {d.sessions === 1 ? '' : 's'} · {fmtTokens(d.tokens)} tok
                 </span>
               </>
@@ -93,7 +138,7 @@ function SpendChart({ data }: { data: SpendResponse }) {
         ))}
       </div>
       <div className="spend-axis" style={{ gap }}>
-        {days.map((d, i) => (
+        {buckets.map((d, i) => (
           <span key={d.date}>{i % tickEvery === 0 ? shortDate(d.date) : ''}</span>
         ))}
       </div>
@@ -125,6 +170,7 @@ function toCsv(data: SpendResponse): string {
 
 export default function Spend({ view = 'overview' }: { view?: 'overview' | 'calendar' }) {
   const [days, setDays] = useState<number>(30);
+  const [gran, setGran] = useState<'day' | 'week'>('day');
   const [q, setQ] = useState('');
   const [applied, setApplied] = useState('');
   const spend = useSpend(days, applied);
@@ -224,7 +270,8 @@ export default function Spend({ view = 'overview' }: { view?: 'overview' | 'cale
                 <strong className="spend-total">{fmtCost(d.totals.costUsd)}</strong>
                 <span className="spend-total-sub">
                   est. · last {d.sinceDays} days · {fmtCount(d.totals.sessions)} session
-                  {d.totals.sessions === 1 ? '' : 's'}
+                  {d.totals.sessions === 1 ? '' : 's'} ·{' '}
+                  {fmtTokens(d.totals.inputTokens + d.totals.outputTokens)} tok
                   {d.query && (
                     <>
                       {' '}
@@ -234,8 +281,26 @@ export default function Spend({ view = 'overview' }: { view?: 'overview' | 'cale
                   {d.totals.unpricedSessions > 0 && <> · {d.totals.unpricedSessions} unpriced</>}
                 </span>
               </div>
+              <div className="view-toggle" role="tablist" aria-label="Chart granularity">
+                <button
+                  role="tab"
+                  aria-selected={gran === 'day'}
+                  className={gran === 'day' ? 'active' : ''}
+                  onClick={() => setGran('day')}
+                >
+                  daily
+                </button>
+                <button
+                  role="tab"
+                  aria-selected={gran === 'week'}
+                  className={gran === 'week' ? 'active' : ''}
+                  onClick={() => setGran('week')}
+                >
+                  weekly
+                </button>
+              </div>
             </div>
-            <SpendChart data={d} />
+            <SpendChart data={d} granularity={gran} />
           </section>
 
           <section className="card list-card">

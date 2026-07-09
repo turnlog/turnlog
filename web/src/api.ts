@@ -1,10 +1,13 @@
+import { useEffect } from 'react';
 import {
   keepPreviousData,
   useInfiniteQuery,
   useQuery,
+  useQueryClient,
   type InfiniteData,
 } from '@tanstack/react-query';
 import type {
+  IndexedEvent,
   MessageListResponse,
   MessageRow,
   SpendResponse,
@@ -52,20 +55,81 @@ async function apiFetch<T>(path: string): Promise<T> {
 }
 
 export interface SessionsQuery {
-  sort?: 'started_at' | 'ended_at' | 'cost_usd' | 'turn_count';
+  sort?: 'started_at' | 'ended_at' | 'cost_usd' | 'turn_count' | 'tokens';
   dir?: 'asc' | 'desc';
   project?: string;
 }
 
 const PAGE = 100;
 
+// Module-level so several useStatus consumers trigger one invalidation per scan.
+let lastScanSeen: string | null = null;
+
 export function useStatus() {
-  return useQuery({
+  const queryClient = useQueryClient();
+  const query = useQuery({
     queryKey: ['status'],
     queryFn: () => apiFetch<StatusResponse>('/api/status'),
     refetchInterval: (query) =>
       query.state.data?.state === 'indexing' ? 1000 : 15_000,
   });
+
+  // The status poll doubles as a live-update fallback: the watcher reindexes
+  // changed session files, each pass stamps lastScanAt, and a new stamp means
+  // the index content moved. The SSE stream (useLiveEvents) is the fast path;
+  // this catches anything it misses when the stream is down.
+  const lastScanAt = query.data?.lastScanAt ?? null;
+  useEffect(() => {
+    if (lastScanAt === null || lastScanAt === lastScanSeen) return;
+    const first = lastScanSeen === null;
+    lastScanSeen = lastScanAt;
+    if (first) return; // initial load, queries are already fresh
+    invalidateIndexDerived(queryClient, null);
+  }, [lastScanAt, queryClient]);
+
+  return query;
+}
+
+type AppQueryClient = ReturnType<typeof useQueryClient>;
+
+/** Refresh everything derived from the index; target one session when known. */
+function invalidateIndexDerived(queryClient: AppQueryClient, sessionId: string | null): void {
+  for (const key of ['sessions', 'sessions-range', 'stats', 'projects', 'spend']) {
+    void queryClient.invalidateQueries({ queryKey: [key] });
+  }
+  if (sessionId !== null) {
+    void queryClient.invalidateQueries({ queryKey: ['session', sessionId] });
+    void queryClient.invalidateQueries({ queryKey: ['turns', sessionId] });
+  } else {
+    void queryClient.invalidateQueries({ queryKey: ['session'] });
+    void queryClient.invalidateQueries({ queryKey: ['turns'] });
+  }
+}
+
+/**
+ * Live index updates over SSE (`/api/events`) — mounted once in App. The
+ * watcher-side reindex broadcasts `indexed`; each event refreshes what the
+ * index feeds. EventSource reconnects on drops by itself, and the lastScanAt
+ * fallback in useStatus covers the gaps.
+ */
+export function useLiveEvents() {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    // EventSource can't set headers — the token rides the query string, the
+    // same credential channel the opened URL uses (dev proxy injects it).
+    const es = new EventSource(token ? `/api/events?token=${token}` : '/api/events');
+    const onIndexed = (e: MessageEvent) => {
+      let sessionId: string | null = null;
+      try {
+        sessionId = (JSON.parse(e.data as string) as IndexedEvent).sessionId;
+      } catch {
+        /* malformed frame — refresh broadly */
+      }
+      invalidateIndexDerived(queryClient, sessionId);
+    };
+    es.addEventListener('indexed', onIndexed);
+    return () => es.close();
+  }, [queryClient]);
 }
 
 export function useStats() {
@@ -122,8 +186,8 @@ export function useTurns(sessionId: string) {
     queryKey: ['turns', sessionId],
     queryFn: () =>
       apiFetch<TurnsResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/turns`),
-    // Cheap aggregate; keeps the spine fresh while a session is live.
-    refetchInterval: 7000,
+    // Freshness comes from useLiveEvents (SSE) + the lastScanAt fallback —
+    // the old 7s blind poll is gone.
   });
 }
 

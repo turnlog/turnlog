@@ -29,7 +29,7 @@ macOS, Linux, Windows. No build step, no installer, no postinstall scripts.
 `turnlog` starts the local server and prints a URL, then opens your browser to it:
 
 ```
-turnlog 0.2.0
+turnlog 0.2.1
   UI:       http://127.0.0.1:52431/?token=a1b2c3…
   Projects: /Users/you/.claude/projects
 ```
@@ -59,7 +59,10 @@ URL, not just `127.0.0.1:<port>`.
   filtered by a search query ("what did *this kind of work* cost me"). Usage is
   counted once per API response (the logs repeat it per line), priced from a
   shipped table, and always labeled an estimate.
-- **Calendar** — your sessions placed in time, week grid or month heat-map.
+- **Calendar** — your sessions placed in time: a week timeline (days as rows,
+  sessions as blocks at their real hours) or a month heat-map.
+- **Live** — the UI refreshes within about a second as Claude Code writes,
+  over a local event stream. No reloads, no polling loops.
 - **Export** — `turnlog export <id>` prints a session as markdown; a copy
   button does the same from the UI.
 

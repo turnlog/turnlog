@@ -35,9 +35,64 @@ export interface ServerContext {
    * moment the async check resolves — the web UI polls status already.
    */
   getUpdate?: () => string | null;
+  /** Live-update stream (`/api/events`); the CLI broadcasts after reindexes. */
+  events?: SseHub;
 }
 
 const ALLOWED_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '[::1]']);
+
+/**
+ * SSE fan-out for live index updates (`GET /api/events`). Plain node:http
+ * streaming — no WebSocket dependency, fits the GET-only surface, and
+ * EventSource's token-in-query auth is the same credential the UI already
+ * carries. The CLI broadcasts after each watcher-triggered reindex.
+ */
+const SSE_MAX_CLIENTS = 8;
+const SSE_HEARTBEAT_MS = 25_000;
+
+export class SseHub {
+  private readonly clients = new Set<http.ServerResponse>();
+  private heartbeat: NodeJS.Timeout | null = null;
+
+  attach(res: http.ServerResponse): boolean {
+    if (this.clients.size >= SSE_MAX_CLIENTS) return false;
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.write(':connected\n\n');
+    this.clients.add(res);
+    res.on('close', () => {
+      this.clients.delete(res);
+      if (this.clients.size === 0 && this.heartbeat) {
+        clearInterval(this.heartbeat);
+        this.heartbeat = null;
+      }
+    });
+    // Comment-only heartbeat keeps idle connections observably alive.
+    this.heartbeat ??= setInterval(() => {
+      for (const client of this.clients) client.write(':hb\n\n');
+    }, SSE_HEARTBEAT_MS);
+    return true;
+  }
+
+  broadcast(event: string, data: unknown): void {
+    if (this.clients.size === 0) return;
+    const frame = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+    for (const client of this.clients) client.write(frame);
+  }
+
+  /** End every open stream (shutdown — open responses block server.close). */
+  close(): void {
+    for (const client of this.clients) client.end();
+    this.clients.clear();
+    if (this.heartbeat) {
+      clearInterval(this.heartbeat);
+      this.heartbeat = null;
+    }
+  }
+}
 
 /** Thrown by request parsing to turn into a non-500 error response. */
 class HttpError extends Error {
@@ -217,6 +272,13 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
   const p = url.pathname;
   const q = url.searchParams;
 
+  if (p === '/api/events') {
+    if (!ctx.events) return sendJson(res, 404, { error: 'not found' });
+    if (!ctx.events.attach(res)) {
+      return sendJson(res, 503, { error: 'too many event streams' });
+    }
+    return; // response stays open — the hub owns it now
+  }
   if (p === '/api/status') {
     return sendJson(res, 200, {
       ...driver.status(),

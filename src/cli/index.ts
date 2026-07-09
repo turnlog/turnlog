@@ -8,7 +8,7 @@ import { openDb } from '../indexer/db.js';
 import { Indexer } from '../indexer/indexer.js';
 import { WorkerDriver } from '../indexer/workerDriver.js';
 import { watchProjects } from '../indexer/watcher.js';
-import { startServer } from '../server/server.js';
+import { SseHub, startServer } from '../server/server.js';
 import { openBrowser } from './open.js';
 import { checkForUpdate, updateCheckEnabled } from './updateCheck.js';
 import { APP_VERSION } from '../version.js';
@@ -108,6 +108,7 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
   // TURNLOG_FAKE_UPDATE=x.y.z seeds it up front to preview the CLI line + web
   // banner without a published newer release.
   let latestUpdate: string | null = process.env.TURNLOG_FAKE_UPDATE ?? null;
+  const events = new SseHub();
 
   const { server, url } = await startServer(
     {
@@ -117,6 +118,7 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
       pricingOverrides: settings.modelPricing,
       exportFooter: settings.exportFooter,
       getUpdate: () => latestUpdate,
+      events,
     },
     { port: opts.port },
   );
@@ -147,6 +149,7 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
           (summary.linesParsed > 0 ? `, ${summary.linesParsed} new lines parsed` : '') +
           (summary.errors.length > 0 ? `, ${summary.errors.length} files skipped (errors)` : ''),
       );
+      events.broadcast('indexed', { sessionId: null, at: new Date().toISOString() });
     })
     .catch((err) => console.error(`Indexing failed: ${err.message}`));
 
@@ -162,7 +165,18 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
   }
 
   const stopWatching = watchProjects(projectsDir, (filePath) => {
-    driver.indexFile(filePath).catch(() => undefined);
+    driver
+      .indexFile(filePath)
+      .then(() => {
+        // Subagent transcripts roll into their parent — broadcast without a
+        // session id so clients refresh broadly instead of a wrong target.
+        const isSubagent = path.basename(path.dirname(filePath)) === 'subagents';
+        events.broadcast('indexed', {
+          sessionId: isSubagent ? null : path.basename(filePath, '.jsonl'),
+          at: new Date().toISOString(),
+        });
+      })
+      .catch(() => undefined);
   });
 
   let shuttingDown = false;
@@ -172,6 +186,7 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
     console.log('\nShutting down…');
     await stopWatching();
     await driver.close();
+    events.close(); // open SSE responses would otherwise block server.close
     server.close();
     db.close();
     process.exit(0);
