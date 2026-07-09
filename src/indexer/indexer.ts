@@ -41,6 +41,8 @@ export class Indexer {
   private readonly opts: IndexerOptions;
 
   private readonly selByPath: Database.Statement;
+  private readonly selById: Database.Statement;
+  private readonly selMessageIds: Database.Statement;
   private readonly insMessage: Database.Statement;
   private readonly insFts: Database.Statement;
   private readonly insFileTouched: Database.Statement;
@@ -49,7 +51,7 @@ export class Indexer {
   private readonly selRowsForSession: Database.Statement;
   private readonly ftsDelete: Database.Statement;
   private readonly insertBatchTx: Database.Transaction<
-    (sessionId: string, entries: Array<{ rec: NormalizedRecord; idx: number }>) => void
+    (sessionId: string, entries: Array<{ rec: NormalizedRecord; idx: number; dupUsage: boolean }>) => void
   >;
 
   constructor(db: Database.Database, opts: IndexerOptions) {
@@ -60,12 +62,16 @@ export class Indexer {
       `SELECT id, file_byte_offset, file_mtime_ms, file_size, line_count, adapter_version
        FROM sessions WHERE file_path = ?`,
     );
+    this.selById = db.prepare(`SELECT file_path, file_mtime_ms FROM sessions WHERE id = ?`);
+    this.selMessageIds = db.prepare(
+      `SELECT DISTINCT message_id FROM messages WHERE session_id = ? AND message_id IS NOT NULL`,
+    );
     this.insMessage = db.prepare(
       `INSERT OR IGNORE INTO messages
          (uuid, session_id, parent_uuid, idx, role, kind, tool_name, tool_use_id, ts,
           is_sidechain, is_error, tokens_in, tokens_out, cache_read_tokens, cache_write_tokens,
-          cost_usd, model, text, raw_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          cost_usd, model, message_id, text, raw_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     this.insFts = db.prepare(`INSERT INTO messages_fts (rowid, text) VALUES (?, ?)`);
     this.insFileTouched = db.prepare(
@@ -73,31 +79,39 @@ export class Indexer {
     );
     this.upsertSession = db.prepare(
       `INSERT INTO sessions
-         (id, project_key, project_path, file_path, adapter_version,
+         (id, project_key, project_path, file_path, parent_session_id, adapter_version,
           file_byte_offset, file_mtime_ms, file_size, line_count)
-       VALUES (@id, @projectKey, @projectPath, @filePath, @adapterVersion,
+       VALUES (@id, @projectKey, @projectPath, @filePath, @parentSessionId, @adapterVersion,
                @offset, @mtimeMs, @size, @lineCount)
        ON CONFLICT (id) DO UPDATE SET
-         adapter_version  = excluded.adapter_version,
-         file_byte_offset = excluded.file_byte_offset,
-         file_mtime_ms    = excluded.file_mtime_ms,
-         file_size        = excluded.file_size,
-         line_count       = excluded.line_count,
-         project_path     = COALESCE(sessions.project_path, excluded.project_path)`,
+         file_path         = excluded.file_path,
+         parent_session_id = excluded.parent_session_id,
+         adapter_version   = excluded.adapter_version,
+         file_byte_offset  = excluded.file_byte_offset,
+         file_mtime_ms     = excluded.file_mtime_ms,
+         file_size         = excluded.file_size,
+         line_count        = excluded.line_count,
+         project_path      = COALESCE(sessions.project_path, excluded.project_path)`,
     );
+    // Aggregates roll up the whole family: the session's own messages plus
+    // its subagent transcripts (parent_session_id children) — the same totals
+    // older CC versions produced when sidechains were inline records.
+    // `model` stays main-file-only, and skips '<synthetic>'-style placeholders.
     this.updateAggregates = db.prepare(
-      `UPDATE sessions SET
-         started_at = (SELECT MIN(ts) FROM messages WHERE session_id = @id AND ts IS NOT NULL),
-         ended_at   = (SELECT MAX(ts) FROM messages WHERE session_id = @id AND ts IS NOT NULL),
-         turn_count = (SELECT COUNT(*) FROM messages WHERE session_id = @id),
-         input_tokens       = (SELECT COALESCE(SUM(tokens_in), 0) FROM messages WHERE session_id = @id),
-         output_tokens      = (SELECT COALESCE(SUM(tokens_out), 0) FROM messages WHERE session_id = @id),
-         cache_read_tokens  = (SELECT COALESCE(SUM(cache_read_tokens), 0) FROM messages WHERE session_id = @id),
-         cache_write_tokens = (SELECT COALESCE(SUM(cache_write_tokens), 0) FROM messages WHERE session_id = @id),
-         cost_usd = (SELECT SUM(cost_usd) FROM messages WHERE session_id = @id),
+      `WITH family(id) AS (SELECT id FROM sessions WHERE id = @id OR parent_session_id = @id)
+       UPDATE sessions SET
+         started_at = (SELECT MIN(ts) FROM messages WHERE session_id IN (SELECT id FROM family) AND ts IS NOT NULL),
+         ended_at   = (SELECT MAX(ts) FROM messages WHERE session_id IN (SELECT id FROM family) AND ts IS NOT NULL),
+         turn_count = (SELECT COUNT(*) FROM messages WHERE session_id IN (SELECT id FROM family)),
+         input_tokens       = (SELECT COALESCE(SUM(tokens_in), 0) FROM messages WHERE session_id IN (SELECT id FROM family)),
+         output_tokens      = (SELECT COALESCE(SUM(tokens_out), 0) FROM messages WHERE session_id IN (SELECT id FROM family)),
+         cache_read_tokens  = (SELECT COALESCE(SUM(cache_read_tokens), 0) FROM messages WHERE session_id IN (SELECT id FROM family)),
+         cache_write_tokens = (SELECT COALESCE(SUM(cache_write_tokens), 0) FROM messages WHERE session_id IN (SELECT id FROM family)),
+         cost_usd = (SELECT SUM(cost_usd) FROM messages WHERE session_id IN (SELECT id FROM family)),
          model = (SELECT model FROM messages
-                  WHERE session_id = @id AND model IS NOT NULL ORDER BY idx DESC LIMIT 1),
-         files_touched_count = (SELECT COUNT(DISTINCT path) FROM files_touched WHERE session_id = @id)
+                  WHERE session_id = @id AND model IS NOT NULL AND model NOT LIKE '<%'
+                  ORDER BY idx DESC LIMIT 1),
+         files_touched_count = (SELECT COUNT(DISTINCT path) FROM files_touched WHERE session_id IN (SELECT id FROM family))
        WHERE id = @id`,
     );
     this.selRowsForSession = db.prepare(
@@ -108,9 +122,11 @@ export class Indexer {
     );
 
     this.insertBatchTx = db.transaction(
-      (sessionId: string, entries: Array<{ rec: NormalizedRecord; idx: number }>) => {
-        for (const { rec, idx } of entries) {
-          const cost = computeCost(rec, this.opts.pricingOverrides);
+      (sessionId: string, entries: Array<{ rec: NormalizedRecord; idx: number; dupUsage: boolean }>) => {
+        for (const { rec, idx, dupUsage } of entries) {
+          // Usage repeats verbatim on every line of a multi-block response;
+          // only the first line of a messageId carries it into the index.
+          const cost = dupUsage ? null : computeCost(rec, this.opts.pricingOverrides);
           const info = this.insMessage.run(
             rec.uuid,
             sessionId,
@@ -123,12 +139,13 @@ export class Indexer {
             rec.ts,
             rec.isSidechain ? 1 : 0,
             rec.isError ? 1 : 0,
-            rec.tokensIn,
-            rec.tokensOut,
-            rec.cacheReadTokens,
-            rec.cacheWriteTokens,
+            dupUsage ? 0 : rec.tokensIn,
+            dupUsage ? 0 : rec.tokensOut,
+            dupUsage ? 0 : rec.cacheReadTokens,
+            dupUsage ? 0 : rec.cacheWriteTokens,
             cost,
             rec.model,
+            rec.messageId,
             rec.text,
             rec.raw,
           );
@@ -143,7 +160,11 @@ export class Indexer {
     );
   }
 
-  /** Discover all session files under the projects dir. */
+  /**
+   * Discover all session files under the projects dir: the flat
+   * `<project>/<session>.jsonl` files plus subagent transcripts newer CC
+   * versions write to `<project>/<session>/subagents/<agent>.jsonl`.
+   */
   async listFiles(): Promise<string[]> {
     const out: string[] = [];
     let projectDirs: fs.Dirent[];
@@ -164,6 +185,19 @@ export class Indexer {
       for (const entry of entries) {
         if (entry.isFile() && entry.name.endsWith('.jsonl')) {
           out.push(path.join(dir, entry.name));
+        } else if (entry.isDirectory()) {
+          const subagentsDir = path.join(dir, entry.name, 'subagents');
+          let subEntries: fs.Dirent[];
+          try {
+            subEntries = await fs.promises.readdir(subagentsDir, { withFileTypes: true });
+          } catch {
+            continue; // most session dirs have no subagents/
+          }
+          for (const sub of subEntries) {
+            if (sub.isFile() && sub.name.endsWith('.jsonl')) {
+              out.push(path.join(subagentsDir, sub.name));
+            }
+          }
         }
       }
     }
@@ -209,8 +243,29 @@ export class Indexer {
     }
 
     const sessionId = path.basename(filePath, '.jsonl');
-    const projectKey = path.basename(path.dirname(filePath));
+    const dir = path.dirname(filePath);
+    let projectKey = path.basename(dir);
+    let parentSessionId: string | null = null;
+    if (projectKey === 'subagents') {
+      // <projects>/<project>/<parent-session>/subagents/<agent>.jsonl
+      const sessionDir = path.dirname(dir);
+      parentSessionId = path.basename(sessionDir);
+      projectKey = path.basename(path.dirname(sessionDir));
+    }
     const row = this.selByPath.get(filePath) as SessionFileRow | undefined;
+    if (!row) {
+      // Same session id under a different path — a project dir was moved or
+      // its logs copied. Resumed sessions carry their history forward, so the
+      // newest file supersedes older copies; stale copies are skipped instead
+      // of corrupting the byte-offset bookkeeping of the tracked file.
+      const other = this.selById.get(sessionId) as
+        | { file_path: string; file_mtime_ms: number | null }
+        | undefined;
+      if (other && other.file_path !== filePath) {
+        if ((other.file_mtime_ms ?? 0) >= st.mtimeMs) return -1;
+        this.deleteSessionData(sessionId);
+      }
+    }
 
     let startOffset = 0;
     let startLine = 0;
@@ -230,11 +285,22 @@ export class Indexer {
       }
     }
 
-    let batch: Array<{ rec: NormalizedRecord; idx: number }> = [];
+    let batch: Array<{ rec: NormalizedRecord; idx: number; dupUsage: boolean }> = [];
     let lineNo = startLine;
     let newOffset = startOffset;
     let linesParsed = 0;
     let firstCwd: string | null = null;
+
+    // Usage dedupe: CC writes one line per content block of a response, each
+    // repeating the same message.id and usage. Seed with ids already indexed
+    // (incremental resume), then count usage only on a messageId's first line.
+    const seenMessageIds = new Set<string>(
+      startOffset > 0
+        ? (this.selMessageIds.all(sessionId) as Array<{ message_id: string }>).map(
+            (r) => r.message_id,
+          )
+        : [],
+    );
 
     const flush = () => {
       if (batch.length === 0) return;
@@ -258,7 +324,12 @@ export class Indexer {
       newOffset = chunk.end;
       if (rec) {
         if (firstCwd === null && rec.cwd) firstCwd = rec.cwd;
-        batch.push({ rec, idx: lineNo - 1 });
+        let dupUsage = false;
+        if (rec.messageId !== null) {
+          if (seenMessageIds.has(rec.messageId)) dupUsage = true;
+          else seenMessageIds.add(rec.messageId);
+        }
+        batch.push({ rec, idx: lineNo - 1, dupUsage });
         linesParsed += 1;
         if (batch.length >= BATCH_SIZE) flush();
       }
@@ -270,6 +341,7 @@ export class Indexer {
       projectKey,
       projectPath: firstCwd,
       filePath,
+      parentSessionId,
       adapterVersion: ADAPTER_VERSION,
       offset: newOffset,
       mtimeMs: st.mtimeMs,
@@ -277,6 +349,10 @@ export class Indexer {
       lineCount: lineNo,
     });
     this.updateAggregates.run({ id: sessionId });
+    // A subagent transcript changes its parent's rolled-up totals too. The
+    // parent row may not exist yet (child indexed first) — then this is a
+    // no-op and the parent's own pass picks the child messages up.
+    if (parentSessionId !== null) this.updateAggregates.run({ id: parentSessionId });
     return linesParsed;
   }
 

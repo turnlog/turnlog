@@ -62,6 +62,7 @@ export function normalizeV1(obj: any, raw: string, fallbackId: string): Normaliz
     toolUseId: null,
     isError: false,
     model: null,
+    messageId: null,
     text: '',
     tokensIn: 0,
     tokensOut: 0,
@@ -96,7 +97,11 @@ export function normalizeV1(obj: any, raw: string, fallbackId: string): Normaliz
           return rec;
         }
       }
-      rec.kind = 'prompt';
+      // isMeta marks injected context (caveats, image placeholders, command
+      // wrappers CC adds on the user channel) — not something the user typed.
+      // Kept searchable, but must not read as a prompt (turn boundaries,
+      // prompts lens, export all key off kind 'prompt').
+      rec.kind = obj.isMeta === true ? 'meta' : 'prompt';
       return rec;
     }
 
@@ -104,6 +109,7 @@ export function normalizeV1(obj: any, raw: string, fallbackId: string): Normaliz
       const msg = obj.message ?? {};
       rec.role = 'assistant';
       rec.model = str(msg.model);
+      rec.messageId = str(msg.id);
       const usage = msg.usage;
       if (usage && typeof usage === 'object') {
         rec.tokensIn = num(usage.input_tokens);

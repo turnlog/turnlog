@@ -7,6 +7,13 @@ export interface SessionMeta {
   id: string;
   projectPath: string | null;
   projectKey: string | null;
+  /**
+   * Set for subagent transcripts (Task runs newer CC versions log to
+   * <session>/subagents/*.jsonl): the session that spawned this one. Child
+   * sessions are hidden from session lists; their usage rolls up into the
+   * parent's totals.
+   */
+  parentSessionId: string | null;
   startedAt: string | null;
   endedAt: string | null;
   model: string | null;

@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export function openDb(path: string): Database.Database {
   const db = new Database(path);
@@ -84,6 +84,17 @@ function migrate(db: Database.Database): void {
     // Failure flag normalized out of raw JSON; backfill happens via the
     // ADAPTER_VERSION bump that ships alongside (forces a full reindex).
     db.exec(`ALTER TABLE messages ADD COLUMN is_error INTEGER NOT NULL DEFAULT 0;`);
+  }
+
+  if (version < 3) {
+    // message_id: API response id, for counting usage once per response.
+    // parent_session_id: subagent transcripts (<session>/subagents/*.jsonl)
+    // link to the session that spawned them. Backfill via the ADAPTER_VERSION
+    // bump shipped alongside (forces a full reindex).
+    db.exec(`
+      ALTER TABLE messages ADD COLUMN message_id TEXT;
+      ALTER TABLE sessions ADD COLUMN parent_session_id TEXT;
+    `);
   }
 
   db.pragma(`user_version = ${SCHEMA_VERSION}`);

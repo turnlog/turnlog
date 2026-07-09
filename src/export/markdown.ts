@@ -241,6 +241,7 @@ export function sessionToMarkdown(
         if (row.text) out.push(`*Summary: ${row.text}*`, '');
         break;
       case 'system':
+      case 'meta':
       case 'unknown':
         break; // omitted from prose export
       default: {

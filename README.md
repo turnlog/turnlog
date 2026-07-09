@@ -29,7 +29,7 @@ macOS, Linux, Windows. No build step, no installer, no postinstall scripts.
 `turnlog` starts the local server and prints a URL, then opens your browser to it:
 
 ```
-turnlog 0.1.0
+turnlog 0.2.0
   UI:       http://127.0.0.1:52431/?token=a1b2c3…
   Projects: /Users/you/.claude/projects
 ```
@@ -49,12 +49,16 @@ URL, not just `127.0.0.1:<port>`.
 
 - **Search everything** — full-text FTS5 across your whole history, grouped by
   session, jump straight to the match. Identifiers and `snake_case` included.
+  Subagent transcripts (the separate files newer Claude Code versions write per
+  Task run) are indexed too.
 - **Turn spine** — a 5,000-message session collapses to ten scannable turns,
   each with a mechanical summary (reads, edits, commands, errors).
 - **Lenses & files** — collapse a session to just its diffs, commands, or
   errors; or pivot to a file and read every change it made, in order.
 - **Spend tracker** — cost by day, model, or project — and, uniquely, cost
-  filtered by a search query ("what did *this kind of work* cost me").
+  filtered by a search query ("what did *this kind of work* cost me"). Usage is
+  counted once per API response (the logs repeat it per line), priced from a
+  shipped table, and always labeled an estimate.
 - **Calendar** — your sessions placed in time, week grid or month heat-map.
 - **Export** — `turnlog export <id>` prints a session as markdown; a copy
   button does the same from the UI.

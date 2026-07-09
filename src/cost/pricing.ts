@@ -27,7 +27,9 @@ function rates(input: number, output: number): ModelPricing {
 const PRICING_TABLE: ReadonlyArray<readonly [RegExp, ModelPricing]> = [
   [/fable|mythos/, rates(10, 50)],
   // Legacy expensive Opus generations (4.1 and earlier, Claude 3 Opus).
-  [/opus-4-1|opus-4-2025|claude-3-opus/, rates(15, 75)],
+  // `opus-4[-@]2025` covers both first-party/Bedrock (claude-opus-4-20250514)
+  // and Vertex (claude-opus-4@20250514) forms of the Opus 4.0 id.
+  [/opus-4-1|opus-4[-@]2025|claude-3-opus/, rates(15, 75)],
   [/opus/, rates(5, 25)],
   [/claude-3-5-haiku|haiku-3-5/, rates(0.8, 4)],
   [/claude-3-haiku/, rates(0.25, 1.25)],
@@ -35,9 +37,16 @@ const PRICING_TABLE: ReadonlyArray<readonly [RegExp, ModelPricing]> = [
   [/sonnet/, rates(3, 15)],
 ];
 
+// Sonnet 5 launched with introductory pricing through 2026-08-31; the sticker
+// rate above applies from 2026-09-01. ISO timestamps compare lexically.
+const SONNET5_INTRO_END = '2026-09';
+const SONNET5_INTRO = rates(2, 10);
+
 export function pricingForModel(
   model: string,
   overrides?: Record<string, Partial<ModelPricing>>,
+  /** Record timestamp — selects date-bound rates (Sonnet 5 intro pricing). */
+  ts?: string | null,
 ): ModelPricing | null {
   let base: ModelPricing | null = null;
   for (const [pattern, pricing] of PRICING_TABLE) {
@@ -45,6 +54,9 @@ export function pricingForModel(
       base = pricing;
       break;
     }
+  }
+  if (base && ts && ts < SONNET5_INTRO_END && /sonnet-5/.test(model)) {
+    base = SONNET5_INTRO;
   }
   if (overrides) {
     // Exact model-id override wins; otherwise substring keys apply.
@@ -73,13 +85,14 @@ export function pricingForModel(
 export function computeCost(
   rec: Pick<
     NormalizedRecord,
-    'costUsd' | 'model' | 'tokensIn' | 'tokensOut' | 'cacheReadTokens' | 'cacheWriteTokens' | 'cacheWrite1hTokens'
+    | 'costUsd' | 'model' | 'ts' | 'tokensIn' | 'tokensOut'
+    | 'cacheReadTokens' | 'cacheWriteTokens' | 'cacheWrite1hTokens'
   >,
   overrides?: Record<string, Partial<ModelPricing>>,
 ): number | null {
   if (rec.costUsd !== null) return rec.costUsd;
   if (!rec.model) return null;
-  const p = pricingForModel(rec.model, overrides);
+  const p = pricingForModel(rec.model, overrides, rec.ts);
   if (!p) return null;
 
   const write1h = Math.min(rec.cacheWrite1hTokens, rec.cacheWriteTokens);

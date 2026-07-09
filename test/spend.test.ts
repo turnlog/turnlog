@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import type Database from 'better-sqlite3';
 import { Indexer } from '../src/indexer/indexer.js';
 import { getSpend, listProjects, searchMessages } from '../src/server/api.js';
-import { SESSION_C, copyCorpus, testDb, tmpDir } from './helpers.js';
+import { SESSION_C, SESSION_D, SUBAGENT_D, copyCorpus, testDb, tmpDir } from './helpers.js';
 
 let db: Database.Database;
 
@@ -30,6 +30,24 @@ describe('getSpend', () => {
     const res = getSpend(db, { days: WIDE });
     expect(res.byModel.some((m) => m.key.includes('sonnet'))).toBe(true);
     expect(res.byProject.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('attributes byModel per message, excluding placeholder models', () => {
+    const res = getSpend(db, { days: WIDE });
+    // The haiku usage comes from a sidechain + a subagent transcript — a
+    // session-level split would fold it into the session's main model.
+    const haiku = res.byModel.find((m) => m.key.includes('haiku'));
+    expect(haiku).toBeDefined();
+    expect(haiku!.tokens).toBeGreaterThan(0);
+    expect(res.byModel.some((m) => m.key.startsWith('<'))).toBe(false);
+  });
+
+  it('buckets days by the machine-local calendar day', () => {
+    const res = getSpend(db, { days: WIDE });
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const d = new Date('2026-07-01T10:00:00.000Z');
+    const local = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    expect(res.days.map((x) => x.date)).toContain(local);
   });
 
   it('narrows to the FTS match set with q', () => {
@@ -70,6 +88,17 @@ describe('search aggregates + project rollup', () => {
     const projects = listProjects(db);
     expect(projects.every((p) => typeof p.costUsd === 'number')).toBe(true);
     expect(projects.some((p) => p.costUsd > 0)).toBe(true);
+  });
+
+  it('resolves a hit inside a subagent transcript to the parent session', () => {
+    const res = searchMessages(db, { query: 'todo_sweep_gamma' });
+    expect(res.totalHits).toBe(1);
+    // The hit itself belongs to the subagent session (openable in replay)...
+    expect(res.groups[0]!.session.id).toBe(SUBAGENT_D);
+    expect(res.groups[0]!.session.parentSessionId).toBe(SESSION_D);
+    // ...but the money aggregate counts the parent's rolled-up total, once.
+    expect(res.aggregates!.matchedSessions).toBe(1);
+    expect(res.aggregates!.totalCostUsd).toBeCloseTo(0.01219, 5);
   });
 });
 

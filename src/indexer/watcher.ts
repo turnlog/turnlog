@@ -13,7 +13,8 @@ export function watchProjects(
 ): () => Promise<void> {
   const watcher = chokidar.watch(projectsDir, {
     ignoreInitial: true,
-    depth: 2,
+    // Deep enough for subagent transcripts: <project>/<session>/subagents/*.jsonl
+    depth: 4,
   });
   const timers = new Map<string, NodeJS.Timeout>();
 

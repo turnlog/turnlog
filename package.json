@@ -1,6 +1,6 @@
 {
   "name": "turnlog",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Search and replay every Claude Code session you've ever run — locally.",
   "license": "MIT",
   "type": "module",

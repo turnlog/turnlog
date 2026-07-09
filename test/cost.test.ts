@@ -5,6 +5,7 @@ function usage(over: Partial<Parameters<typeof computeCost>[0]> = {}) {
   return {
     costUsd: null,
     model: 'claude-opus-4-8',
+    ts: null,
     tokensIn: 0,
     tokensOut: 0,
     cacheReadTokens: 0,
@@ -49,6 +50,27 @@ describe('computeCost', () => {
     expect(pricingForModel('claude-fable-5')?.input).toBe(10);
     expect(pricingForModel('claude-opus-4-1-20250805')?.input).toBe(15);
     expect(pricingForModel('claude-3-5-sonnet-20241022')?.input).toBe(3);
+  });
+
+  it('matches legacy Opus 4.0 in both first-party and Vertex id forms', () => {
+    expect(pricingForModel('claude-opus-4-20250514')?.input).toBe(15);
+    expect(pricingForModel('claude-opus-4@20250514')?.input).toBe(15);
+    // Opus 4.5+ stays on the current rate.
+    expect(pricingForModel('claude-opus-4-5-20251101')?.input).toBe(5);
+  });
+
+  it('applies Sonnet 5 introductory pricing by record date', () => {
+    const intro = '2026-07-15T12:00:00.000Z';
+    const after = '2026-09-01T00:00:00.000Z';
+    expect(pricingForModel('claude-sonnet-5', undefined, intro)?.input).toBe(2);
+    expect(pricingForModel('claude-sonnet-5', undefined, intro)?.output).toBe(10);
+    expect(pricingForModel('claude-sonnet-5', undefined, after)?.input).toBe(3);
+    // No timestamp → sticker rate; other Sonnets are never intro-priced.
+    expect(pricingForModel('claude-sonnet-5')?.input).toBe(3);
+    expect(pricingForModel('claude-sonnet-4-6', undefined, intro)?.input).toBe(3);
+    expect(
+      computeCost(usage({ model: 'claude-sonnet-5', ts: intro, tokensOut: 1_000_000 })),
+    ).toBeCloseTo(10);
   });
 
   it('applies user pricing overrides and re-derives cache rates', () => {

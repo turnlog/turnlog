@@ -12,6 +12,9 @@ export const SESSION_A = '11111111-1111-4111-8111-111111111111';
 export const SESSION_B = '22222222-2222-4222-8222-222222222222';
 export const SESSION_C = '33333333-3333-4333-8333-333333333333';
 export const SESSION_EMPTY = '44444444-4444-4444-8444-444444444444';
+/** Parent session with a subagent transcript under <session>/subagents/. */
+export const SESSION_D = '55555555-5555-4555-8555-555555555555';
+export const SUBAGENT_D = 'agent-abc123def456';
 
 export function tmpDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -34,7 +37,17 @@ export function corpusFiles(): string[] {
     const dir = path.join(CORPUS_DIR, project);
     if (!fs.statSync(dir).isDirectory()) continue;
     for (const file of fs.readdirSync(dir)) {
-      if (file.endsWith('.jsonl')) out.push(path.join(dir, file));
+      const p = path.join(dir, file);
+      if (file.endsWith('.jsonl')) {
+        out.push(p);
+      } else if (fs.statSync(p).isDirectory()) {
+        // Subagent transcripts: <project>/<session>/subagents/*.jsonl
+        const sub = path.join(p, 'subagents');
+        if (!fs.existsSync(sub)) continue;
+        for (const f of fs.readdirSync(sub)) {
+          if (f.endsWith('.jsonl')) out.push(path.join(sub, f));
+        }
+      }
     }
   }
   return out.sort();

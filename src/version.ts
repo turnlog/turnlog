@@ -8,4 +8,4 @@ export const APP_VERSION: string = pkg.version;
  * Version of the parser/adapter pipeline. Bumping this forces a full reindex
  * of every session file on the next scan.
  */
-export const ADAPTER_VERSION = 2;
+export const ADAPTER_VERSION = 3;

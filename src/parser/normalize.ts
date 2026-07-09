@@ -49,6 +49,7 @@ function unknownRecord(raw: string, fallbackId: string): NormalizedRecord {
     toolUseId: null,
     isError: false,
     model: null,
+    messageId: null,
     text: '',
     tokensIn: 0,
     tokensOut: 0,

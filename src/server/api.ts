@@ -17,7 +17,7 @@ import type {
 import { LENSES, SNIPPET_CLOSE, SNIPPET_OPEN, type Lens } from './apiTypes.js';
 
 const SESSION_COLUMNS = `
-  id, project_path, project_key, started_at, ended_at, model, turn_count,
+  id, project_path, project_key, parent_session_id, started_at, ended_at, model, turn_count,
   input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
   cost_usd, files_touched_count
 `;
@@ -27,6 +27,7 @@ function rowToSession(r: any): SessionMeta {
     id: r.id,
     projectPath: r.project_path,
     projectKey: r.project_key,
+    parentSessionId: r.parent_session_id,
     startedAt: r.started_at,
     endedAt: r.ended_at,
     model: r.model,
@@ -63,7 +64,8 @@ export function listSessions(db: Database.Database, q: ListSessionsQuery): Sessi
   const dir = q.dir === 'asc' ? 'ASC' : 'DESC';
   const limit = Math.min(Math.max(q.limit ?? 100, 1), 1000);
   const offset = Math.max(q.offset ?? 0, 0);
-  const clauses: string[] = [];
+  // Subagent transcripts are rolled into their parent, never listed standalone.
+  const clauses: string[] = ['parent_session_id IS NULL'];
   const params: unknown[] = [];
   if (q.project) {
     clauses.push('project_key = ?');
@@ -307,8 +309,13 @@ export function toFtsQuery(input: string): string | null {
   return parts.length > 0 ? parts.join(' ') : null;
 }
 
-const MATCHED_SESSIONS_SQL = `SELECT DISTINCT m.session_id
-  FROM messages_fts JOIN messages m ON m.rowid = messages_fts.rowid
+// Matches resolve to the ROOT session: a hit inside a subagent transcript
+// counts as its parent, whose row carries the family's rolled-up totals —
+// summing both parent and child rows would double count.
+const MATCHED_SESSIONS_SQL = `SELECT DISTINCT COALESCE(ms.parent_session_id, ms.id)
+  FROM messages_fts
+  JOIN messages m ON m.rowid = messages_fts.rowid
+  JOIN sessions ms ON ms.id = m.session_id
   WHERE messages_fts MATCH ?`;
 
 function searchAggregates(db: Database.Database, match: string): SearchAggregates | null {
@@ -358,7 +365,8 @@ export function searchMessages(
       .prepare(
         `SELECT m.uuid, m.session_id, m.idx, m.kind, m.tool_name, m.ts,
                 snippet(messages_fts, 0, ?, ?, '…', 12) AS snip,
-                s.id, s.project_path, s.project_key, s.started_at, s.ended_at, s.model,
+                s.id, s.project_path, s.project_key, s.parent_session_id,
+                s.started_at, s.ended_at, s.model,
                 s.turn_count, s.input_tokens, s.output_tokens, s.cache_read_tokens,
                 s.cache_write_tokens, s.cost_usd, s.files_touched_count
          FROM messages_fts
@@ -404,7 +412,8 @@ export function listProjects(db: Database.Database): ProjectInfo[] {
     .prepare(
       `SELECT project_key, MAX(project_path) AS project_path, COUNT(*) AS n,
               COALESCE(SUM(cost_usd), 0) AS cost
-       FROM sessions GROUP BY project_key ORDER BY n DESC`,
+       FROM sessions WHERE parent_session_id IS NULL
+       GROUP BY project_key ORDER BY n DESC`,
     )
     .all();
   return rows.map((r: any) => ({
@@ -428,21 +437,34 @@ export function getSpend(
   const cutoff = new Date(Date.now() - sinceDays * 86_400_000).toISOString();
   const match = q.query ? toFtsQuery(q.query) : null;
   const matchSql = match ? `AND id IN (${MATCHED_SESSIONS_SQL.replace('?', '@match')})` : '';
-  const where = `FROM sessions WHERE started_at >= @cutoff ${matchSql}`;
+  // Root sessions only: parent rows already carry their subagents' usage.
+  const where = `FROM sessions WHERE parent_session_id IS NULL AND started_at >= @cutoff ${matchSql}`;
   const params = match ? { cutoff, match } : { cutoff };
 
   const run = <T>(sql: string): T[] => db.prepare(sql).all(params) as T[];
 
+  // date(..., 'localtime') buckets by the machine's calendar day — the server
+  // always runs on the user's own machine, so its timezone is the right one.
   const days = run<{ date: string; cost: number; tokens: number; n: number }>(
-    `SELECT substr(started_at, 1, 10) AS date, COALESCE(SUM(cost_usd), 0) AS cost,
+    `SELECT date(started_at, 'localtime') AS date, COALESCE(SUM(cost_usd), 0) AS cost,
             COALESCE(SUM(input_tokens + output_tokens), 0) AS tokens, COUNT(*) AS n
      ${where} GROUP BY date ORDER BY date`,
   );
-  const byModel = run<{ key: string | null; cost: number; tokens: number; n: number; cr: number }>(
-    `SELECT model AS key, COALESCE(SUM(cost_usd), 0) AS cost,
-            COALESCE(SUM(input_tokens + output_tokens), 0) AS tokens, COUNT(*) AS n,
-            COALESCE(SUM(cache_read_tokens), 0) AS cr
-     ${where} GROUP BY model ORDER BY cost DESC`,
+  // Per-message attribution: sessions mix models (subagents, /model switches),
+  // so the split comes from the messages' own model column, not the session's.
+  // Placeholder models ('<synthetic>') carry no usage and are excluded.
+  const msgMatchSql = match
+    ? `AND COALESCE(s.parent_session_id, s.id) IN (${MATCHED_SESSIONS_SQL.replace('?', '@match')})`
+    : '';
+  const byModel = run<{ key: string; cost: number; tokens: number; n: number; cr: number }>(
+    `SELECT m.model AS key, COALESCE(SUM(m.cost_usd), 0) AS cost,
+            COALESCE(SUM(m.tokens_in + m.tokens_out), 0) AS tokens,
+            COUNT(DISTINCT COALESCE(s.parent_session_id, s.id)) AS n,
+            COALESCE(SUM(m.cache_read_tokens), 0) AS cr
+     FROM messages m JOIN sessions s ON s.id = m.session_id
+     WHERE m.model IS NOT NULL AND m.model NOT LIKE '<%'
+       AND s.started_at >= @cutoff ${msgMatchSql}
+     GROUP BY m.model ORDER BY cost DESC`,
   );
   const byProject = run<{ key: string | null; cost: number; tokens: number; n: number }>(
     `SELECT project_key AS key, COALESCE(SUM(cost_usd), 0) AS cost,
@@ -504,7 +526,7 @@ export function getStats(db: Database.Database): StatsResponse {
               COALESCE(SUM(input_tokens), 0) AS input_tokens,
               COALESCE(SUM(output_tokens), 0) AS output_tokens,
               COALESCE(SUM(cost_usd), 0) AS cost_usd
-       FROM sessions`,
+       FROM sessions WHERE parent_session_id IS NULL`,
     )
     .get() as any;
   return {

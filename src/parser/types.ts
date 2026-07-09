@@ -5,6 +5,7 @@ export type MessageKind =
   | 'tool_result'
   | 'summary'
   | 'system'
+  | 'meta'
   | 'unknown';
 
 export interface FileTouch {
@@ -30,6 +31,12 @@ export interface NormalizedRecord {
   /** True for tool_result records the tool reported as failed. */
   isError: boolean;
   model: string | null;
+  /**
+   * API message id (`message.id`). Claude Code writes one JSONL line per
+   * content block of a response, and every line repeats the same id and the
+   * same usage object — usage must be counted once per messageId, not per line.
+   */
+  messageId: string | null;
   /** Plain text extracted for full-text search. */
   text: string;
   tokensIn: number;

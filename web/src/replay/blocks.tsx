@@ -384,6 +384,7 @@ function MessageBlock({ row }: { row: MessageRow }) {
     case 'summary':
       return <SummaryBlock row={row} />;
     case 'system':
+    case 'meta': // injected context (isMeta) — a dim collapsible row, not a prompt
       return <SystemBlock row={row} />;
     case 'tool_result':
       // Unpaired result (tool_use outside the loaded window) — still shown.

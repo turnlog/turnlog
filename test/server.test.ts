@@ -136,11 +136,12 @@ describe('API', () => {
     expect(res.body).toContain('Turnlog');
   });
 
-  it('lists sessions', async () => {
+  it('lists sessions (subagent transcripts excluded)', async () => {
     const res = await request(withToken('/api/sessions'));
     const data = res.json();
-    expect(data.total).toBe(4);
-    expect(data.sessions).toHaveLength(4);
+    // 5 root sessions; the subagent transcript rolls into its parent.
+    expect(data.total).toBe(5);
+    expect(data.sessions).toHaveLength(5);
   });
 
   it('filters sessions by project', async () => {
@@ -188,8 +189,8 @@ describe('API', () => {
     expect(status.updateAvailable).toBeNull();
 
     const stats = (await request(withToken('/api/stats'))).json();
-    expect(stats.sessions).toBe(4);
-    expect(stats.projects.length).toBe(2);
+    expect(stats.sessions).toBe(5);
+    expect(stats.projects.length).toBe(3);
   });
 
   it('surfaces the CLI update check on /api/status via getUpdate', async () => {
@@ -207,6 +208,22 @@ describe('API', () => {
     } finally {
       s.close();
     }
+  });
+
+  it('rejects non-numeric numeric params with 400, not 500', async () => {
+    const bad = [
+      '/api/sessions?limit=abc',
+      '/api/spend?days=abc',
+      '/api/search?q=x&limit=1e999',
+      `/api/sessions/${SESSION_A}/messages?after_idx=xyz`,
+    ];
+    for (const p of bad) {
+      const res = await request(withToken(p));
+      expect(res.status).toBe(400);
+    }
+    // Valid numbers still work.
+    const ok = await request(withToken('/api/sessions?limit=5'));
+    expect(ok.status).toBe(200);
   });
 
   it('404s unknown API routes', async () => {

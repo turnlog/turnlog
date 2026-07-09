@@ -39,6 +39,25 @@ export interface ServerContext {
 
 const ALLOWED_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '[::1]']);
 
+/** Thrown by request parsing to turn into a non-500 error response. */
+class HttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+/** Numeric query param: absent → undefined, non-numeric garbage → 400. */
+function numParam(q: URLSearchParams, name: string): number | undefined {
+  const raw = q.get(name);
+  if (raw === null) return undefined;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) throw new HttpError(400, `invalid ${name}`);
+  return n;
+}
+
 const CONTENT_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -177,7 +196,8 @@ export function createServer(ctx: ServerContext): http.Server {
       try {
         return handleApi(ctx, url, res);
       } catch (err) {
-        return sendJson(res, 500, {
+        const status = err instanceof HttpError ? err.status : 500;
+        return sendJson(res, status, {
           error: err instanceof Error ? err.message : 'internal error',
         });
       }
@@ -215,7 +235,7 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
       res,
       200,
       getSpend(db, {
-        days: q.has('days') ? Number(q.get('days')) : undefined,
+        days: numParam(q, 'days'),
         query: q.get('q') ?? undefined,
         pricingOverrides: ctx.pricingOverrides,
       }),
@@ -229,8 +249,8 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
         sort: q.get('sort') ?? undefined,
         dir: q.get('dir') ?? undefined,
         project: q.get('project') ?? undefined,
-        limit: q.has('limit') ? Number(q.get('limit')) : undefined,
-        offset: q.has('offset') ? Number(q.get('offset')) : undefined,
+        limit: numParam(q, 'limit'),
+        offset: numParam(q, 'offset'),
         since: q.get('since') ?? undefined,
         until: q.get('until') ?? undefined,
       }),
@@ -242,7 +262,7 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
       200,
       searchMessages(db, {
         query: q.get('q') ?? '',
-        limit: q.has('limit') ? Number(q.get('limit')) : undefined,
+        limit: numParam(q, 'limit'),
         sessionId: q.get('session') ?? undefined,
       }),
     );
@@ -279,8 +299,8 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
       return sendJson(res, 400, { error: 'unknown lens' });
     }
     const result = listMessages(db, decodeURIComponent(messagesMatch[1]!), {
-      afterIdx: q.has('after_idx') ? Number(q.get('after_idx')) : undefined,
-      limit: q.has('limit') ? Number(q.get('limit')) : undefined,
+      afterIdx: numParam(q, 'after_idx'),
+      limit: numParam(q, 'limit'),
       lens: lensParam,
     });
     if (!result) return sendJson(res, 404, { error: 'session not found' });

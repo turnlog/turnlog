@@ -3,9 +3,19 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type Database from 'better-sqlite3';
 import { Indexer } from '../src/indexer/indexer.js';
-import { searchMessages } from '../src/server/api.js';
+import { listSessions, searchMessages } from '../src/server/api.js';
 import { ADAPTER_VERSION } from '../src/version.js';
-import { SESSION_A, SESSION_B, SESSION_C, SESSION_EMPTY, copyCorpus, testDb, tmpDir } from './helpers.js';
+import {
+  SESSION_A,
+  SESSION_B,
+  SESSION_C,
+  SESSION_D,
+  SESSION_EMPTY,
+  SUBAGENT_D,
+  copyCorpus,
+  testDb,
+  tmpDir,
+} from './helpers.js';
 
 let projectsDir: string;
 let db: Database.Database;
@@ -28,11 +38,11 @@ beforeEach(() => {
 describe('Indexer', () => {
   it('indexes the whole corpus with correct aggregates', async () => {
     const summary = await indexer.scanAll();
-    expect(summary.filesSeen).toBe(4);
+    expect(summary.filesSeen).toBe(6);
     expect(summary.errors).toEqual([]);
 
     const count = db.prepare('SELECT COUNT(*) AS n FROM sessions').get() as { n: number };
-    expect(count.n).toBe(4);
+    expect(count.n).toBe(6);
 
     const a = sessionRow(SESSION_A);
     expect(a.turn_count).toBe(16);
@@ -137,8 +147,89 @@ describe('Indexer', () => {
     await indexer.scanAll();
     const before = db.prepare('SELECT COUNT(*) AS n FROM messages').get() as { n: number };
     const summary = await indexer.rebuild();
-    expect(summary.filesSeen).toBe(4);
+    expect(summary.filesSeen).toBe(6);
     const after = db.prepare('SELECT COUNT(*) AS n FROM messages').get() as { n: number };
     expect(after.n).toBe(before.n);
+  });
+
+  it('counts usage once per message.id, not once per JSONL line', async () => {
+    await indexer.scanAll();
+    // msg_05A spans three lines (thinking/text/tool_use) with identical usage;
+    // only the first line carries it. Family totals below include the subagent.
+    const rows = db
+      .prepare(
+        `SELECT uuid, tokens_in, cost_usd FROM messages
+         WHERE session_id = ? AND message_id = 'msg_05A' ORDER BY idx`,
+      )
+      .all(SESSION_D) as Array<{ uuid: string; tokens_in: number; cost_usd: number | null }>;
+    expect(rows.map((r) => r.tokens_in)).toEqual([500, 0, 0]);
+    expect(rows[0]!.cost_usd).toBeGreaterThan(0);
+    expect(rows[1]!.cost_usd).toBeNull();
+    expect(rows[2]!.cost_usd).toBeNull();
+  });
+
+  it('rolls subagent transcripts into the parent session', async () => {
+    await indexer.scanAll();
+
+    const child = sessionRow(SUBAGENT_D);
+    expect(child.parent_session_id).toBe(SESSION_D);
+    expect(child.project_key).toBe('-Users-dev-projects-agents');
+    // Child usage deduped by message.id too: msg_03A counted once.
+    expect(child.input_tokens).toBe(1000);
+
+    const parent = sessionRow(SESSION_D);
+    expect(parent.parent_session_id).toBeNull();
+    expect(parent.turn_count).toBe(8 + 3); // own lines + subagent lines
+    // msg_02A (500, once) + msg_02B (60) + synthetic (0) + subagent msg_03A (1000, once)
+    expect(parent.input_tokens).toBe(1560);
+    expect(parent.output_tokens).toBe(280);
+    // opus 0.0105 + sonnet-5 intro 0.00042 + haiku 0.00127
+    expect(parent.cost_usd).toBeCloseTo(0.01219, 5);
+
+    // Subagent sessions never appear in the session list.
+    const listed = listSessions(db, { limit: 100 });
+    expect(listed.sessions.some((s) => s.id === SUBAGENT_D)).toBe(false);
+    expect(listed.sessions.some((s) => s.id === SESSION_D)).toBe(true);
+  });
+
+  it('classifies isMeta user records as meta, not prompt', async () => {
+    await indexer.scanAll();
+    const meta = db
+      .prepare(`SELECT kind FROM messages WHERE session_id = ? AND uuid = 'm1'`)
+      .get(SESSION_D) as { kind: string };
+    expect(meta.kind).toBe('meta');
+  });
+
+  it('skips placeholder models when picking the session model', async () => {
+    await indexer.scanAll();
+    // The last assistant line is model '<synthetic>' — the real one wins.
+    expect(sessionRow(SESSION_D).model).toBe('claude-sonnet-5');
+  });
+
+  it('tracks the newest file when the same session id appears under two paths', async () => {
+    await indexer.scanAll();
+    const before = db
+      .prepare('SELECT COUNT(*) AS n FROM messages WHERE session_id = ?')
+      .get(SESSION_A) as { n: number };
+
+    // The project dir was renamed: the same session file shows up under a new
+    // path with a newer mtime (resumed sessions copy history forward).
+    const moved = path.join(projectsDir, '-Users-dev-projects-api', `${SESSION_A}.jsonl`);
+    fs.copyFileSync(sessionAPath(), moved);
+    const future = new Date(Date.now() + 60_000);
+    fs.utimesSync(moved, future, future);
+
+    await indexer.indexFile(moved);
+    const row = sessionRow(SESSION_A);
+    expect(row.file_path).toBe(moved);
+    expect(row.project_key).toBe('-Users-dev-projects-api');
+    const after = db
+      .prepare('SELECT COUNT(*) AS n FROM messages WHERE session_id = ?')
+      .get(SESSION_A) as { n: number };
+    expect(after.n).toBe(before.n);
+
+    // The stale copy is skipped instead of clobbering the tracked offsets.
+    expect(await indexer.indexFile(sessionAPath())).toBe(-1);
+    expect(sessionRow(SESSION_A).file_path).toBe(moved);
   });
 });

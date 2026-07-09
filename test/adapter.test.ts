@@ -21,8 +21,10 @@ async function normalizeFile(file: string): Promise<NormalizedRecord[]> {
 }
 
 function goldenPath(file: string): string {
-  const project = path.basename(path.dirname(file));
-  return path.join(GOLDEN_DIR, `${project}__${path.basename(file, '.jsonl')}.json`);
+  // Full corpus-relative path in the key — subagent files would otherwise all
+  // collapse to a "subagents__" prefix. Flat files keep their existing names.
+  const rel = path.relative(CORPUS_DIR, file).replace(/\.jsonl$/, '');
+  return path.join(GOLDEN_DIR, `${rel.split(path.sep).join('__')}.json`);
 }
 
 describe('adapter golden snapshots', () => {
@@ -97,6 +99,12 @@ describe('adapter behavior', () => {
   it('flags sidechain records', async () => {
     const records = await normalizeFile(sessionAFile);
     expect(records.filter((r) => r.isSidechain).map((r) => r.uuid)).toEqual(['s1', 's2']);
+  });
+
+  it('extracts the API message id from assistant records', async () => {
+    const records = await normalizeFile(sessionAFile);
+    expect(records.find((r) => r.uuid === 'a1')?.messageId).toBe('msg_01A');
+    expect(records.find((r) => r.uuid === 'u1')?.messageId).toBeNull();
   });
 
   it('extracts usage including the cache-write TTL breakdown', async () => {

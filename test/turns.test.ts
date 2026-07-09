@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import type Database from 'better-sqlite3';
 import { Indexer } from '../src/indexer/indexer.js';
 import { listMessages, listTurns } from '../src/server/api.js';
-import { SESSION_C, copyCorpus, testDb, tmpDir } from './helpers.js';
+import { SESSION_C, SESSION_D, copyCorpus, testDb, tmpDir } from './helpers.js';
 
 let db: Database.Database;
 
@@ -34,6 +34,14 @@ describe('listTurns', () => {
     const first = res.turns[0]!;
     expect(first.idx).toBe(res.preludeCount === 0 ? 0 : res.preludeCount);
     expect(res.turns[res.turns.length - 1]!.endIdx).toBe(res.total);
+  });
+
+  it('does not treat injected meta records as turn boundaries', () => {
+    // SESSION_D has one real prompt plus an isMeta caveat record — the caveat
+    // must not open a second turn (it's kind 'meta', not 'prompt').
+    const res = listTurns(db, SESSION_D)!;
+    expect(res.turns).toHaveLength(1);
+    expect(res.turns[0]!.tasks).toBe(1); // the subagent launch
   });
 
   it('endIdx bounds fetch exactly the turn rows', () => {
