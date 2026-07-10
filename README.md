@@ -29,7 +29,7 @@ macOS, Linux, Windows. No build step, no installer, no postinstall scripts.
 `turnlog` starts the local server and prints a URL, then opens your browser to it:
 
 ```
-turnlog 0.2.1
+turnlog 0.2.2
   UI:       http://127.0.0.1:52431/?token=a1b2c3…
   Projects: /Users/you/.claude/projects
 ```

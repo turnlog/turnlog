@@ -17,10 +17,14 @@ import type { SessionMeta } from './types';
 
 const SORTS: { value: NonNullable<SessionsQuery['sort']>; label: string }[] = [
   { value: 'started_at', label: 'date' },
+  { value: 'ended_at', label: 'activity' },
   { value: 'cost_usd', label: 'cost' },
   { value: 'turn_count', label: 'turns' },
   { value: 'tokens', label: 'tokens' },
 ];
+
+/** A session whose last record is this recent is treated as running now. */
+const ACTIVE_MS = 5 * 60_000;
 
 function Item({
   s,
@@ -41,6 +45,9 @@ function Item({
       <span className="side-item-main">
         <span className="side-item-top">
           <span className="side-item-project">{projectName(s)}</span>
+          {s.endedAt !== null && Date.now() - new Date(s.endedAt).getTime() < ACTIVE_MS && (
+            <span className="side-item-live" role="img" aria-label="active in the last 5 minutes" />
+          )}
           <span className="side-item-cost">{fmtCost(s.costUsd)}</span>
         </span>
         <span className="side-item-sub">

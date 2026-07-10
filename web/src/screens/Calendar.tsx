@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSessionsRange } from '../api';
 import { SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
-import { fmtCost, fmtCount, fmtTime, projectName, tileClass } from '../format';
+import { fmtCost, fmtCount, fmtTime, fmtTokens, projectName, tileClass } from '../format';
 import { navigate, sessionHash } from '../router';
 import type { SessionMeta } from '../types';
 
@@ -69,7 +69,7 @@ function BlockTip({ s }: { s: SessionMeta }) {
       <span>
         {fmtTime(s.startedAt)}
         {s.endedAt ? `–${fmtTime(s.endedAt)}` : ''} · {fmtCount(s.turnCount)} turns ·{' '}
-        {fmtCost(s.costUsd)}
+        {fmtTokens(s.inputTokens + s.outputTokens)} tok · {fmtCost(s.costUsd)}
       </span>
     </>
   );
@@ -367,6 +367,7 @@ function MonthGrid({
           const date = new Date(grid.gridStart.getTime() + i * DAY_MS);
           const list = buckets.get(dayKey(date)) ?? [];
           const cost = list.reduce((n, s) => n + (s.costUsd ?? 0), 0);
+          const tokens = list.reduce((n, s) => n + s.inputTokens + s.outputTokens, 0);
           const other = date.getMonth() !== grid.month;
           const isToday = sameDay(date, today);
           const projects = [...new Set(list.map((s) => s.projectKey))].slice(0, 4);
@@ -401,7 +402,8 @@ function MonthGrid({
                     {date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                   </strong>
                   <span>
-                    {fmtCount(list.length)} session{list.length === 1 ? '' : 's'} · {fmtCost(cost)} ·{' '}
+                    {fmtCount(list.length)} session{list.length === 1 ? '' : 's'} ·{' '}
+                    {fmtTokens(tokens)} tok · {fmtCost(cost)} ·{' '}
                     {projects.map((p) => projectName({ projectKey: p, projectPath: null })).join(', ')}
                   </span>
                 </>

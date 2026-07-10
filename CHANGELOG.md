@@ -4,6 +4,21 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] — 2026-07-10
+
+### Added
+
+- Sidebar: sort "by activity" (most recently active session first) and a
+  pulsing dot on sessions active within the last five minutes — together with
+  live updates, the running session is always one glance away.
+- Calendar tooltips (week blocks and month cells) now include token usage.
+
+### Fixed
+
+- Tooltips near the right viewport edge (index status, late-day calendar
+  blocks) no longer squeeze to the trigger's width and wrap word-by-word —
+  the pill now sizes to its content.
+
 ## [0.2.1] — 2026-07-09
 
 ### Added
@@ -84,6 +99,7 @@ Initial public release.
   session token, no CORS. 100% local — no telemetry, no accounts; the only
   network touch is an opt-out-able npm update check.
 
+[0.2.2]: https://github.com/turnlog/turnlog/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/turnlog/turnlog/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/turnlog/turnlog/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/turnlog/turnlog/releases/tag/v0.1.0
