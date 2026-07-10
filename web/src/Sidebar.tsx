@@ -10,6 +10,7 @@ import {
 import Dropdown from './components/Dropdown';
 import { SkeletonRows } from './components/Skeleton';
 import Tooltip from './components/Tooltip';
+import { Brandmark, SidebarIcon, SortVerticalIcon } from './icons';
 import { setProjectFilter, useProjectFilter } from './filterStore';
 import { fmtCost, fmtCount, fmtDate, fmtModel, fmtTokens, projectName, tileClass } from './format';
 import { navigate, sessionHash } from './router';
@@ -61,8 +62,15 @@ function Item({
   );
 }
 
-export default function Sidebar({ activeId }: { activeId: string | null }) {
-  const [sort, setSort] = useState<NonNullable<SessionsQuery['sort']>>('started_at');
+export default function Sidebar({
+  activeId,
+  onToggle,
+}: {
+  activeId: string | null;
+  onToggle: () => void;
+}) {
+  // Activity first: the most recently touched session is the one you want.
+  const [sort, setSort] = useState<NonNullable<SessionsQuery['sort']>>('ended_at');
   const [dir, setDir] = useState<'asc' | 'desc'>('desc');
   const project = useProjectFilter();
   const setProject = setProjectFilter;
@@ -76,6 +84,20 @@ export default function Sidebar({ activeId }: { activeId: string | null }) {
 
   return (
     <aside className="sidebar">
+      <div className="sidebar-brand">
+        <Tooltip content="Hide sessions">
+          <button className="circle circle-active" onClick={onToggle} aria-label="Hide sessions">
+            <SidebarIcon size={17} />
+          </button>
+        </Tooltip>
+        <a href="#/" className="header-brand" aria-label="Turnlog — overview">
+          <Brandmark />
+          <span className="header-title">
+            Turnlog
+            <em>Search &amp; replay</em>
+          </span>
+        </a>
+      </div>
       <div className="sidebar-controls">
         <Dropdown
           value={project}
@@ -99,11 +121,11 @@ export default function Sidebar({ activeId }: { activeId: string | null }) {
           />
           <Tooltip content={dir === 'desc' ? 'Newest first' : 'Oldest first'}>
             <button
-              className="dir-toggle"
+              className={`dir-toggle ${dir === 'asc' ? 'asc' : ''}`}
               onClick={() => setDir(dir === 'desc' ? 'asc' : 'desc')}
               aria-label={`Direction: ${dir}`}
             >
-              {dir === 'desc' ? '↓' : '↑'}
+              <SortVerticalIcon size={16} />
             </button>
           </Tooltip>
           <span className="sidebar-count">{fmtCount(total)}</span>

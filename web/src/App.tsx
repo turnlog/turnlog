@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { hasToken, useLiveEvents, useStatus } from './api';
-import { MagniferIcon, MoonIcon, SidebarIcon, SunIcon, WalletIcon } from './icons';
+import { Brandmark, MagniferIcon, MoonIcon, SidebarIcon, SunIcon, WalletIcon } from './icons';
 import { navigate, searchHash, useRoute } from './router';
 import Home from './screens/Home';
 import Replay from './screens/Replay';
@@ -9,20 +9,6 @@ import Spend from './screens/Spend';
 import Sidebar from './Sidebar';
 import Tooltip from './components/Tooltip';
 import { setTheme, useTheme } from './theme';
-
-export function Brandmark({ size = 40 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden>
-      <circle cx="20" cy="20" r="20" fill="var(--contrast-solid)" />
-      <path
-        d="M12 14h16M12 20h11M12 26h14"
-        stroke="var(--contrast-on)"
-        strokeWidth="2.6"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
 
 function TopSearch() {
   const route = useRoute();
@@ -184,49 +170,54 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="header">
-        <Tooltip content={`${sidebarOpen ? 'Hide' : 'Show'} sessions`}>
-          <button
-            className={`circle ${sidebarOpen ? 'circle-active' : ''}`}
-            onClick={toggleSidebar}
-            aria-label={`${sidebarOpen ? 'Hide' : 'Show'} sessions`}
-          >
-            <SidebarIcon size={17} />
-          </button>
-        </Tooltip>
-        <a href="#/" className="header-brand" aria-label="Turnlog — overview">
-          <Brandmark />
-          <span className="header-title">
-            Turnlog
-            <em>Search &amp; replay</em>
-          </span>
-        </a>
-        <div className="header-right">
-          <TopSearch />
-          <a
-            className={`header-pill ${route.name === 'spend' ? 'active' : ''}`}
-            href="#/spend"
-          >
-            <WalletIcon size={16} />
-            Spend
-          </a>
-          <Tooltip content={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
-            <button
-              className="circle"
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+      {/* Always mounted so open/close can animate; the rail clips at width 0. */}
+      <div className={`sidebar-rail ${sidebarOpen ? 'open' : ''}`} aria-hidden={!sidebarOpen}>
+        <Sidebar
+          activeId={route.name === 'session' ? route.id : null}
+          onToggle={toggleSidebar}
+        />
+      </div>
+      <div className="app-main">
+        <header className="header">
+          {/* While the sidebar is open, its own top row carries these. */}
+          {!sidebarOpen && (
+            <>
+              <Tooltip content="Show sessions">
+                <button className="circle" onClick={toggleSidebar} aria-label="Show sessions">
+                  <SidebarIcon size={17} />
+                </button>
+              </Tooltip>
+              <a href="#/" className="header-brand" aria-label="Turnlog — overview">
+                <Brandmark />
+                <span className="header-title">
+                  Turnlog
+                  <em>Search &amp; replay</em>
+                </span>
+              </a>
+            </>
+          )}
+          <div className="header-right">
+            <TopSearch />
+            <a
+              className={`header-pill ${route.name === 'spend' ? 'active' : ''}`}
+              href="#/spend"
             >
-              {theme === 'dark' ? <SunIcon size={16} /> : <MoonIcon size={16} />}
-            </button>
-          </Tooltip>
-          <StatusCircle />
-        </div>
-      </header>
-      <UpdateBanner />
-      <div className="app-body">
-        {sidebarOpen && (
-          <Sidebar activeId={route.name === 'session' ? route.id : null} />
-        )}
+              <WalletIcon size={16} />
+              Spend
+            </a>
+            <Tooltip content={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
+              <button
+                className="circle"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+              >
+                {theme === 'dark' ? <SunIcon size={16} /> : <MoonIcon size={16} />}
+              </button>
+            </Tooltip>
+            <StatusCircle />
+          </div>
+        </header>
+        <UpdateBanner />
         <main className="screen">
           {route.name === 'library' && <Home />}
           {route.name === 'search' && <Search query={route.query} />}

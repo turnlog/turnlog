@@ -3,6 +3,7 @@ import { useSessionsRange } from '../api';
 import { SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
 import { fmtCost, fmtCount, fmtTime, fmtTokens, projectName, tileClass } from '../format';
+import { ChevronLeftIcon, ChevronRightIcon } from '../icons';
 import { navigate, sessionHash } from '../router';
 import type { SessionMeta } from '../types';
 
@@ -152,7 +153,7 @@ export default function Calendar() {
               onClick={() => (mode === 'week' ? jump(-7) : jumpMonth(-1))}
               aria-label={mode === 'week' ? 'Previous week' : 'Previous month'}
             >
-              ←
+              <ChevronLeftIcon size={16} />
             </button>
           </Tooltip>
           <button className="pill" disabled={isCurrentPeriod} onClick={() => setAnchor(new Date())}>
@@ -165,7 +166,7 @@ export default function Calendar() {
               aria-label={mode === 'week' ? 'Next week' : 'Next month'}
               disabled={isCurrentPeriod}
             >
-              →
+              <ChevronRightIcon size={16} />
             </button>
           </Tooltip>
         </div>

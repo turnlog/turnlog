@@ -29,7 +29,15 @@ import { BlockView } from '../replay/blocks';
 import FilesView from '../replay/Files';
 import SpineView from '../replay/Spine';
 import Tooltip from '../components/Tooltip';
-import { ChartIcon, CheckIcon, CopyIcon, DownloadIcon } from '../icons';
+import {
+  ChartIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronUpIcon,
+  CopyIcon,
+  DownloadIcon,
+} from '../icons';
 import { buildBlocks, idxToBlockMap } from '../replay/thread';
 import { SkeletonRows } from '../components/Skeleton';
 import type { MessageRow, SessionMeta, TurnSummary } from '../types';
@@ -498,7 +506,7 @@ export default function Replay({
         <div className="replay-title">
           <Tooltip content="Back to library">
             <a href="#/" className="back-link" aria-label="Back to library">
-              ←
+              <ChevronLeftIcon size={17} />
             </a>
           </Tooltip>
           <span className="replay-project">{s ? projectName(s) : '…'}</span>
@@ -621,12 +629,12 @@ export default function Replay({
           <span className="error-nav-count">{errorIdxs.data!.length}</span>
           <Tooltip content="Previous error">
             <button onClick={() => jumpError(-1)} aria-label="Previous error">
-              ↑
+              <ChevronUpIcon size={15} />
             </button>
           </Tooltip>
           <Tooltip content="Next error">
             <button onClick={() => jumpError(1)} aria-label="Next error">
-              ↓
+              <ChevronDownIcon size={15} />
             </button>
           </Tooltip>
         </div>
@@ -643,7 +651,7 @@ export default function Replay({
               onClick={() => goToHit(hitIdxs[(hitPos - 1 + hitIdxs.length) % hitIdxs.length]!)}
               aria-label="Previous match"
             >
-              ↑
+              <ChevronUpIcon size={15} />
             </button>
           </Tooltip>
           <Tooltip content="Next match">
@@ -651,7 +659,7 @@ export default function Replay({
               onClick={() => goToHit(hitIdxs[(hitPos + 1) % hitIdxs.length]!)}
               aria-label="Next match"
             >
-              ↓
+              <ChevronDownIcon size={15} />
             </button>
           </Tooltip>
           <Tooltip content="Clear search">

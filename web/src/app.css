@@ -8,6 +8,25 @@
 .app {
   height: 100%;
   display: flex;
+}
+
+/* The rail clips the floating sidebar card so open/close reads as a slide;
+   the card keeps its full width inside, so content never reflows mid-motion. */
+.sidebar-rail {
+  flex: none;
+  width: 0;
+  overflow: hidden;
+  transition: width 260ms cubic-bezier(0.25, 0.8, 0.3, 1);
+}
+.sidebar-rail.open {
+  width: calc(var(--sidebar-w) + 14px);
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
   flex-direction: column;
 }
 
@@ -108,12 +127,6 @@
   50% {
     opacity: 0.3;
   }
-}
-
-.app-body {
-  flex: 1;
-  min-height: 0;
-  display: flex;
 }
 
 .screen {
@@ -402,14 +415,39 @@
 
 /* ── sidebar (sessions) — a zone, not a floating card ─────────────── */
 
+/* Floating card: rounded on all four sides, inset from the edges. */
 .sidebar {
   width: var(--sidebar-w);
+  height: calc(100% - 28px);
+  margin: 14px 0 14px 14px;
   flex: none;
   display: flex;
   flex-direction: column;
   min-height: 0;
   background: var(--card);
-  border-radius: 0 var(--radius-lg) 0 0;
+  border-radius: var(--radius-lg);
+  transition:
+    transform 260ms cubic-bezier(0.25, 0.8, 0.3, 1),
+    opacity 200ms ease;
+}
+.sidebar-rail:not(.open) .sidebar {
+  transform: translateX(-24px);
+  opacity: 0.4;
+  /* Off the focus order / a11y tree once the slide finishes. */
+  visibility: hidden;
+  transition:
+    transform 260ms cubic-bezier(0.25, 0.8, 0.3, 1),
+    opacity 200ms ease,
+    visibility 0s 260ms;
+}
+
+/* While open, the card owns the toggle + brand (the header drops them). */
+.sidebar-brand {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px 2px;
 }
 
 .sidebar-controls {
@@ -439,6 +477,13 @@
 .dir-toggle:hover {
   background: var(--bg2);
   color: var(--tx0);
+}
+/* Direction reads from the mirrored mark: desc as drawn, asc flipped. */
+.dir-toggle svg {
+  transition: transform 200ms cubic-bezier(0.25, 0.8, 0.3, 1);
+}
+.dir-toggle.asc svg {
+  transform: scaleY(-1);
 }
 .sidebar-count {
   font-family: var(--mono);
@@ -2551,10 +2596,23 @@
   width: max-content;
   max-width: 300px;
   text-align: center;
-  animation: tip-in 90ms ease-out;
+  animation: tip-in-above 140ms cubic-bezier(0.25, 0.8, 0.3, 1);
 }
 .tooltip.below {
   transform: translate(-50%, 0);
+  animation-name: tip-in-below;
+}
+@keyframes tip-in-above {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -100%) translateY(4px) scale(0.96);
+  }
+}
+@keyframes tip-in-below {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0) translateY(-4px) scale(0.96);
+  }
 }
 .tooltip strong {
   font-size: 13px;
@@ -2566,12 +2624,6 @@
   font-size: 10.5px;
   line-height: 1.4;
 }
-@keyframes tip-in {
-  from {
-    opacity: 0;
-  }
-}
-
 /* ── month grid ────────────────────────────────────────────────────── */
 
 .calendar-card.month {
@@ -2684,3 +2736,50 @@
 }
 
 /* export control (replay header) */
+
+/* ── micro-interactions ────────────────────────────────────────────────
+   One motion voice: 150ms ease color/background shifts on hover, a small
+   press-down scale on activation, a lift on round buttons. Transform-only
+   where possible so nothing reflows. */
+
+.circle,
+.circle-sm,
+.dir-toggle,
+.pill,
+.back-link,
+.header-pill,
+.view-toggle button,
+.dd-trigger,
+.update-banner-cmd {
+  transition:
+    background 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease,
+    transform 150ms ease;
+}
+.circle:hover,
+.dir-toggle:hover,
+.back-link:hover {
+  transform: translateY(-1px);
+}
+.circle:active,
+.circle-sm:active,
+.dir-toggle:active,
+.back-link:active {
+  transform: scale(0.92);
+  transition-duration: 70ms;
+}
+.pill:active,
+.header-pill:active,
+.view-toggle button:active,
+.update-banner-cmd:active {
+  transform: scale(0.96);
+  transition-duration: 70ms;
+}
+.circle:disabled,
+.pill:disabled {
+  transform: none;
+}
+.side-item {
+  transition: background 130ms ease;
+}

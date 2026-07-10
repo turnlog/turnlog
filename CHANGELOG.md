@@ -4,6 +4,26 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] — 2026-07-10
+
+### Changed
+
+- The session sidebar is now a floating card (rounded on all four sides,
+  inset from the edges) that slides open and closed; while open it carries
+  the sidebar toggle and the Turnlog brand, which return to the header when
+  closed.
+- The sidebar defaults to sorting by activity — the most recently active
+  session first.
+- Text arrows (`← → ↑ ↓`) replaced with proper icons everywhere: Solar
+  chevrons for the replay back button, error/match navigation, and calendar
+  prev/next; Solar sort-vertical for the sidebar sort direction (mirrors to
+  show ascending/descending).
+- Micro-interactions pass: buttons ease on hover and press down on click,
+  tooltips fade-slide in from their anchor side, sidebar open/close animates.
+- The icon set is now 100% Solar (CC BY 4.0): the four hand-authored stand-ins
+  (copy, download, chart, check) replaced with vendored Solar path data, and
+  every icon annotated with its exact solar:* name.
+
 ## [0.2.2] — 2026-07-10
 
 ### Added
@@ -99,6 +119,7 @@ Initial public release.
   session token, no CORS. 100% local — no telemetry, no accounts; the only
   network touch is an opt-out-able npm update check.
 
+[0.2.3]: https://github.com/turnlog/turnlog/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/turnlog/turnlog/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/turnlog/turnlog/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/turnlog/turnlog/compare/v0.1.0...v0.2.0
