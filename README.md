@@ -8,6 +8,8 @@
 npx turnlog
 ```
 
+[turnlog.dev](https://turnlog.dev) · [npm](https://www.npmjs.com/package/turnlog) · MIT
+
 </div>
 
 Turnlog indexes your `~/.claude/projects/` history into full-text search and
