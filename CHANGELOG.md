@@ -4,6 +4,17 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] — 2026-07-11
+
+### Changed
+
+- New UI typeface: Geist + Geist Mono (variable fonts, still bundled —
+  nothing loads from the network), matching turnlog.dev. The smallest
+  text sizes are raised roughly a point across the app — metadata rows,
+  labels, chips, and calendar block text are no longer sub-11px.
+- The browser-tab icon now matches the turnlog.dev mark (vermilion
+  rounded square, white log lines) instead of the old dark/amber one.
+
 ## [0.2.3] — 2026-07-10
 
 ### Changed
@@ -119,6 +130,7 @@ Initial public release.
   session token, no CORS. 100% local — no telemetry, no accounts; the only
   network touch is an opt-out-able npm update check.
 
+[0.2.4]: https://github.com/turnlog/turnlog/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/turnlog/turnlog/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/turnlog/turnlog/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/turnlog/turnlog/compare/v0.2.0...v0.2.1

@@ -3,43 +3,20 @@
    radius-24 cards separated by tone, one near-black stat card, vermilion
    as the single hot accent, blue/mint/purple as small data accents.
    No floating frame, no shadows on cards — overlays only.
-   Instrument Sans for chrome, Fira Code for content. Fonts are
-   bundled — nothing loads from the network, ever. */
+   Geist for chrome, Geist Mono for content — variable latin woff2,
+   the same pairing as turnlog.dev. Fonts are bundled — nothing loads
+   from the network, ever. */
 
 @font-face {
-  font-family: 'Instrument Sans';
-  src: url('/fonts/instrument-sans-400.woff2') format('woff2');
-  font-weight: 400;
+  font-family: 'Geist';
+  src: url('/fonts/geist-var.woff2') format('woff2');
+  font-weight: 100 900;
   font-display: swap;
 }
 @font-face {
-  font-family: 'Instrument Sans';
-  src: url('/fonts/instrument-sans-500.woff2') format('woff2');
-  font-weight: 500;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Instrument Sans';
-  src: url('/fonts/instrument-sans-600.woff2') format('woff2');
-  font-weight: 600;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Instrument Sans';
-  src: url('/fonts/instrument-sans-700.woff2') format('woff2');
-  font-weight: 700;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Fira Code';
-  src: url('/fonts/fira-code-400.woff2') format('woff2');
-  font-weight: 400;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Fira Code';
-  src: url('/fonts/fira-code-500.woff2') format('woff2');
-  font-weight: 500;
+  font-family: 'Geist Mono';
+  src: url('/fonts/geist-mono-var.woff2') format('woff2');
+  font-weight: 100 900;
   font-display: swap;
 }
 
@@ -112,8 +89,8 @@
 
   --shadow: 0 16px 44px rgba(0, 0, 0, 0.5);
 
-  --sans: 'Instrument Sans', system-ui, sans-serif;
-  --mono: 'Fira Code', ui-monospace, 'SF Mono', Menlo, monospace;
+  --sans: 'Geist', system-ui, sans-serif;
+  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
   --rail-w: 3px;
   --radius: 14px;

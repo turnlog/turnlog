@@ -1,9 +1,9 @@
 Bundled third-party assets — everything ships inside the package; the app
 never loads anything from the network.
 
-Instrument Sans / Fira Code (latin woff2 subsets, via Fontsource)
-  © their respective project authors — SIL Open Font License 1.1
-  (see fonts/LICENSE.txt)
+Geist / Geist Mono (latin variable woff2, via Google Fonts)
+  © 2023 Vercel, in collaboration with basement.studio — SIL Open Font
+  License 1.1 (see fonts/LICENSE.txt)
 
 Solar Icons, outline style (vendored as inline SVG path data)
   © 480 Design — Creative Commons Attribution 4.0

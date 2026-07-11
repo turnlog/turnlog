@@ -202,7 +202,7 @@
 }
 
 .chip {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
   line-height: 1;
   padding: 4px 10px;
@@ -219,7 +219,7 @@
   background: var(--contrast-solid);
   color: var(--contrast-on);
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 .chip-summary {
   background: var(--blue-dim);
@@ -319,11 +319,11 @@
   color: var(--tx0);
 }
 .stat-sub {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--tx2);
 }
 .stat-label {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--tx2);
@@ -487,7 +487,7 @@
 }
 .sidebar-count {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--tx2);
 }
 
@@ -545,7 +545,7 @@
 .side-item-cost {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--tx1);
   flex: none;
 }
@@ -554,7 +554,7 @@
   align-items: center;
   gap: 5px;
   margin-top: 2px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--tx2);
   white-space: nowrap;
   overflow: hidden;
@@ -562,7 +562,7 @@
 .side-item-model {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--tx2);
   background: var(--bg1);
   border-radius: 999px;
@@ -817,7 +817,7 @@
 .project-count {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--tx2);
 }
 
@@ -864,7 +864,7 @@
 }
 .replay-id {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--tx2);
 }
 .replay-date {
@@ -1017,7 +1017,7 @@
   margin-bottom: 4px;
 }
 .block-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1032,7 +1032,7 @@
 .block-ts {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11.5px;
   color: var(--tx2);
   flex: none;
 }
@@ -1079,7 +1079,7 @@
   display: inline-block;
   transition: transform 100ms;
   color: var(--tx2);
-  font-size: 10px;
+  font-size: 11px;
   width: 12px;
 }
 .caret.open {
@@ -1137,14 +1137,14 @@
 }
 .tool-summary {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--tx2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .tool-pending {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--c-error);
   opacity: 0.75;
   flex: none;
@@ -1166,7 +1166,7 @@
   padding-top: 6px;
 }
 .tool-result-label {
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -1213,7 +1213,7 @@
 }
 .system-preview {
   color: var(--tx2);
-  font-size: 11.5px;
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1247,7 +1247,7 @@
 }
 .sidechain-count {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11.5px;
   color: var(--tx2);
 }
 .sidechain-body {
@@ -1290,7 +1290,7 @@
   width: 100%;
   border-collapse: collapse;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .diff-no {
@@ -1333,7 +1333,7 @@
 }
 .diff-hunk td {
   color: var(--tx2);
-  font-size: 10.5px;
+  font-size: 11.5px;
   padding: 2px 8px;
   background: var(--bg2);
 }
@@ -1346,7 +1346,7 @@
 }
 .diff-stats {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
 }
 .diff-stat-add {
   color: var(--diff-add-tx);
@@ -1495,7 +1495,7 @@
   }
 }
 .outline-title {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.09em;
@@ -1532,7 +1532,7 @@
 }
 .outline-n {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--tx2);
   min-width: 16px;
   text-align: right;
@@ -1579,7 +1579,7 @@
   justify-content: center;
   background: var(--bg2);
   color: var(--tx1);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
 }
 .turn.open .turn-n {
@@ -1610,7 +1610,7 @@
   gap: 11px;
   flex: none;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11.5px;
   color: var(--tx2);
   white-space: nowrap;
 }
@@ -1620,7 +1620,7 @@
 }
 .turn-ts {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11.5px;
   color: var(--tx2);
   flex: none;
 }
@@ -1670,7 +1670,7 @@
   background: var(--bg2);
   border-radius: 5px;
   padding: 0 6px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .search-meta code {
   background: var(--bg2);
@@ -1717,7 +1717,7 @@
 }
 .search-group-count {
   margin-left: auto;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--tx1);
   background: var(--bg2);
@@ -1756,7 +1756,7 @@
 .search-hit-ts {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11.5px;
   color: var(--tx2);
   flex: none;
 }
@@ -1767,7 +1767,7 @@
 }
 .lens-count {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   opacity: 0.65;
 }
 .lens-count-error {
@@ -1902,7 +1902,7 @@
 }
 .find-count {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--tx1);
 }
 .find-bar button {
@@ -1940,7 +1940,7 @@
 .you-are-here .turn-n {
   width: 24px;
   height: 24px;
-  font-size: 10.5px;
+  font-size: 11.5px;
 }
 .yah-text {
   overflow: hidden;
@@ -2042,7 +2042,7 @@
 }
 .file-item-dir {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--tx2);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2052,7 +2052,7 @@
   display: flex;
   gap: 10px;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11.5px;
   color: var(--tx2);
   margin-top: 3px;
 }
@@ -2095,14 +2095,14 @@
 .file-entry-head .turn-n {
   width: 24px;
   height: 24px;
-  font-size: 10.5px;
+  font-size: 11.5px;
 }
 .chip-failed {
   background: var(--accent-dim);
   color: var(--c-error);
 }
 .file-entry-jump {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--tx2);
 }
 .file-entry-jump:hover {
@@ -2111,7 +2111,7 @@
 .file-entry-ts {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11.5px;
   color: var(--tx2);
 }
 
@@ -2245,7 +2245,7 @@
   left: 50%;
   transform: translateX(-50%);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--tx1);
   white-space: nowrap;
@@ -2265,7 +2265,7 @@
   min-width: 0;
   text-align: center;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--tx2);
   white-space: nowrap;
 }
@@ -2295,7 +2295,7 @@
 .split-meta {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--tx2);
   flex: none;
 }
@@ -2382,7 +2382,7 @@
   top: 2px;
   transform: translateX(-50%);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--tx2);
 }
 .calendar-week-row {
@@ -2404,7 +2404,7 @@
 }
 .calendar-date {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--tx2);
 }
 .calendar-date.today {
@@ -2461,7 +2461,7 @@
   border-radius: 4px;
 }
 .calendar-block-name {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1.2;
   overflow: hidden;
@@ -2469,12 +2469,12 @@
   white-space: nowrap;
 }
 .tier-compact .calendar-block-name {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
 }
 .calendar-block-meta {
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 11px;
   opacity: 0.8;
   overflow: hidden;
   white-space: nowrap;
@@ -2551,7 +2551,7 @@
   color: var(--tx2);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  font-size: 10px;
+  font-size: 11px;
 }
 .update-banner-x {
   margin-left: auto;
@@ -2621,7 +2621,7 @@
 .tooltip span {
   color: var(--contrast-dim);
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11.5px;
   line-height: 1.4;
 }
 /* ── month grid ────────────────────────────────────────────────────── */
@@ -2637,7 +2637,7 @@
 }
 .month-dow {
   text-align: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--tx2);
 }
@@ -2727,7 +2727,7 @@
 .month-count {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--tx2);
 }
 
