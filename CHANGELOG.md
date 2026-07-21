@@ -4,6 +4,15 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] — 2026-07-21
+
+### Changed
+
+- Republished to npm. The package was fully unpublished from the registry
+  on 2026-07-20; npm permanently retires every previously published version
+  number, so the return required a new version. Functionally identical
+  to 0.2.4.
+
 ## [0.2.4] — 2026-07-11
 
 ### Changed
