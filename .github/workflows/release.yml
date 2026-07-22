@@ -21,13 +21,15 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      # Node 22 bundles npm 10; trusted publishing needs npm >= 11.5.
-      - run: npm install -g npm@latest
+      # Install + gates run on the runner's bundled npm 10 — npm 12 skips the
+      # install scripts that build better-sqlite3's native binding.
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      # Trusted publishing needs npm >= 11.5, so upgrade for this step only.
       # prepack runs `npm run build`, so publish packs a fresh bin/dist/web/dist.
       # publishConfig sets access:public; provenance stays off while the repo
       # is private (the registry rejects provenance from private repos).
+      - run: npm install -g npm@latest
       - run: npm publish
