@@ -4,6 +4,14 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] — 2026-07-22
+
+### Changed
+
+- The sidebar sort dropdown now lists "by activity" first, matching the
+  default sort order.
+- README: the example startup output no longer shows an old version.
+
 ## [0.2.5] — 2026-07-21
 
 ### Changed

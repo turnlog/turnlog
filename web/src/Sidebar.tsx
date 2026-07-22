@@ -17,8 +17,8 @@ import { navigate, sessionHash } from './router';
 import type { SessionMeta } from './types';
 
 const SORTS: { value: NonNullable<SessionsQuery['sort']>; label: string }[] = [
-  { value: 'started_at', label: 'date' },
   { value: 'ended_at', label: 'activity' },
+  { value: 'started_at', label: 'date' },
   { value: 'cost_usd', label: 'cost' },
   { value: 'turn_count', label: 'turns' },
   { value: 'tokens', label: 'tokens' },
