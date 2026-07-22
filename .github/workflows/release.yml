@@ -2,13 +2,15 @@ name: Release
 
 # Tag a version (git tag v0.2.0 && git push --tags) → build, gate, publish.
 # npm is the entire distribution and update channel (deep-dive §5).
+# Publishing uses npm trusted publishing (OIDC): no token secret — the
+# trusted publisher (this repo + workflow) is configured on npmjs.com.
 on:
   push:
     tags: ['v*']
 
 permissions:
   contents: read
-  id-token: write # required for npm provenance
+  id-token: write # required for npm trusted publishing (OIDC)
 
 jobs:
   publish:
@@ -18,14 +20,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: 'https://registry.npmjs.org'
           cache: npm
+      # Node 22 bundles npm 10; trusted publishing needs npm >= 11.5.
+      - run: npm install -g npm@latest
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
       # prepack runs `npm run build`, so publish packs a fresh bin/dist/web/dist.
-      # publishConfig sets access:public + provenance (needs id-token: write).
+      # publishConfig sets access:public; provenance stays off while the repo
+      # is private (the registry rejects provenance from private repos).
       - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
