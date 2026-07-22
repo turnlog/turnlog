@@ -29,7 +29,7 @@ jobs:
       - run: npm test
       # Trusted publishing needs npm >= 11.5, so upgrade for this step only.
       # prepack runs `npm run build`, so publish packs a fresh bin/dist/web/dist.
-      # publishConfig sets access:public; provenance stays off while the repo
-      # is private (the registry rejects provenance from private repos).
+      # publishConfig sets access:public + provenance (repo must stay public —
+      # the registry rejects provenance publishes from private repos).
       - run: npm install -g npm@latest
       - run: npm publish
