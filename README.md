@@ -8,6 +8,8 @@
 npx turnlog
 ```
 
+[![npm](https://img.shields.io/npm/v/turnlog?color=e8542f&label=npm)](https://www.npmjs.com/package/turnlog)
+
 [turnlog.dev](https://turnlog.dev) · [npm](https://www.npmjs.com/package/turnlog) · MIT
 
 </div>
@@ -31,7 +33,7 @@ macOS, Linux, Windows. No build step, no installer, no postinstall scripts.
 `turnlog` starts the local server and prints a URL, then opens your browser to it:
 
 ```
-turnlog 0.2.6
+turnlog <version>
   UI:       http://127.0.0.1:52431/?token=a1b2c3…
   Projects: /Users/you/.claude/projects
 ```
