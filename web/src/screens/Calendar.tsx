@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSessionsRange } from '../api';
+import { useHideEmpty } from '../filterStore';
 import { SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
 import { fmtCost, fmtCount, fmtTime, fmtTokens, projectName, tileClass } from '../format';
@@ -95,7 +96,8 @@ export default function Calendar() {
     mode === 'week'
       ? [weekStart, new Date(weekStart.getTime() + 7 * DAY_MS)]
       : [monthGrid.gridStart, new Date(monthGrid.gridStart.getTime() + monthGrid.weeks * 7 * DAY_MS)];
-  const sessions = useSessionsRange(rangeStart.toISOString(), rangeEnd.toISOString());
+  const hideEmpty = useHideEmpty();
+  const sessions = useSessionsRange(rangeStart.toISOString(), rangeEnd.toISOString(), hideEmpty);
 
   const buckets = useMemo(() => {
     const map = new Map<string, SessionMeta[]>();

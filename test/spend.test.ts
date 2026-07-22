@@ -123,4 +123,29 @@ describe('listSessions date range', () => {
     const none = listSessions(db, { since: '2030-01-01T00:00:00Z' });
     expect(none.total).toBe(0);
   });
+
+  it('hideEmpty drops sessions with 0 turns and 0 tokens', async () => {
+    const { listSessions } = await import('../src/server/api.js');
+    db.prepare(
+      `INSERT INTO sessions (id, file_path, adapter_version) VALUES (?, ?, ?)`,
+    ).run('empty-session-test', '/fake/empty-session-test.jsonl', 1);
+
+    const all = listSessions(db, {});
+    expect(all.sessions.some((s) => s.id === 'empty-session-test')).toBe(true);
+
+    const filtered = listSessions(db, { hideEmpty: true });
+    expect(filtered.sessions.some((s) => s.id === 'empty-session-test')).toBe(false);
+    // The corpus may carry empty sessions of its own — derive the expectation.
+    const empties = all.sessions.filter(
+      (s) => s.turnCount === 0 && s.inputTokens + s.outputTokens === 0,
+    ).length;
+    expect(empties).toBeGreaterThanOrEqual(1);
+    expect(filtered.total).toBe(all.total - empties);
+    // Every survivor has something in it.
+    expect(
+      filtered.sessions.every((s) => s.turnCount > 0 || s.inputTokens + s.outputTokens > 0),
+    ).toBe(true);
+
+    db.prepare(`DELETE FROM sessions WHERE id = ?`).run('empty-session-test');
+  });
 });

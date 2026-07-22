@@ -65,6 +65,7 @@
   --tile-5: #db3b4a; /* red     */
   --tile-6: #c43d8c; /* magenta */
   --tile-7: #8b34d4; /* purple  */
+  --tile-on: #ffffff; /* the glyph on every hue — theme-invariant like them */
 
   /* the near-black surface — inverts to white on dark */
   --contrast-solid: #eceef2;

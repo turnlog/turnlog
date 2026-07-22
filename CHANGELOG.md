@@ -4,6 +4,22 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] — 2026-07-22
+
+### Added
+
+- Empty sessions (0 turns and 0 tokens) can be hidden: an eye toggle in the
+  sidebar next to the sort direction, remembered across launches. The filter
+  applies everywhere sessions are listed — the sidebar and both calendar
+  views.
+
+### Changed
+
+- UI consistency pass: one emphasis weight (600) everywhere bold appeared,
+  uppercase label tracking unified, stray gaps and radii snapped to the
+  spacing scale, the search screen input matched to the hero input, and the
+  last hardcoded whites replaced with theme tokens (new `--tile-on`).
+
 ## [0.2.6] — 2026-07-22
 
 ### Changed

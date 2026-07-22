@@ -58,6 +58,8 @@ export interface ListSessionsQuery {
   /** ISO bounds on started_at (calendar range queries). */
   since?: string;
   until?: string;
+  /** Drop sessions with nothing in them (0 turns and 0 tokens). */
+  hideEmpty?: boolean;
 }
 
 export function listSessions(db: Database.Database, q: ListSessionsQuery): SessionListResponse {
@@ -79,6 +81,9 @@ export function listSessions(db: Database.Database, q: ListSessionsQuery): Sessi
   if (q.until) {
     clauses.push('started_at < ?');
     params.push(q.until);
+  }
+  if (q.hideEmpty) {
+    clauses.push('NOT (turn_count = 0 AND input_tokens + output_tokens = 0)');
   }
   const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
 

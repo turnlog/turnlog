@@ -58,6 +58,8 @@ export interface SessionsQuery {
   sort?: 'started_at' | 'ended_at' | 'cost_usd' | 'turn_count' | 'tokens';
   dir?: 'asc' | 'desc';
   project?: string;
+  /** Drop sessions with nothing in them (0 turns and 0 tokens). */
+  hideEmpty?: boolean;
 }
 
 const PAGE = 100;
@@ -151,9 +153,16 @@ export function useSessions(q: SessionsQuery) {
   if (q.sort) params.set('sort', q.sort);
   if (q.dir) params.set('dir', q.dir);
   if (q.project) params.set('project', q.project);
+  if (q.hideEmpty) params.set('hideEmpty', '1');
 
   return useInfiniteQuery({
-    queryKey: ['sessions', q.sort ?? 'started_at', q.dir ?? 'desc', q.project ?? ''],
+    queryKey: [
+      'sessions',
+      q.sort ?? 'started_at',
+      q.dir ?? 'desc',
+      q.project ?? '',
+      q.hideEmpty ?? false,
+    ],
     queryFn: ({ pageParam }) =>
       apiFetch<SessionListResponse>(
         `/api/sessions?${params.toString()}&limit=${PAGE}&offset=${pageParam}`,
@@ -267,12 +276,12 @@ export function useErrorIdxs(sessionId: string) {
 }
 
 /** Sessions within a started_at range (calendar week queries). */
-export function useSessionsRange(sinceIso: string, untilIso: string) {
+export function useSessionsRange(sinceIso: string, untilIso: string, hideEmpty = false) {
   return useQuery({
-    queryKey: ['sessions-range', sinceIso, untilIso],
+    queryKey: ['sessions-range', sinceIso, untilIso, hideEmpty],
     queryFn: async (): Promise<SessionMeta[]> => {
       const res = await apiFetch<SessionListResponse>(
-        `/api/sessions?since=${encodeURIComponent(sinceIso)}&until=${encodeURIComponent(untilIso)}&sort=started_at&dir=asc&limit=1000`,
+        `/api/sessions?since=${encodeURIComponent(sinceIso)}&until=${encodeURIComponent(untilIso)}&sort=started_at&dir=asc&limit=1000${hideEmpty ? '&hideEmpty=1' : ''}`,
       );
       return res.sessions;
     },

@@ -315,6 +315,7 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
         offset: numParam(q, 'offset'),
         since: q.get('since') ?? undefined,
         until: q.get('until') ?? undefined,
+        hideEmpty: q.get('hideEmpty') === '1',
       }),
     );
   }

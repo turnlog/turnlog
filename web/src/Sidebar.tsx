@@ -10,8 +10,8 @@ import {
 import Dropdown from './components/Dropdown';
 import { SkeletonRows } from './components/Skeleton';
 import Tooltip from './components/Tooltip';
-import { Brandmark, SidebarIcon, SortVerticalIcon } from './icons';
-import { setProjectFilter, useProjectFilter } from './filterStore';
+import { Brandmark, EyeClosedIcon, SidebarIcon, SortVerticalIcon } from './icons';
+import { setHideEmpty, setProjectFilter, useHideEmpty, useProjectFilter } from './filterStore';
 import { fmtCost, fmtCount, fmtDate, fmtModel, fmtTokens, projectName, tileClass } from './format';
 import { navigate, sessionHash } from './router';
 import type { SessionMeta } from './types';
@@ -72,12 +72,13 @@ export default function Sidebar({
   // Activity first: the most recently touched session is the one you want.
   const [sort, setSort] = useState<NonNullable<SessionsQuery['sort']>>('ended_at');
   const [dir, setDir] = useState<'asc' | 'desc'>('desc');
+  const hideEmpty = useHideEmpty();
   const project = useProjectFilter();
   const setProject = setProjectFilter;
 
   const status = useStatus();
   const projects = useProjects();
-  const sessions = useSessions({ sort, dir, project: project || undefined });
+  const sessions = useSessions({ sort, dir, project: project || undefined, hideEmpty });
 
   const rows = useMemo(() => flattenSessions(sessions.data), [sessions.data]);
   const total = sessions.data?.pages[0]?.total ?? 0;
@@ -126,6 +127,16 @@ export default function Sidebar({
               aria-label={`Direction: ${dir}`}
             >
               <SortVerticalIcon size={16} />
+            </button>
+          </Tooltip>
+          <Tooltip content={hideEmpty ? 'Empty sessions hidden' : 'Hide empty sessions'}>
+            <button
+              className={`dir-toggle ${hideEmpty ? 'on' : ''}`}
+              onClick={() => setHideEmpty(!hideEmpty)}
+              aria-label="Hide empty sessions"
+              aria-pressed={hideEmpty}
+            >
+              <EyeClosedIcon size={16} />
             </button>
           </Tooltip>
           <span className="sidebar-count">{fmtCount(total)}</span>

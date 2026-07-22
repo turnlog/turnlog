@@ -46,7 +46,7 @@
   display: flex;
   flex-direction: column;
   font-size: 17px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.25;
   color: var(--tx0);
 }
@@ -105,7 +105,7 @@
 }
 .circle-onaccent {
   background: rgba(255, 255, 255, 0.22);
-  color: #fff;
+  color: var(--accent-on);
 }
 
 .status-dot {
@@ -147,9 +147,9 @@
   padding: 40px;
 }
 .fullscreen-note h1 {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   margin: 0 0 12px;
 }
 .fullscreen-note p {
@@ -160,7 +160,7 @@
 }
 .fullscreen-note code {
   background: var(--bg2);
-  border-radius: 6px;
+  border-radius: 5px;
   padding: 1px 7px;
   font-size: 12.5px;
 }
@@ -175,7 +175,7 @@
 .btn-accent {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   background: var(--accent);
   color: var(--accent-on);
   border-radius: 999px;
@@ -189,7 +189,7 @@
 .pill {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   background: var(--bg2);
   color: var(--tx0);
   border-radius: 999px;
@@ -238,7 +238,8 @@
   align-items: center;
   justify-content: center;
   font-size: 17px;
-  font-weight: 700;
+  font-weight: 600;
+  color: var(--tile-on);
 }
 .tile-sm {
   width: 36px;
@@ -254,35 +255,27 @@
 }
 .tile-0 {
   background: var(--tile-0);
-  color: #fff;
 }
 .tile-1 {
   background: var(--tile-1);
-  color: #fff;
 }
 .tile-2 {
   background: var(--tile-2);
-  color: #fff;
 }
 .tile-3 {
   background: var(--tile-3);
-  color: #fff;
 }
 .tile-4 {
   background: var(--tile-4);
-  color: #fff;
 }
 .tile-5 {
   background: var(--tile-5);
-  color: #fff;
 }
 .tile-6 {
   background: var(--tile-6);
-  color: #fff;
 }
 .tile-7 {
   background: var(--tile-7);
-  color: #fff;
 }
 
 .dot {
@@ -485,6 +478,10 @@
 .dir-toggle.asc svg {
   transform: scaleY(-1);
 }
+.dir-toggle.on {
+  background: var(--bg3);
+  color: var(--tx0);
+}
 .sidebar-count {
   font-family: var(--mono);
   font-size: 12px;
@@ -552,7 +549,7 @@
 .side-item-sub {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   margin-top: 2px;
   font-size: 12px;
   color: var(--tx2);
@@ -685,7 +682,7 @@
 /* the vermilion card */
 .accent-card {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-on);
   padding: 24px 26px;
   display: flex;
   flex-direction: column;
@@ -754,7 +751,7 @@
 .recent-btn {
   display: flex;
   align-items: center;
-  gap: 13px;
+  gap: 12px;
   width: 100%;
   text-align: left;
   padding: 13px 2px;
@@ -770,7 +767,7 @@
 .recent-title {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   font-size: 14.5px;
   font-weight: 600;
   overflow: hidden;
@@ -881,7 +878,7 @@
 .view-toggle button {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   font-size: 12.5px;
   font-weight: 500;
   padding: 5px 14px;
@@ -1018,7 +1015,7 @@
 }
 .block-label {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--tx2);
@@ -1167,9 +1164,9 @@
 }
 .tool-result-label {
   font-size: 11.5px;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.08em;
   color: var(--tx2);
   margin-bottom: 4px;
 }
@@ -1377,7 +1374,7 @@
 .md h3,
 .md h4 {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
   margin: 14px 0 6px;
   color: var(--tx0);
 }
@@ -1496,9 +1493,9 @@
 }
 .outline-title {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.08em;
   color: var(--tx2);
   padding: 15px 16px 10px;
   border-bottom: 1px solid var(--line-soft);
@@ -1540,7 +1537,7 @@
 }
 .outline-item.has-error .outline-n {
   color: var(--c-error);
-  font-weight: 700;
+  font-weight: 600;
 }
 .outline-text {
   overflow: hidden;
@@ -1656,7 +1653,7 @@
 }
 .search-input {
   width: 100%;
-  font-size: 16px;
+  font-size: 15px;
   padding: 15px 26px;
   background: var(--card);
   border-radius: 999px;
@@ -1773,7 +1770,7 @@
 .lens-count-error {
   color: var(--c-error);
   opacity: 1;
-  font-weight: 700;
+  font-weight: 600;
 }
 .view-toggle button.active .lens-count-error {
   color: var(--accent-hi);
@@ -1821,7 +1818,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
 }
 .sidebar .skel-rows {
   padding: 4px 16px;
@@ -1928,7 +1925,7 @@
   z-index: 5;
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   max-width: 60%;
   background: var(--card);
   border: 1px solid var(--line);
@@ -1990,7 +1987,7 @@
 }
 .outline-item.has-error.current .outline-n {
   background: var(--c-error);
-  color: #fff;
+  color: var(--accent-on);
 }
 
 /* ── 4d files view (outcome pivot) ─────────────────────────────────── */
@@ -2395,7 +2392,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 7px;
+  gap: 8px;
 }
 .calendar-dow {
   font-size: 12px;
@@ -2435,7 +2432,7 @@
 }
 .calendar-block {
   position: absolute;
-  border-radius: 7px;
+  border-radius: 8px;
   overflow: hidden;
   display: flex;
   flex-direction: row;
@@ -2462,7 +2459,7 @@
 }
 .calendar-block-name {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
