@@ -35,7 +35,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 18px 28px 14px;
+  padding: 18px 14px 14px;
 }
 .header-brand {
   display: flex;
@@ -135,7 +135,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 8px 28px 24px;
+  /* Horizontal/bottom gutters match the sidebar's 14px floating inset. */
+  padding: 8px 14px 14px;
 }
 
 .fullscreen-note {
@@ -459,9 +460,35 @@
   align-items: center;
   gap: 8px;
 }
+/* Filter chips: labeled pill-toggles — active state is the contrast surface. */
+.sidebar-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--bg1);
+  color: var(--tx1);
+}
+.filter-chip:hover {
+  background: var(--bg2);
+  color: var(--tx0);
+}
+.filter-chip.on {
+  background: var(--contrast-solid);
+  color: var(--contrast-on);
+}
 .dir-toggle {
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   flex: none;
   background: var(--bg1);
@@ -506,6 +533,8 @@
   padding: 11px 16px;
   border-bottom: 1px solid var(--line-soft);
   transition: background 80ms;
+  cursor: pointer; /* a div since the pin button nests inside */
+  user-select: none;
 }
 .side-item:hover {
   background: var(--bg1);
@@ -545,6 +574,31 @@
   font-size: 12px;
   color: var(--tx1);
   flex: none;
+}
+/* Pin toggle: invisible until the row is hovered, unless already pinned. */
+.side-item-pin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  flex: none;
+  color: var(--tx2);
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+.side-item:hover .side-item-pin,
+.side-item-pin:focus-visible,
+.side-item-pin.pinned {
+  opacity: 1;
+}
+.side-item-pin:hover {
+  background: var(--bg2);
+  color: var(--tx0);
+}
+.side-item-pin.pinned {
+  color: var(--tx0);
 }
 .side-item-sub {
   display: flex;
@@ -826,7 +880,7 @@
   display: flex;
   flex-direction: column;
   position: relative;
-  gap: 16px;
+  gap: 14px;
 }
 
 .replay-head {
@@ -835,10 +889,58 @@
   border-radius: var(--radius-lg);
   padding: 13px 20px;
 }
+/* Identity block left (title / meta / note); controls stacked right
+   (views + lenses over the secondary actions). */
 .replay-title {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 11px;
+}
+.replay-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.replay-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.replay-controls-right {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.replay-views {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+/* Lens icon buttons carry the legend colors; active = the usual pressed inset. */
+.lens-action.lens-diffs {
+  color: var(--mint-tx);
+}
+.lens-action.lens-commands {
+  color: var(--purple-tx);
+}
+.lens-action.lens-errors {
+  color: var(--accent);
+}
+.lens-action.lens-prompts {
+  color: var(--tx0);
+}
+.lens-action:disabled {
+  opacity: 0.35;
+}
+.lens-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 .back-link {
   width: 34px;
@@ -858,6 +960,12 @@
 .replay-project {
   font-weight: 600;
   font-size: 15px;
+  /* Custom names can run long — one line, ellipsized, never a stacked column. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+  min-width: 60px;
 }
 .replay-id {
   font-family: var(--mono);
@@ -867,6 +975,8 @@
 .replay-date {
   font-size: 12.5px;
   color: var(--tx1);
+  white-space: nowrap;
+  flex: none;
 }
 .view-toggle {
   display: flex;
@@ -900,6 +1010,66 @@
   align-items: center;
   gap: 4px;
 }
+.replay-pin-mark {
+  margin-right: 5px;
+  vertical-align: -1px;
+  color: var(--tx1);
+}
+/* A saved note reads as a quiet line inside the heading block. */
+.replay-note {
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: var(--tx1);
+  white-space: pre-wrap;
+  /* Long notes stay a summary here — the full text lives in the editor. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* Name + note editor (pen toggle in the replay header). */
+.annotate-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 18px 16px 52px;
+  max-width: 560px;
+}
+.annotate-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.annotate-label {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tx2);
+}
+.annotate-field input,
+.annotate-field textarea {
+  background: var(--bg1);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  color: var(--tx0);
+  resize: vertical;
+}
+.annotate-field input:focus-visible,
+.annotate-field textarea:focus-visible {
+  outline: 2px solid var(--accent-dim);
+}
+.annotate-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.annotate-actions .pill,
+.annotate-save {
+  padding: 8px 18px;
+  font-size: 13px;
+}
+
 .replay-action {
   display: inline-flex;
   align-items: center;
@@ -1473,7 +1643,7 @@
   flex: 1;
   min-height: 0;
   display: flex;
-  gap: 16px;
+  gap: 14px;
 }
 
 .outline {
@@ -1758,25 +1928,6 @@
   flex: none;
 }
 
-/* lens pills */
-.lens-toggle {
-  margin-left: 6px;
-}
-.lens-count {
-  font-family: var(--mono);
-  font-size: 11px;
-  opacity: 0.65;
-}
-.lens-count-error {
-  color: var(--c-error);
-  opacity: 1;
-  font-weight: 600;
-}
-.view-toggle button.active .lens-count-error {
-  color: var(--accent-hi);
-}
-
-
 /* ── skeleton loading ──────────────────────────────────────────────── */
 
 .skel {
@@ -1833,13 +1984,6 @@
 
 /* ── lens legend colors: diffs=mint · cmds=purple · errors=vermilion ·
      prompts=ink — anywhere those dimensions appear ────────────────── */
-
-.dot-ink {
-  background: var(--tx0);
-}
-.view-toggle button.active .dot-ink {
-  background: var(--contrast-on);
-}
 
 .turn-meta .m-edits {
   color: var(--mint-tx);
@@ -1996,7 +2140,7 @@
   flex: 1;
   min-height: 0;
   display: flex;
-  gap: 16px;
+  gap: 14px;
 }
 .file-list {
   width: 264px;

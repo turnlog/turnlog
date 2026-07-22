@@ -1,5 +1,12 @@
 import type { SessionMeta } from './types';
 
+/** A session's display title: the user's custom name wins over the project. */
+export function sessionName(
+  s: Pick<SessionMeta, 'customName' | 'projectPath' | 'projectKey'>,
+): string {
+  return s.customName ?? projectName(s);
+}
+
 /** `-Users-gor-WebstormProjects-turnlog` → `turnlog`; real paths → basename. */
 export function projectName(s: Pick<SessionMeta, 'projectPath' | 'projectKey'>): string {
   const p = s.projectPath;

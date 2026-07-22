@@ -4,15 +4,25 @@ import {
   flattenSessions,
   useProjects,
   useSessions,
+  useSetSessionMeta,
   useStatus,
   type SessionsQuery,
 } from './api';
 import Dropdown from './components/Dropdown';
 import { SkeletonRows } from './components/Skeleton';
 import Tooltip from './components/Tooltip';
-import { Brandmark, EyeClosedIcon, SidebarIcon, SortVerticalIcon } from './icons';
+import { Brandmark, EyeClosedIcon, PinIcon, SidebarIcon, SortVerticalIcon } from './icons';
 import { setHideEmpty, setProjectFilter, useHideEmpty, useProjectFilter } from './filterStore';
-import { fmtCost, fmtCount, fmtDate, fmtModel, fmtTokens, projectName, tileClass } from './format';
+import {
+  fmtCost,
+  fmtCount,
+  fmtDate,
+  fmtModel,
+  fmtTokens,
+  projectName,
+  sessionName,
+  tileClass,
+} from './format';
 import { navigate, sessionHash } from './router';
 import type { SessionMeta } from './types';
 
@@ -30,14 +40,24 @@ const ACTIVE_MS = 5 * 60_000;
 function Item({
   s,
   active,
+  onTogglePin,
 }: {
   s: SessionMeta;
   active: boolean;
+  onTogglePin: (s: SessionMeta) => void;
 }) {
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       className={`side-item ${active ? 'active' : ''}`}
       onClick={() => navigate(sessionHash(s.id))}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          navigate(sessionHash(s.id));
+        }
+      }}
       aria-current={active ? 'page' : undefined}
     >
       <span className={`tile tile-sm ${tileClass(s.projectKey)}`}>
@@ -45,10 +65,23 @@ function Item({
       </span>
       <span className="side-item-main">
         <span className="side-item-top">
-          <span className="side-item-project">{projectName(s)}</span>
+          <span className="side-item-project">{sessionName(s)}</span>
           {s.endedAt !== null && Date.now() - new Date(s.endedAt).getTime() < ACTIVE_MS && (
             <span className="side-item-live" role="img" aria-label="active in the last 5 minutes" />
           )}
+          <Tooltip content={s.pinned ? 'Unpin' : 'Pin to top'}>
+            <button
+              className={`side-item-pin ${s.pinned ? 'pinned' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePin(s);
+              }}
+              aria-label={s.pinned ? 'Unpin session' : 'Pin session to top'}
+              aria-pressed={s.pinned}
+            >
+              <PinIcon size={13} />
+            </button>
+          </Tooltip>
           <span className="side-item-cost">{fmtCost(s.costUsd)}</span>
         </span>
         <span className="side-item-sub">
@@ -58,7 +91,7 @@ function Item({
           {s.model && <span className="side-item-model">{fmtModel(s.model)}</span>}
         </span>
       </span>
-    </button>
+    </div>
   );
 }
 
@@ -82,6 +115,8 @@ export default function Sidebar({
 
   const rows = useMemo(() => flattenSessions(sessions.data), [sessions.data]);
   const total = sessions.data?.pages[0]?.total ?? 0;
+  const setMeta = useSetSessionMeta();
+  const togglePin = (s: SessionMeta) => setMeta.mutate({ id: s.id, patch: { pinned: !s.pinned } });
 
   return (
     <aside className="sidebar">
@@ -100,18 +135,22 @@ export default function Sidebar({
         </a>
       </div>
       <div className="sidebar-controls">
-        <Dropdown
-          value={project}
-          onChange={setProject}
-          ariaLabel="Filter by project"
-          options={[
-            { value: '', label: `all projects (${projects.data?.length ?? 0})` },
-            ...(projects.data?.map((p) => ({
-              value: p.projectKey,
-              label: `${projectName(p)} (${p.sessionCount})`,
-            })) ?? []),
-          ]}
-        />
+        <div className="sidebar-controls-row">
+          <Dropdown
+            className="dd-grow"
+            value={project}
+            onChange={setProject}
+            ariaLabel="Filter by project"
+            options={[
+              { value: '', label: `all projects (${projects.data?.length ?? 0})` },
+              ...(projects.data?.map((p) => ({
+                value: p.projectKey,
+                label: `${projectName(p)} (${p.sessionCount})`,
+              })) ?? []),
+            ]}
+          />
+          <span className="sidebar-count">{fmtCount(total)}</span>
+        </div>
         <div className="sidebar-controls-row">
           <Dropdown
             className="dd-grow"
@@ -126,20 +165,19 @@ export default function Sidebar({
               onClick={() => setDir(dir === 'desc' ? 'asc' : 'desc')}
               aria-label={`Direction: ${dir}`}
             >
-              <SortVerticalIcon size={16} />
+              <SortVerticalIcon size={15} />
             </button>
           </Tooltip>
-          <Tooltip content={hideEmpty ? 'Empty sessions hidden' : 'Hide empty sessions'}>
-            <button
-              className={`dir-toggle ${hideEmpty ? 'on' : ''}`}
-              onClick={() => setHideEmpty(!hideEmpty)}
-              aria-label="Hide empty sessions"
-              aria-pressed={hideEmpty}
-            >
-              <EyeClosedIcon size={16} />
-            </button>
-          </Tooltip>
-          <span className="sidebar-count">{fmtCount(total)}</span>
+        </div>
+        <div className="sidebar-filters">
+          <button
+            className={`filter-chip ${hideEmpty ? 'on' : ''}`}
+            onClick={() => setHideEmpty(!hideEmpty)}
+            aria-pressed={hideEmpty}
+          >
+            <EyeClosedIcon size={13} />
+            hide empty
+          </button>
         </div>
       </div>
 
@@ -162,7 +200,9 @@ export default function Sidebar({
               void sessions.fetchNextPage();
             }
           }}
-          itemContent={(_i, s) => <Item s={s} active={s.id === activeId} />}
+          itemContent={(_i, s) => (
+            <Item s={s} active={s.id === activeId} onTogglePin={togglePin} />
+          )}
         />
       )}
     </aside>

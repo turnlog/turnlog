@@ -9,6 +9,7 @@ import type {
   SearchResponse,
   SessionListResponse,
   SessionMeta,
+  SessionMetaPatch,
   SpendResponse,
   StatsResponse,
   TurnsResponse,
@@ -19,8 +20,12 @@ import { LENSES, SNIPPET_CLOSE, SNIPPET_OPEN, type Lens } from './apiTypes.js';
 const SESSION_COLUMNS = `
   id, project_path, project_key, parent_session_id, started_at, ended_at, model, turn_count,
   input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
-  cost_usd, files_touched_count
+  cost_usd, files_touched_count,
+  COALESCE(session_meta.pinned, 0) AS pinned, custom_name, note
 `;
+
+/** Sessions with their user annotations (pin/name/note) joined in. */
+const SESSIONS_JOINED = `sessions LEFT JOIN session_meta ON session_meta.session_id = sessions.id`;
 
 function rowToSession(r: any): SessionMeta {
   return {
@@ -38,6 +43,9 @@ function rowToSession(r: any): SessionMeta {
     cacheWriteTokens: r.cache_write_tokens,
     costUsd: r.cost_usd,
     filesTouchedCount: r.files_touched_count,
+    pinned: !!r.pinned,
+    customName: r.custom_name ?? null,
+    note: r.note ?? null,
   };
 }
 
@@ -58,7 +66,7 @@ export interface ListSessionsQuery {
   /** ISO bounds on started_at (calendar range queries). */
   since?: string;
   until?: string;
-  /** Drop sessions with nothing in them (0 turns and 0 tokens). */
+  /** Drop sessions with nothing in them (0 turns or 0 tokens, no cost). */
   hideEmpty?: boolean;
 }
 
@@ -83,26 +91,80 @@ export function listSessions(db: Database.Database, q: ListSessionsQuery): Sessi
     params.push(q.until);
   }
   if (q.hideEmpty) {
-    clauses.push('NOT (turn_count = 0 AND input_tokens + output_tokens = 0)');
+    // Empty = reads zero on either axis (no prompts, or no usage at all —
+    // e.g. prompt-only files with no assistant response). Recorded cost keeps
+    // a session visible: legacy CC logged per-message costUSD without tokens.
+    // Pinning something is a statement that it matters — pins never hide.
+    clauses.push(
+      `NOT ((turn_count = 0 OR input_tokens + output_tokens = 0)
+            AND COALESCE(cost_usd, 0) = 0 AND COALESCE(session_meta.pinned, 0) = 0)`,
+    );
   }
   const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
 
   const rows = db
     .prepare(
-      `SELECT ${SESSION_COLUMNS} FROM sessions ${where}
-       ORDER BY ${sort} ${dir} LIMIT ? OFFSET ?`,
+      `SELECT ${SESSION_COLUMNS} FROM ${SESSIONS_JOINED} ${where}
+       ORDER BY pinned DESC, ${sort} ${dir} LIMIT ? OFFSET ?`,
     )
     .all(...params, limit, offset);
   const total = db
-    .prepare(`SELECT COUNT(*) AS n FROM sessions ${where}`)
+    .prepare(`SELECT COUNT(*) AS n FROM ${SESSIONS_JOINED} ${where}`)
     .get(...params) as { n: number };
 
   return { sessions: rows.map(rowToSession), total: total.n };
 }
 
 export function getSession(db: Database.Database, id: string): SessionMeta | null {
-  const row = db.prepare(`SELECT ${SESSION_COLUMNS} FROM sessions WHERE id = ?`).get(id);
+  const row = db
+    .prepare(`SELECT ${SESSION_COLUMNS} FROM ${SESSIONS_JOINED} WHERE sessions.id = ?`)
+    .get(id);
   return row ? rowToSession(row) : null;
+}
+
+/** Length caps keep the annotations table honest — these are labels, not documents. */
+const CUSTOM_NAME_MAX = 200;
+const NOTE_MAX = 4000;
+
+/**
+ * Upsert a session's user annotations. Absent patch fields keep their current
+ * value; empty strings clear to null. Returns the updated session, or null
+ * for an unknown id. An all-default row is deleted rather than kept around.
+ */
+export function setSessionMeta(
+  db: Database.Database,
+  id: string,
+  patch: SessionMetaPatch,
+): SessionMeta | null {
+  const exists = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(id);
+  if (!exists) return null;
+  const cur = db
+    .prepare(`SELECT pinned, custom_name, note FROM session_meta WHERE session_id = ?`)
+    .get(id) as { pinned: number; custom_name: string | null; note: string | null } | undefined;
+
+  const text = (v: string | null | undefined, cap: number, current: string | null) =>
+    v === undefined ? current : v === null ? null : v.trim().slice(0, cap) || null;
+  const pinned = patch.pinned === undefined ? (cur?.pinned ?? 0) : patch.pinned ? 1 : 0;
+  const customName = text(patch.customName, CUSTOM_NAME_MAX, cur?.custom_name ?? null);
+  const note = text(patch.note, NOTE_MAX, cur?.note ?? null);
+
+  if (pinned === 0 && customName === null && note === null) {
+    db.prepare(`DELETE FROM session_meta WHERE session_id = ?`).run(id);
+  } else {
+    db.prepare(
+      `INSERT OR REPLACE INTO session_meta (session_id, pinned, custom_name, note, updated_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).run(id, pinned, customName, note, new Date().toISOString());
+  }
+  return getSession(db, id);
+}
+
+/** The on-disk JSONL behind a session — for the reveal-in-file-manager action. */
+export function getSessionFilePath(db: Database.Database, id: string): string | null {
+  const row = db.prepare(`SELECT file_path FROM sessions WHERE id = ?`).get(id) as
+    | { file_path: string }
+    | undefined;
+  return row?.file_path ?? null;
 }
 
 const DIFF_TOOLS_SQL = `('Edit','MultiEdit','Write','NotebookEdit')`;

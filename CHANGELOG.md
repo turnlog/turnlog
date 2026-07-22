@@ -4,6 +4,54 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] — 2026-07-22
+
+The first minor since the relaunch: sessions become annotatable. The index
+database gains a schema migration (v4, automatic, no reindex) and the local
+server gains its first — and only — two write endpoints.
+
+### Added
+
+- Pin sessions: a pin control on every sidebar row (hover) and in the replay
+  header keeps chosen sessions at the top of the list, whatever the sort.
+  Pinned sessions are never hidden by the hide-empty filter.
+- Custom names and notes: the pen button in the replay header opens a small
+  editor; a custom name replaces the session's title everywhere (sidebar,
+  replay, search, calendar, home), and the note shows under the replay
+  header. Pins, names, and notes live in the local index database and
+  survive reindexes and rebuilds.
+- "Show in file manager": a folder button in the replay header reveals the
+  session's JSONL file in Finder / Explorer / your file manager.
+- The server grew a minimal write surface for the above — exactly two
+  token-guarded POST routes; everything else remains GET-only, and the
+  hardening tests now cover the write paths too.
+
+### Changed
+
+- The sidebar is a little wider (324 → 356px), and its controls breathe
+  again: the session count sits with the project filter, the sort row keeps
+  a smaller direction toggle, and the hide-empty filter is now a labeled
+  chip on its own filters row (was an unlabeled eye icon).
+- The replay header is one compact block: the left side stacks the title,
+  an id · model · date subline, and the session note (clamped to two
+  lines); the right side stacks the spine|log|files toggle plus the lens
+  filters — now icon buttons in their legend colors with count tooltips —
+  over the secondary actions (pin, edit, reveal, copy, download, stats).
+  Long custom names ellipsize instead of wrapping.
+- One gutter rhythm everywhere: the gaps between the screen edges, the
+  sidebar, the replay header, and the content cards are all the sidebar's
+  14px floating inset (screens were padded 28px horizontally before).
+- README: the example startup output uses a `<version>` placeholder and the
+  header carries a live npm version badge, so the docs never trail releases.
+
+### Fixed
+
+- The hide-empty-sessions filter now actually catches real-world empties:
+  it hides sessions that read zero on either axis (no turns *or* no
+  tokens), not only the both-zero case — prompt-only session files with no
+  assistant response were slipping through. Sessions with recorded cost are
+  never hidden (old Claude Code versions logged cost without token counts).
+
 ## [0.2.7] — 2026-07-22
 
 ### Added

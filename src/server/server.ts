@@ -1,12 +1,14 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import type Database from 'better-sqlite3';
 import type { IndexDriver } from '../indexer/driver.js';
 import {
   getSession,
   getSessionExport,
+  getSessionFilePath,
   getSpend,
   getStats,
   isLens,
@@ -15,7 +17,9 @@ import {
   listSessions,
   listTurns,
   searchMessages,
+  setSessionMeta,
 } from './api.js';
+import type { SessionMetaPatch } from './apiTypes.js';
 import type { ModelPricing } from '../cost/pricing.js';
 import { placeholderHtml } from './placeholder.js';
 import { APP_VERSION } from '../version.js';
@@ -37,6 +41,9 @@ export interface ServerContext {
   getUpdate?: () => string | null;
   /** Live-update stream (`/api/events`); the CLI broadcasts after reindexes. */
   events?: SseHub;
+  /** Reveal a file in the OS file manager. Injectable for tests; defaults to
+   *  the platform opener (`open -R` / `explorer /select,` / `xdg-open`). */
+  reveal?: (filePath: string) => void;
 }
 
 const ALLOWED_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '[::1]']);
@@ -102,6 +109,48 @@ class HttpError extends Error {
   ) {
     super(message);
   }
+}
+
+/** Platform "reveal this file in the file manager" — args as an array, never a shell. */
+function defaultReveal(filePath: string): void {
+  const [cmd, args] =
+    process.platform === 'darwin'
+      ? ['open', ['-R', filePath]]
+      : process.platform === 'win32'
+        ? ['explorer', ['/select,' + filePath]]
+        : ['xdg-open', [path.dirname(filePath)]];
+  spawn(cmd as string, args as string[], { stdio: 'ignore', detached: true }).unref();
+}
+
+const BODY_MAX_BYTES = 16 * 1024;
+
+/** Read and parse a JSON request body; caps size (413) and rejects garbage (400). */
+function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    req.on('data', (chunk: Buffer) => {
+      size += chunk.length;
+      if (size > BODY_MAX_BYTES) {
+        // Stop reading but keep the socket alive so the 413 can be sent;
+        // node closes the connection itself after an unconsumed body.
+        req.removeAllListeners('data');
+        req.removeAllListeners('end');
+        req.pause();
+        reject(new HttpError(413, 'body too large'));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => {
+      try {
+        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || 'null'));
+      } catch {
+        reject(new HttpError(400, 'invalid JSON body'));
+      }
+    });
+    req.on('error', () => reject(new HttpError(400, 'bad request')));
+  });
 }
 
 /** Numeric query param: absent → undefined, non-numeric garbage → 400. */
@@ -230,7 +279,9 @@ export function createServer(ctx: ServerContext): http.Server {
     if (!originAllowed(req.headers.origin, serverPort)) {
       return sendJson(res, 403, { error: 'forbidden: bad Origin' });
     }
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
+    // POST exists only for the two /api write routes below; everything else
+    // on the surface stays GET/HEAD-only.
+    if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'POST') {
       return sendJson(res, 405, { error: 'method not allowed' });
     }
 
@@ -248,6 +299,15 @@ export function createServer(ctx: ServerContext): http.Server {
       if (supplied !== ctx.token) {
         return sendJson(res, 401, { error: 'unauthorized' });
       }
+      if (req.method === 'POST') {
+        handleApiWrite(ctx, req, url, res).catch((err: unknown) => {
+          const status = err instanceof HttpError ? err.status : 500;
+          sendJson(res, status, {
+            error: err instanceof Error ? err.message : 'internal error',
+          });
+        });
+        return;
+      }
       try {
         return handleApi(ctx, url, res);
       } catch (err) {
@@ -258,6 +318,10 @@ export function createServer(ctx: ServerContext): http.Server {
       }
     }
 
+    if (req.method === 'POST') {
+      return sendJson(res, 405, { error: 'method not allowed' });
+    }
+
     if (url.pathname === '/' || url.pathname === '/index.html') {
       return serveIndex(res);
     }
@@ -265,6 +329,56 @@ export function createServer(ctx: ServerContext): http.Server {
     return sendJson(res, 404, { error: 'not found' });
   });
   return server;
+}
+
+/**
+ * The write surface — exactly two routes, both per-session, both requiring
+ * the same token + Host/Origin gates every request passes first. Any other
+ * POST is 405, so the hardening posture stays "GET-only plus this allowlist".
+ */
+async function handleApiWrite(
+  ctx: ServerContext,
+  req: http.IncomingMessage,
+  url: URL,
+  res: http.ServerResponse,
+): Promise<void> {
+  const { db } = ctx;
+  const p = url.pathname;
+
+  const metaMatch = /^\/api\/sessions\/([^/]+)\/meta$/.exec(p);
+  if (metaMatch) {
+    const body = await readJsonBody(req);
+    if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+      throw new HttpError(400, 'expected a JSON object');
+    }
+    const raw = body as Record<string, unknown>;
+    const patch: SessionMetaPatch = {};
+    if ('pinned' in raw) {
+      if (typeof raw.pinned !== 'boolean') throw new HttpError(400, 'pinned must be boolean');
+      patch.pinned = raw.pinned;
+    }
+    for (const key of ['customName', 'note'] as const) {
+      if (key in raw) {
+        if (raw[key] !== null && typeof raw[key] !== 'string') {
+          throw new HttpError(400, `${key} must be a string or null`);
+        }
+        patch[key] = raw[key] as string | null;
+      }
+    }
+    const updated = setSessionMeta(db, decodeURIComponent(metaMatch[1]!), patch);
+    if (!updated) return sendJson(res, 404, { error: 'session not found' });
+    return sendJson(res, 200, updated);
+  }
+
+  const revealMatch = /^\/api\/sessions\/([^/]+)\/reveal$/.exec(p);
+  if (revealMatch) {
+    const filePath = getSessionFilePath(db, decodeURIComponent(revealMatch[1]!));
+    if (filePath === null) return sendJson(res, 404, { error: 'session not found' });
+    (ctx.reveal ?? defaultReveal)(filePath);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  return sendJson(res, 405, { error: 'method not allowed' });
 }
 
 function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void {

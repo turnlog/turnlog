@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export function openDb(path: string): Database.Database {
   const db = new Database(path);
@@ -94,6 +94,21 @@ function migrate(db: Database.Database): void {
     db.exec(`
       ALTER TABLE messages ADD COLUMN message_id TEXT;
       ALTER TABLE sessions ADD COLUMN parent_session_id TEXT;
+    `);
+  }
+
+  if (version < 4) {
+    // User annotations (pin/name/note), written by the UI. Deliberately a
+    // separate table: rebuild() wipes the derived index tables, this one
+    // survives. No ADAPTER_VERSION bump — normalization is unchanged.
+    db.exec(`
+      CREATE TABLE session_meta (
+        session_id  TEXT PRIMARY KEY,
+        pinned      INTEGER NOT NULL DEFAULT 0,
+        custom_name TEXT,
+        note        TEXT,
+        updated_at  TEXT
+      );
     `);
   }
 

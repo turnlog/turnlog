@@ -8,6 +8,7 @@ import {
   fmtModel,
   fmtTokens,
   projectName,
+  sessionName,
   tileClass,
 } from '../format';
 import { navigate, searchHash, sessionHash } from '../router';
@@ -30,12 +31,13 @@ function ArrowUpRight({ size = 13 }: { size?: number }) {
 }
 
 function RecentRow({ s }: { s: SessionMeta }) {
-  const name = projectName(s);
+  const name = sessionName(s);
+  const initial = projectName(s);
   return (
     <li className="recent-row">
       <button className="recent-btn" onClick={() => navigate(sessionHash(s.id))}>
         <span className={`tile tile-sm ${tileClass(s.projectKey)}`}>
-          {name[0]?.toUpperCase() ?? '·'}
+          {initial[0]?.toUpperCase() ?? '·'}
         </span>
         <span className="recent-main">
           <span className="recent-title">

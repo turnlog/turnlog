@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import {
   keepPreviousData,
   useInfiniteQuery,
+  useMutation,
   useQuery,
   useQueryClient,
   type InfiniteData,
@@ -15,6 +16,7 @@ import type {
   SearchResponse,
   SessionListResponse,
   SessionMeta,
+  SessionMetaPatch,
   StatsResponse,
   StatusResponse,
   TurnsResponse,
@@ -54,11 +56,54 @@ async function apiFetch<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let message = `${res.status}`;
+    try {
+      const errBody = (await res.json()) as { error?: string };
+      if (errBody.error) message = errBody.error;
+    } catch {
+      /* non-JSON error body */
+    }
+    throw new ApiError(res.status, message);
+  }
+  return res.json() as Promise<T>;
+}
+
+/** Update a session's pin/name/note; caches refresh from the returned row. */
+export function useSetSessionMeta() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: SessionMetaPatch }) =>
+      apiPost<SessionMeta>(`/api/sessions/${encodeURIComponent(id)}/meta`, patch),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['session', updated.id], updated);
+      void queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      void queryClient.invalidateQueries({ queryKey: ['sessions-range'] });
+    },
+  });
+}
+
+/** Ask the server to reveal the session's JSONL in the OS file manager. */
+export function revealSession(id: string): void {
+  void apiPost(`/api/sessions/${encodeURIComponent(id)}/reveal`, {}).catch(() => {
+    /* local UX nicety — nothing actionable if it fails */
+  });
+}
+
 export interface SessionsQuery {
   sort?: 'started_at' | 'ended_at' | 'cost_usd' | 'turn_count' | 'tokens';
   dir?: 'asc' | 'desc';
   project?: string;
-  /** Drop sessions with nothing in them (0 turns and 0 tokens). */
+  /** Drop sessions with nothing in them (0 turns or 0 tokens, no cost). */
   hideEmpty?: boolean;
 }
 

@@ -9,9 +9,11 @@ import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import {
   fetchExport,
   fetchMessages,
+  revealSession,
   useErrorIdxs,
   useSearch,
   useSession,
+  useSetSessionMeta,
   useTurns,
 } from '../api';
 import {
@@ -22,6 +24,7 @@ import {
   fmtModel,
   fmtTokens,
   projectName,
+  sessionName,
   shortId,
 } from '../format';
 import { navigate, sessionHash } from '../router';
@@ -31,12 +34,19 @@ import SpineView from '../replay/Spine';
 import Tooltip from '../components/Tooltip';
 import {
   ChartIcon,
+  ChatIcon,
   CheckIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronUpIcon,
+  CmdLensIcon,
   CopyIcon,
+  DiffLensIcon,
   DownloadIcon,
+  ErrorLensIcon,
+  FolderIcon,
+  PenIcon,
+  PinIcon,
 } from '../icons';
 import { buildBlocks, idxToBlockMap } from '../replay/thread';
 import { SkeletonRows } from '../components/Skeleton';
@@ -357,12 +367,12 @@ function FindBar({
   );
 }
 
-/** Lens legend: each dimension owns a color, everywhere it appears. */
-const LENS_LABELS: { value: Lens; label: string; dot: string }[] = [
-  { value: 'diffs', label: 'diffs', dot: 'dot-mint' },
-  { value: 'commands', label: 'cmds', dot: 'dot-purple' },
-  { value: 'errors', label: 'errors', dot: 'dot-accent' },
-  { value: 'prompts', label: 'prompts', dot: 'dot-ink' },
+/** Lens legend: each dimension owns a color and an icon, everywhere it appears. */
+const LENS_LABELS: { value: Lens; label: string; Icon: typeof DiffLensIcon }[] = [
+  { value: 'diffs', label: 'diffs', Icon: DiffLensIcon },
+  { value: 'commands', label: 'cmds', Icon: CmdLensIcon },
+  { value: 'errors', label: 'errors', Icon: ErrorLensIcon },
+  { value: 'prompts', label: 'prompts', Icon: ChatIcon },
 ];
 
 function ExportButton({ sessionId }: { sessionId: string }) {
@@ -410,6 +420,57 @@ function ExportButton({ sessionId }: { sessionId: string }) {
   );
 }
 
+/** Name + note editor for a session's user annotations. */
+function AnnotatePanel({ s, onClose }: { s: SessionMeta; onClose: () => void }) {
+  const [name, setName] = useState(s.customName ?? '');
+  const [note, setNote] = useState(s.note ?? '');
+  const setMeta = useSetSessionMeta();
+  const save = () => {
+    setMeta.mutate(
+      { id: s.id, patch: { customName: name || null, note: note || null } },
+      { onSuccess: onClose },
+    );
+  };
+  return (
+    <div className="annotate-panel">
+      <label className="annotate-field">
+        <span className="annotate-label">Name</span>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={projectName(s)}
+          maxLength={200}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') save();
+            if (e.key === 'Escape') onClose();
+          }}
+        />
+      </label>
+      <label className="annotate-field">
+        <span className="annotate-label">Note</span>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Anything future-you should know about this session…"
+          rows={3}
+          maxLength={4000}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') onClose();
+          }}
+        />
+      </label>
+      <div className="annotate-actions">
+        <button className="pill" onClick={onClose}>
+          Cancel
+        </button>
+        <button className="btn-accent annotate-save" onClick={save} disabled={setMeta.isPending}>
+          Save
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Replay({
   sessionId,
   jumpIdx,
@@ -454,6 +515,8 @@ export default function Replay({
     : null;
 
   const [statsOpen, setStatsOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const setMeta = useSetSessionMeta();
 
   // Match navigation — session-scoped, so the hit list is complete (4e).
   const search = useSearch(searchQuery ?? '', sessionId);
@@ -509,74 +572,117 @@ export default function Replay({
               <ChevronLeftIcon size={17} />
             </a>
           </Tooltip>
-          <span className="replay-project">{s ? projectName(s) : '…'}</span>
-          <span className="replay-id">{shortId(sessionId)}</span>
-          {s?.model && <span className="chip">{fmtModel(s.model)}</span>}
-          <span className="replay-date">{s ? fmtDate(s.startedAt) : ''}</span>
-          <div className="view-toggle" role="tablist" aria-label="View mode">
-            <button
-              role="tab"
-              aria-selected={activeLens === null && effectiveMode === 'spine'}
-              className={activeLens === null && effectiveMode === 'spine' ? 'active' : ''}
-              disabled={!spinePossible}
-              onClick={() => {
-                setModePersist('spine');
-                if (activeLens) navigate(sessionHash(sessionId));
-              }}
-            >
-              spine
-            </button>
-            <button
-              role="tab"
-              aria-selected={activeLens === null && effectiveMode === 'log'}
-              className={activeLens === null && effectiveMode === 'log' ? 'active' : ''}
-              onClick={() => {
-                setModePersist('log');
-                if (activeLens) navigate(sessionHash(sessionId));
-              }}
-            >
-              log
-            </button>
-            <button
-              role="tab"
-              aria-selected={activeLens === null && effectiveMode === 'files'}
-              className={activeLens === null && effectiveMode === 'files' ? 'active' : ''}
-              onClick={() => {
-                setModePersist('files');
-                if (activeLens) navigate(sessionHash(sessionId));
-              }}
-            >
-              files
-            </button>
+          <div className="replay-heading">
+            <span className="replay-project">
+              {s?.pinned && <PinIcon size={13} className="replay-pin-mark" />}
+              {s ? sessionName(s) : '…'}
+            </span>
+            <span className="replay-meta">
+              <span className="replay-id">{shortId(sessionId)}</span>
+              {s?.model && <span className="chip">{fmtModel(s.model)}</span>}
+              <span className="replay-date">{s ? fmtDate(s.startedAt) : ''}</span>
+            </span>
+            {!editOpen && s?.note && <div className="replay-note">{s.note}</div>}
           </div>
-          <div className="view-toggle lens-toggle" role="tablist" aria-label="Lens">
-            {LENS_LABELS.map(({ value, label, dot }) => {
-              const count = lensCounts?.[value];
-              return (
-                <button
-                  key={value}
-                  role="tab"
-                  aria-selected={activeLens === value}
-                  className={activeLens === value ? 'active' : ''}
-                  disabled={count === 0}
-                  onClick={() =>
-                    navigate(
-                      activeLens === value
-                        ? sessionHash(sessionId)
-                        : sessionHash(sessionId, { l: value }),
-                    )
-                  }
-                >
-                  <span className={`dot ${dot}`} />
-                  {label}
-                  {count !== null && count !== undefined && count > 0 && (
-                    <span className="lens-count">{count}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          <div className="replay-actions">
+          <div className="replay-controls-right">
+            <div className="replay-views">
+              <div className="view-toggle" role="tablist" aria-label="View mode">
+              <button
+                role="tab"
+                aria-selected={activeLens === null && effectiveMode === 'spine'}
+                className={activeLens === null && effectiveMode === 'spine' ? 'active' : ''}
+                disabled={!spinePossible}
+                onClick={() => {
+                  setModePersist('spine');
+                  if (activeLens) navigate(sessionHash(sessionId));
+                }}
+              >
+                spine
+              </button>
+              <button
+                role="tab"
+                aria-selected={activeLens === null && effectiveMode === 'log'}
+                className={activeLens === null && effectiveMode === 'log' ? 'active' : ''}
+                onClick={() => {
+                  setModePersist('log');
+                  if (activeLens) navigate(sessionHash(sessionId));
+                }}
+              >
+                log
+              </button>
+              <button
+                role="tab"
+                aria-selected={activeLens === null && effectiveMode === 'files'}
+                className={activeLens === null && effectiveMode === 'files' ? 'active' : ''}
+                onClick={() => {
+                  setModePersist('files');
+                  if (activeLens) navigate(sessionHash(sessionId));
+                }}
+              >
+                files
+              </button>
+            </div>
+            <div className="lens-actions" role="tablist" aria-label="Lens">
+              {LENS_LABELS.map(({ value, label, Icon }) => {
+                const count = lensCounts?.[value];
+                return (
+                  <Tooltip
+                    key={value}
+                    content={`${label}${count ? ` · ${count}` : ''}`}
+                  >
+                    <button
+                      role="tab"
+                      aria-selected={activeLens === value}
+                      aria-label={`${label} lens`}
+                      className={`replay-action lens-action lens-${value} ${
+                        activeLens === value ? 'active' : ''
+                      }`}
+                      disabled={count === 0}
+                      onClick={() =>
+                        navigate(
+                          activeLens === value
+                            ? sessionHash(sessionId)
+                            : sessionHash(sessionId, { l: value }),
+                        )
+                      }
+                    >
+                      <Icon size={16} />
+                    </button>
+                  </Tooltip>
+                );
+              })}
+            </div>
+            </div>
+            <div className="replay-actions">
+            <Tooltip content={s?.pinned ? 'Unpin from sidebar top' : 'Pin to sidebar top'}>
+              <button
+                className={`replay-action ${s?.pinned ? 'active' : ''}`}
+                onClick={() => s && setMeta.mutate({ id: s.id, patch: { pinned: !s.pinned } })}
+                aria-label={s?.pinned ? 'Unpin session' : 'Pin session'}
+                aria-pressed={s?.pinned ?? false}
+              >
+                <PinIcon size={16} />
+              </button>
+            </Tooltip>
+            <Tooltip content={editOpen ? 'Close editor' : 'Name & note'}>
+              <button
+                className={`replay-action ${editOpen ? 'active' : ''}`}
+                onClick={() => setEditOpen(!editOpen)}
+                aria-label="Edit session name and note"
+                aria-pressed={editOpen}
+              >
+                <PenIcon size={16} />
+              </button>
+            </Tooltip>
+            <Tooltip content="Show the session file in your file manager">
+              <button
+                className="replay-action"
+                onClick={() => revealSession(sessionId)}
+                aria-label="Show session file in file manager"
+              >
+                <FolderIcon size={16} />
+              </button>
+            </Tooltip>
             <ExportButton sessionId={sessionId} />
             <Tooltip content={statsOpen ? 'Hide stats' : 'Session stats'}>
               <button
@@ -588,8 +694,10 @@ export default function Replay({
                 <ChartIcon size={16} />
               </button>
             </Tooltip>
+            </div>
           </div>
         </div>
+        {editOpen && s && <AnnotatePanel s={s} onClose={() => setEditOpen(false)} />}
         {statsOpen && s && <StatsPanel s={s} />}
         {(findOpen || searchQuery) && (
           <FindBar

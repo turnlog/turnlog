@@ -5,10 +5,12 @@ import { getSpend, listProjects, searchMessages } from '../src/server/api.js';
 import { SESSION_C, SESSION_D, SUBAGENT_D, copyCorpus, testDb, tmpDir } from './helpers.js';
 
 let db: Database.Database;
+let corpusDir: string;
 
 beforeAll(async () => {
   db = testDb(tmpDir('turnlog-spend-'));
-  await new Indexer(db, { projectsDir: copyCorpus() }).scanAll();
+  corpusDir = copyCorpus();
+  await new Indexer(db, { projectsDir: corpusDir }).scanAll();
 });
 
 // Corpus sessions start 2026-07-01/02 — a wide window covers them all.
@@ -124,28 +126,50 @@ describe('listSessions date range', () => {
     expect(none.total).toBe(0);
   });
 
-  it('hideEmpty drops sessions with 0 turns and 0 tokens', async () => {
+  it('hideEmpty drops sessions that read zero turns or zero tokens', async () => {
     const { listSessions } = await import('../src/server/api.js');
+    // A bare session (0 turns, 0 tokens) and a prompt-only one (turns, no
+    // usage — the shape real CC leaves behind for aborted sessions).
     db.prepare(
       `INSERT INTO sessions (id, file_path, adapter_version) VALUES (?, ?, ?)`,
     ).run('empty-session-test', '/fake/empty-session-test.jsonl', 1);
+    db.prepare(
+      `INSERT INTO sessions (id, file_path, adapter_version, turn_count) VALUES (?, ?, ?, 7)`,
+    ).run('prompt-only-test', '/fake/prompt-only-test.jsonl', 1);
+    // Legacy costUSD-only session: no token counts, but it cost money — stays.
+    db.prepare(
+      `INSERT INTO sessions (id, file_path, adapter_version, turn_count, cost_usd) VALUES (?, ?, ?, 3, 0.5)`,
+    ).run('legacy-cost-test', '/fake/legacy-cost-test.jsonl', 1);
 
     const all = listSessions(db, {});
-    expect(all.sessions.some((s) => s.id === 'empty-session-test')).toBe(true);
-
     const filtered = listSessions(db, { hideEmpty: true });
-    expect(filtered.sessions.some((s) => s.id === 'empty-session-test')).toBe(false);
-    // The corpus may carry empty sessions of its own — derive the expectation.
+    const ids = filtered.sessions.map((s) => s.id);
+    expect(ids).not.toContain('empty-session-test');
+    expect(ids).not.toContain('prompt-only-test');
+    expect(ids).toContain('legacy-cost-test');
+    // Derive the expectation — the corpus may carry empty sessions of its own.
     const empties = all.sessions.filter(
-      (s) => s.turnCount === 0 && s.inputTokens + s.outputTokens === 0,
+      (s) =>
+        (s.turnCount === 0 || s.inputTokens + s.outputTokens === 0) && !(s.costUsd ?? 0),
     ).length;
-    expect(empties).toBeGreaterThanOrEqual(1);
+    expect(empties).toBeGreaterThanOrEqual(2);
     expect(filtered.total).toBe(all.total - empties);
-    // Every survivor has something in it.
-    expect(
-      filtered.sessions.every((s) => s.turnCount > 0 || s.inputTokens + s.outputTokens > 0),
-    ).toBe(true);
 
-    db.prepare(`DELETE FROM sessions WHERE id = ?`).run('empty-session-test');
+    db.prepare(`DELETE FROM sessions WHERE id IN (?, ?, ?)`).run(
+      'empty-session-test',
+      'prompt-only-test',
+      'legacy-cost-test',
+    );
+  });
+
+  it('user annotations survive a full rebuild', async () => {
+    const { getSession, setSessionMeta } = await import('../src/server/api.js');
+    setSessionMeta(db, SESSION_C, { pinned: true, customName: 'Keeper', note: 'survives' });
+    await new Indexer(db, { projectsDir: corpusDir }).rebuild();
+    const after = getSession(db, SESSION_C);
+    expect(after?.pinned).toBe(true);
+    expect(after?.customName).toBe('Keeper');
+    expect(after?.note).toBe('survives');
+    setSessionMeta(db, SESSION_C, { pinned: false, customName: null, note: null });
   });
 });

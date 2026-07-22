@@ -3,7 +3,7 @@ import { useSessionsRange } from '../api';
 import { useHideEmpty } from '../filterStore';
 import { SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
-import { fmtCost, fmtCount, fmtTime, fmtTokens, projectName, tileClass } from '../format';
+import { fmtCost, fmtCount, fmtTime, fmtTokens, projectName, sessionName, tileClass } from '../format';
 import { ChevronLeftIcon, ChevronRightIcon } from '../icons';
 import { navigate, sessionHash } from '../router';
 import type { SessionMeta } from '../types';
@@ -67,7 +67,7 @@ function placeDay(sessions: { s: SessionMeta; startH: number; endH: number }[]):
 function BlockTip({ s }: { s: SessionMeta }) {
   return (
     <>
-      <strong>{projectName(s)}</strong>
+      <strong>{sessionName(s)}</strong>
       <span>
         {fmtTime(s.startedAt)}
         {s.endedAt ? `–${fmtTime(s.endedAt)}` : ''} · {fmtCount(s.turnCount)} turns ·{' '}
@@ -313,7 +313,7 @@ function WeekGrid({
                         onClick={() => navigate(sessionHash(s.id))}
                       >
                         {tier !== 'bar' && (
-                          <span className="calendar-block-name">{projectName(s)}</span>
+                          <span className="calendar-block-name">{sessionName(s)}</span>
                         )}
                         {tier === 'full' && (
                           <span className="calendar-block-meta">{fmtCost(s.costUsd)}</span>

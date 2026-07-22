@@ -32,24 +32,26 @@ function request(
   headers: Record<string, string> = {},
   method = 'GET',
   reqPort = port,
+  body?: string,
 ): Promise<Res> {
   return new Promise((resolve, reject) => {
     const req = http.request(
       { host: '127.0.0.1', port: reqPort, path: reqPath, method, headers },
       (res) => {
-        let body = '';
-        res.on('data', (chunk) => (body += chunk));
+        let resBody = '';
+        res.on('data', (chunk) => (resBody += chunk));
         res.on('end', () =>
           resolve({
             status: res.statusCode ?? 0,
             headers: res.headers,
-            body,
-            json: () => JSON.parse(body),
+            body: resBody,
+            json: () => JSON.parse(resBody),
           }),
         );
       },
     );
     req.on('error', reject);
+    if (body !== undefined) req.write(body);
     req.end();
   });
 }
@@ -58,10 +60,18 @@ const withToken = (p: string) => `${p}${p.includes('?') ? '&' : '?'}token=${TOKE
 
 const hub = new SseHub();
 
+const revealed: string[] = [];
+
 beforeAll(async () => {
   db = testDb(tmpDir('turnlog-server-'));
   await new Indexer(db, { projectsDir: copyCorpus() }).scanAll();
-  const started = await startServer({ db, driver: stubDriver, token: TOKEN, events: hub });
+  const started = await startServer({
+    db,
+    driver: stubDriver,
+    token: TOKEN,
+    events: hub,
+    reveal: (p) => revealed.push(p),
+  });
   server = started.server;
   port = started.port;
 });
@@ -120,14 +130,102 @@ describe('hardening', () => {
     expect(res.headers['access-control-allow-origin']).toBeUndefined();
   });
 
-  it('rejects non-GET methods', async () => {
+  it('rejects non-GET methods outside the write allowlist', async () => {
     const res = await request(withToken('/api/sessions'), {}, 'POST');
     expect(res.status).toBe(405);
+    const del = await request(withToken('/api/sessions'), {}, 'DELETE');
+    expect(del.status).toBe(405);
+    const status = await request(withToken('/api/status'), {}, 'POST');
+    expect(status.status).toBe(405);
+    const root = await request('/', {}, 'POST');
+    expect(root.status).toBe(405);
   });
 
   it('does not serve files outside the web bundle', async () => {
     const res = await request('/..%2f..%2fpackage.json');
     expect(res.status).not.toBe(200);
+  });
+});
+
+describe('write surface (session annotations + reveal)', () => {
+  it('requires the token like every API route', async () => {
+    const res = await request(`/api/sessions/${SESSION_A}/meta`, {}, 'POST', port, '{}');
+    expect(res.status).toBe(401);
+    const rev = await request(`/api/sessions/${SESSION_A}/reveal`, {}, 'POST');
+    expect(rev.status).toBe(401);
+  });
+
+  it('rejects malformed and oversized bodies', async () => {
+    const bad = await request(
+      withToken(`/api/sessions/${SESSION_A}/meta`),
+      {},
+      'POST',
+      port,
+      'not json',
+    );
+    expect(bad.status).toBe(400);
+    const wrongType = await request(
+      withToken(`/api/sessions/${SESSION_A}/meta`),
+      {},
+      'POST',
+      port,
+      JSON.stringify({ pinned: 'yes' }),
+    );
+    expect(wrongType.status).toBe(400);
+    const big = await request(
+      withToken(`/api/sessions/${SESSION_A}/meta`),
+      {},
+      'POST',
+      port,
+      JSON.stringify({ note: 'x'.repeat(20_000) }),
+    );
+    expect(big.status).toBe(413);
+  });
+
+  it('annotates a session, floats pins to the top, and clears cleanly', async () => {
+    const set = await request(
+      withToken(`/api/sessions/${SESSION_A}/meta`),
+      {},
+      'POST',
+      port,
+      JSON.stringify({ pinned: true, customName: '  My run  ', note: 'check later' }),
+    );
+    expect(set.status).toBe(200);
+    expect(set.json().pinned).toBe(true);
+    expect(set.json().customName).toBe('My run'); // trimmed
+
+    const list = await request(withToken('/api/sessions?sort=tokens&dir=desc'));
+    expect(list.json().sessions[0].id).toBe(SESSION_A);
+
+    const one = await request(withToken(`/api/sessions/${SESSION_A}`));
+    expect(one.json().note).toBe('check later');
+
+    const clear = await request(
+      withToken(`/api/sessions/${SESSION_A}/meta`),
+      {},
+      'POST',
+      port,
+      JSON.stringify({ pinned: false, customName: null, note: null }),
+    );
+    expect(clear.status).toBe(200);
+    expect(clear.json().pinned).toBe(false);
+    expect(clear.json().customName).toBeNull();
+    // The all-default row is deleted, not kept as a tombstone.
+    expect(db.prepare('SELECT COUNT(*) AS n FROM session_meta').get()).toEqual({ n: 0 });
+  });
+
+  it('404s writes against unknown sessions', async () => {
+    const meta = await request(withToken('/api/sessions/nope/meta'), {}, 'POST', port, '{}');
+    expect(meta.status).toBe(404);
+    const rev = await request(withToken('/api/sessions/nope/reveal'), {}, 'POST');
+    expect(rev.status).toBe(404);
+  });
+
+  it('reveal hands the session file path to the opener, never a shell', async () => {
+    const res = await request(withToken(`/api/sessions/${SESSION_A}/reveal`), {}, 'POST');
+    expect(res.status).toBe(200);
+    expect(revealed).toHaveLength(1);
+    expect(revealed[0]).toMatch(/\.jsonl$/);
   });
 });
 

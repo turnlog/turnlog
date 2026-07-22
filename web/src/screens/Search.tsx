@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearch } from '../api';
 import { SkeletonRows } from '../components/Skeleton';
-import { fmtCost, fmtCount, fmtDate, fmtTime, projectName } from '../format';
+import { fmtCost, fmtCount, fmtDate, fmtTime, projectName, sessionName } from '../format';
 import { navigate, searchHash, sessionHash } from '../router';
 import { SNIPPET_CLOSE, SNIPPET_OPEN, type SearchHit } from '../types';
 
@@ -155,7 +155,7 @@ export default function Search({ query }: { query: string }) {
                 className="search-group-title"
                 onClick={() => navigate(sessionHash(g.session.id))}
               >
-                {projectName(g.session)}
+                {sessionName(g.session)}
               </button>
               <span className="search-group-meta">
                 {fmtDate(g.session.startedAt)} · {fmtCount(g.session.turnCount)} turns ·{' '}

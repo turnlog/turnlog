@@ -96,7 +96,7 @@
   --rail-w: 3px;
   --radius: 14px;
   --radius-lg: 24px;
-  --sidebar-w: 324px;
+  --sidebar-w: 356px;
 }
 
 :root[data-theme='light'] {

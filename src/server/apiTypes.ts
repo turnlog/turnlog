@@ -25,6 +25,17 @@ export interface SessionMeta {
   /** Estimated — computed from the shipped pricing table unless the log recorded it. */
   costUsd: number | null;
   filesTouchedCount: number;
+  /** User annotations (session_meta table) — survive reindex and rebuild. */
+  pinned: boolean;
+  customName: string | null;
+  note: string | null;
+}
+
+/** Partial update for a session's user annotations (`POST …/meta`). */
+export interface SessionMetaPatch {
+  pinned?: boolean;
+  customName?: string | null;
+  note?: string | null;
 }
 
 export interface SessionListResponse {

@@ -12,6 +12,7 @@ export type {
   SearchResponse,
   SessionListResponse,
   SessionMeta,
+  SessionMetaPatch,
   SearchAggregates,
   SpendDay,
   SpendResponse,
