@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { hasToken, shutdownServer, useLiveEvents, useStatus } from './api';
 import {
   Brandmark,
+  FolderIcon,
   MagniferIcon,
   MoonIcon,
   PowerIcon,
@@ -9,23 +10,21 @@ import {
   SunIcon,
   WalletIcon,
 } from './icons';
-import { navigate, searchHash, useRoute } from './router';
+import { navigate, useRoute } from './router';
 import Home from './screens/Home';
 import Replay from './screens/Replay';
+import FileHistory from './screens/FileHistory';
 import Search from './screens/Search';
 import Spend from './screens/Spend';
+import WhatsNew from './screens/WhatsNew';
 import Sidebar from './Sidebar';
 import Tooltip from './components/Tooltip';
 import { setTheme, useTheme } from './theme';
 
-function TopSearch() {
+/** Header search entry: a circle button into the search screen (its input
+ *  autofocuses). The global `/` shortcut lands there too. */
+function SearchButton() {
   const route = useRoute();
-  const [value, setValue] = useState(route.name === 'search' ? route.query : '');
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (route.name === 'search') setValue(route.query);
-  }, [route.name === 'search' ? route.query : null]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -33,38 +32,29 @@ function TopSearch() {
       const t = e.target as HTMLElement;
       if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return;
       e.preventDefault();
-      inputRef.current?.focus();
-      inputRef.current?.select();
+      navigate('#/search');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   return (
-    <form
-      className="top-search"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (value.trim()) navigate(searchHash(value.trim()));
-      }}
-    >
-      <MagniferIcon size={15} className="top-search-ico" />
-      <input
-        ref={inputRef}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') (e.target as HTMLInputElement).blur();
-        }}
-        placeholder="Start searching here…"
+    <Tooltip content="Search all sessions (/)">
+      <a
+        href="#/search"
+        className={`circle ${route.name === 'search' ? 'active' : ''}`}
         aria-label="Search all sessions"
-      />
-    </form>
+        aria-current={route.name === 'search' ? 'page' : undefined}
+      >
+        <MagniferIcon size={16} />
+      </a>
+    </Tooltip>
   );
 }
 
 function StatusCircle() {
   const { data } = useStatus();
+  const route = useRoute();
   const indexing = data?.state === 'indexing';
   const label = data
     ? (data.lastError ??
@@ -73,12 +63,17 @@ function StatusCircle() {
         : `Index up to date · v${data.appVersion}`))
     : 'Connecting…';
   return (
-    <Tooltip content={label}>
-      <div className="circle" aria-label="Index status">
+    <Tooltip content={`${label} · what’s new`}>
+      <a
+        href="#/whats-new"
+        className={`circle ${route.name === 'whatsnew' ? 'active' : ''}`}
+        aria-label="Index status — open what's new"
+        aria-current={route.name === 'whatsnew' ? 'page' : undefined}
+      >
         <span
           className={`status-dot ${indexing ? 'busy' : 'idle'} ${data?.lastError ? 'err' : ''}`}
         />
-      </div>
+      </a>
     </Tooltip>
   );
 }
@@ -282,7 +277,13 @@ export default function App() {
             </>
           )}
           <div className="header-right">
-            <TopSearch />
+            <a
+              className={`header-pill ${route.name === 'files' ? 'active' : ''}`}
+              href="#/files"
+            >
+              <FolderIcon size={16} />
+              Files
+            </a>
             <a
               className={`header-pill ${route.name === 'spend' ? 'active' : ''}`}
               href="#/spend"
@@ -290,6 +291,7 @@ export default function App() {
               <WalletIcon size={16} />
               Spend
             </a>
+            <SearchButton />
             <Tooltip content={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
               <button
                 className="circle"
@@ -308,6 +310,8 @@ export default function App() {
           {route.name === 'library' && <Home />}
           {route.name === 'search' && <Search query={route.query} />}
           {route.name === 'spend' && <Spend view={route.view} />}
+          {route.name === 'whatsnew' && <WhatsNew />}
+          {route.name === 'files' && <FileHistory query={route.query} path={route.path} />}
           {route.name === 'session' && (
             <Replay
               key={route.id}

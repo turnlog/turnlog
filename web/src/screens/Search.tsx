@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearch } from '../api';
+import { useDeleteSavedSearch, useSavedSearches, useSaveSearch, useSearch } from '../api';
 import { SkeletonRows } from '../components/Skeleton';
+import Tooltip from '../components/Tooltip';
 import { fmtCost, fmtCount, fmtDate, fmtTime, projectName, sessionName } from '../format';
 import { navigate, searchHash, sessionHash } from '../router';
 import { SNIPPET_CLOSE, SNIPPET_OPEN, type SearchHit } from '../types';
@@ -45,6 +46,75 @@ function kindLabel(hit: SearchHit): string {
 }
 
 const DEBOUNCE_MS = 200;
+
+/** Saved-search chips + the save control for the current query. */
+function SavedSearches({ query }: { query: string }) {
+  const saved = useSavedSearches();
+  const save = useSaveSearch();
+  const remove = useDeleteSavedSearch();
+  const [naming, setNaming] = useState(false);
+  const [name, setName] = useState('');
+
+  const alreadySaved = saved.data?.some((s) => s.query === query) ?? false;
+  const submit = () => {
+    save.mutate({ name: name.trim() || null, query });
+    setNaming(false);
+    setName('');
+  };
+
+  if ((saved.data?.length ?? 0) === 0 && query === '') return null;
+
+  return (
+    <div className="saved-row">
+      {saved.data?.map((s) => (
+        <span key={s.id} className="saved-chip">
+          <button
+            className="saved-chip-run"
+            onClick={() => navigate(searchHash(s.query))}
+            title={s.query}
+          >
+            {s.name}
+          </button>
+          <Tooltip content="Delete saved search">
+            <button
+              className="saved-chip-x"
+              onClick={() => remove.mutate(s.id)}
+              aria-label={`Delete saved search ${s.name}`}
+            >
+              &times;
+            </button>
+          </Tooltip>
+        </span>
+      ))}
+      {query !== '' && !alreadySaved && !naming && (
+        <button className="saved-add" onClick={() => setNaming(true)}>
+          + save this search
+        </button>
+      )}
+      {naming && (
+        <form
+          className="saved-name-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit();
+          }}
+        >
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setNaming(false);
+            }}
+            placeholder={query}
+            aria-label="Name for this saved search"
+          />
+          <button type="submit">save</button>
+        </form>
+      )}
+    </div>
+  );
+}
 
 export default function Search({ query }: { query: string }) {
   const [input, setInput] = useState(query);
@@ -117,6 +187,7 @@ export default function Search({ query }: { query: string }) {
           placeholder="Search every turn of every session…"
           aria-label="Search"
         />
+        <SavedSearches query={query} />
         <div className="search-meta">
           {query === '' ? (
             <span>
@@ -141,6 +212,11 @@ export default function Search({ query }: { query: string }) {
               <kbd>↑↓</kbd> navigate · <kbd>Enter</kbd> open
             </span>
           )}
+        </div>
+        <div className="search-ops">
+          narrow with <code>tool:Bash</code> <code>kind:prompt</code> <code>is:error</code>{' '}
+          <code>project:name</code> <code>model:opus</code> <code>before:2026-07</code>{' '}
+          <code>after:2026-01</code>
         </div>
       </div>
 

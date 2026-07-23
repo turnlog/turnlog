@@ -6,6 +6,9 @@ import { fileURLToPath } from 'node:url';
 import type Database from 'better-sqlite3';
 import type { IndexDriver } from '../indexer/driver.js';
 import {
+  createSavedSearch,
+  deleteSavedSearch,
+  getFileHistory,
   getSession,
   getSessionExport,
   getSessionFilePath,
@@ -14,8 +17,10 @@ import {
   isLens,
   listMessages,
   listProjects,
+  listSavedSearches,
   listSessions,
   listTurns,
+  searchFiles,
   searchMessages,
   setSessionMeta,
 } from './api.js';
@@ -336,10 +341,11 @@ export function createServer(ctx: ServerContext): http.Server {
 }
 
 /**
- * The write surface — the two per-session annotation routes plus shutdown,
+ * The write surface — session annotations, saved searches, and shutdown,
  * all requiring the same token + Host/Origin gates every request passes
  * first. Any other POST is 405, so the hardening posture stays "GET-only
- * plus this allowlist".
+ * plus this allowlist". Deletion rides POST (…/delete) to keep the method
+ * surface at GET/HEAD/POST.
  */
 async function handleApiWrite(
   ctx: ServerContext,
@@ -380,6 +386,28 @@ async function handleApiWrite(
     const filePath = getSessionFilePath(db, decodeURIComponent(revealMatch[1]!));
     if (filePath === null) return sendJson(res, 404, { error: 'session not found' });
     (ctx.reveal ?? defaultReveal)(filePath);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (p === '/api/searches') {
+    const body = await readJsonBody(req);
+    if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+      throw new HttpError(400, 'expected a JSON object');
+    }
+    const raw = body as Record<string, unknown>;
+    if (typeof raw.query !== 'string') throw new HttpError(400, 'query must be a string');
+    if (raw.name !== undefined && raw.name !== null && typeof raw.name !== 'string') {
+      throw new HttpError(400, 'name must be a string');
+    }
+    const created = createSavedSearch(db, (raw.name as string | null) ?? null, raw.query);
+    if (!created) throw new HttpError(400, 'query must not be empty');
+    return sendJson(res, 200, created);
+  }
+
+  const searchDelMatch = /^\/api\/searches\/(\d+)\/delete$/.exec(p);
+  if (searchDelMatch) {
+    const deleted = deleteSavedSearch(db, Number(searchDelMatch[1]));
+    if (!deleted) return sendJson(res, 404, { error: 'saved search not found' });
     return sendJson(res, 200, { ok: true });
   }
 
@@ -456,6 +484,23 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
         limit: numParam(q, 'limit'),
         sessionId: q.get('session') ?? undefined,
       }),
+    );
+  }
+  if (p === '/api/searches') {
+    return sendJson(res, 200, listSavedSearches(db));
+  }
+  if (p === '/api/files/history') {
+    const filePath = q.get('path');
+    if (filePath === null || filePath === '') {
+      return sendJson(res, 400, { error: 'path required' });
+    }
+    return sendJson(res, 200, getFileHistory(db, filePath));
+  }
+  if (p === '/api/files') {
+    return sendJson(
+      res,
+      200,
+      searchFiles(db, { query: q.get('q') ?? undefined, limit: numParam(q, 'limit') }),
     );
   }
 

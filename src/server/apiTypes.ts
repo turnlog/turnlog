@@ -119,6 +119,28 @@ export interface SearchResponse {
   aggregates: SearchAggregates | null;
 }
 
+/** A named, persisted search query (schema v5; survives rebuilds). */
+export interface SavedSearch {
+  id: number;
+  name: string;
+  query: string;
+  createdAt: string | null;
+}
+
+/** One touched file across all sessions — the cross-session pivot's list. */
+export interface FileSummary {
+  path: string;
+  /** Distinct root sessions that touched the file. */
+  sessions: number;
+  lastTouched: string | null;
+}
+
+/** Every session that touched one path, newest first. */
+export interface FileHistoryResponse {
+  path: string;
+  sessions: SessionMeta[];
+}
+
 /**
  * One turn of the spine view: a user prompt plus a mechanical summary of what
  * happened under it, aggregated from main-chain tool calls (never an LLM).

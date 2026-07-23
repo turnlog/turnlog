@@ -27,7 +27,9 @@ export type Route =
       view: ViewParam | null;
     }
   | { name: 'search'; query: string }
-  | { name: 'spend'; view: 'overview' | 'calendar' };
+  | { name: 'spend'; view: 'overview' | 'calendar' }
+  | { name: 'whatsnew' }
+  | { name: 'files'; query: string; path: string | null };
 
 export function parseRoute(hash: string): Route {
   const h = hash.startsWith('#') ? hash.slice(1) : hash;
@@ -54,6 +56,12 @@ export function parseRoute(hash: string): Route {
   }
   if (path === '/spend') {
     return { name: 'spend', view: params.get('v') === 'calendar' ? 'calendar' : 'overview' };
+  }
+  if (path === '/whats-new') {
+    return { name: 'whatsnew' };
+  }
+  if (path === '/files') {
+    return { name: 'files', query: params.get('q') ?? '', path: params.get('path') };
   }
   return { name: 'library' };
 }
@@ -86,4 +94,12 @@ export function sessionHash(
 
 export function searchHash(q: string): string {
   return `#/search?q=${encodeURIComponent(q)}`;
+}
+
+export function filesHash(opts: { q?: string; path?: string } = {}): string {
+  const params = new URLSearchParams();
+  if (opts.q) params.set('q', opts.q);
+  if (opts.path) params.set('path', opts.path);
+  const qs = params.toString();
+  return `#/files${qs ? `?${qs}` : ''}`;
 }

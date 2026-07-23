@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export function openDb(path: string): Database.Database {
   const db = new Database(path);
@@ -108,6 +108,19 @@ function migrate(db: Database.Database): void {
         custom_name TEXT,
         note        TEXT,
         updated_at  TEXT
+      );
+    `);
+  }
+
+  if (version < 5) {
+    // Saved searches, written by the UI. Like session_meta: user data, not
+    // derived from logs — rebuild() leaves it alone. No ADAPTER_VERSION bump.
+    db.exec(`
+      CREATE TABLE saved_searches (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT NOT NULL,
+        query      TEXT NOT NULL,
+        created_at TEXT
       );
     `);
   }

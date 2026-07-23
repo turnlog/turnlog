@@ -8,9 +8,12 @@ import {
   type InfiniteData,
 } from '@tanstack/react-query';
 import type {
+  FileHistoryResponse,
+  FileSummary,
   IndexedEvent,
   MessageListResponse,
   MessageRow,
+  SavedSearch,
   SpendResponse,
   ProjectInfo,
   SearchResponse,
@@ -294,6 +297,25 @@ export function useSearch(q: string, sessionId?: string) {
   });
 }
 
+/** Every row of one lens, paged to completion (the diffs pivot needs all diffs). */
+export function useLensRows(sessionId: string, lens: string) {
+  return useQuery({
+    queryKey: ['lens-rows', sessionId, lens],
+    queryFn: async (): Promise<MessageRow[]> => {
+      const out: MessageRow[] = [];
+      let after = -1;
+      for (let i = 0; i < 10; i++) {
+        const res = await fetchMessages(sessionId, after, 2000, lens);
+        out.push(...res.messages);
+        if (out.length >= res.total || res.messages.length === 0) break;
+        after = res.messages[res.messages.length - 1]!.idx;
+      }
+      return out;
+    },
+    staleTime: 60_000,
+  });
+}
+
 /** Positions of failing tool results — the 4c jump markers. */
 export function useErrorIdxs(sessionId: string) {
   return useQuery({
@@ -329,6 +351,55 @@ export function useSpend(days: number, q: string) {
         `/api/spend?days=${days}${query ? `&q=${encodeURIComponent(query)}` : ''}`,
       ),
     placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+}
+
+/* ── saved searches ─────────────────────────────────────────────────── */
+
+export function useSavedSearches() {
+  return useQuery({
+    queryKey: ['saved-searches'],
+    queryFn: () => apiFetch<SavedSearch[]>('/api/searches'),
+    staleTime: 30_000,
+  });
+}
+
+export function useSaveSearch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, query }: { name: string | null; query: string }) =>
+      apiPost<SavedSearch>('/api/searches', { name, query }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['saved-searches'] }),
+  });
+}
+
+export function useDeleteSavedSearch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiPost<{ ok: boolean }>(`/api/searches/${id}/delete`, {}),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['saved-searches'] }),
+  });
+}
+
+/* ── cross-session file history ─────────────────────────────────────── */
+
+export function useFiles(q: string) {
+  return useQuery({
+    queryKey: ['files', q],
+    queryFn: () =>
+      apiFetch<FileSummary[]>(`/api/files?q=${encodeURIComponent(q)}&limit=200`),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+}
+
+export function useFileHistory(path: string | null) {
+  return useQuery({
+    queryKey: ['file-history', path],
+    queryFn: () =>
+      apiFetch<FileHistoryResponse>(`/api/files/history?path=${encodeURIComponent(path!)}`),
+    enabled: path !== null,
     staleTime: 30_000,
   });
 }

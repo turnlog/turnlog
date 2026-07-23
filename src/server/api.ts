@@ -2,9 +2,12 @@ import type Database from 'better-sqlite3';
 import { pricingForModel, type ModelPricing } from '../cost/pricing.js';
 import { sessionToMarkdown, type ExportOptions } from '../export/markdown.js';
 import type {
+  FileHistoryResponse,
+  FileSummary,
   MessageListResponse,
   MessageRow,
   ProjectInfo,
+  SavedSearch,
   SearchAggregates,
   SearchResponse,
   SessionListResponse,
@@ -361,6 +364,103 @@ export function listTurns(db: Database.Database, sessionId: string): TurnsRespon
 }
 
 /**
+ * Search operators — `op:value` tokens mapped straight onto indexed columns.
+ * Unknown operators and malformed values fall through as plain text terms,
+ * so `file.ts:12` or `https://…` never break a query.
+ */
+export interface SearchFilters {
+  tool?: string;
+  kind?: string;
+  isError?: boolean;
+  project?: string;
+  model?: string;
+  before?: string;
+  after?: string;
+}
+
+export interface ParsedQuery {
+  /** The free-text remainder after operators are pulled out. */
+  terms: string;
+  filters: SearchFilters;
+  hasFilters: boolean;
+}
+
+const FILTER_OPS = new Set(['tool', 'kind', 'is', 'project', 'model', 'before', 'after']);
+const DATE_RE = /^\d{4}(-\d{2}(-\d{2})?)?$/;
+
+export function parseSearchQuery(input: string): ParsedQuery {
+  const terms: string[] = [];
+  const filters: SearchFilters = {};
+  for (const token of input.split(/\s+/).filter(Boolean)) {
+    const colon = token.indexOf(':');
+    const op = colon > 0 ? token.slice(0, colon).toLowerCase() : null;
+    const value = colon > 0 ? token.slice(colon + 1) : '';
+    if (op === null || !FILTER_OPS.has(op) || value === '') {
+      terms.push(token);
+      continue;
+    }
+    switch (op) {
+      case 'tool':
+        filters.tool = value;
+        break;
+      case 'kind':
+        filters.kind = value;
+        break;
+      case 'project':
+        filters.project = value;
+        break;
+      case 'model':
+        filters.model = value;
+        break;
+      case 'is':
+        if (value.toLowerCase() === 'error') filters.isError = true;
+        else terms.push(token);
+        break;
+      case 'before':
+      case 'after':
+        // ISO prefixes (2026, 2026-07, 2026-07-01) compare lexicographically
+        // against the stored full-ISO timestamps.
+        if (DATE_RE.test(value)) filters[op] = value;
+        else terms.push(token);
+        break;
+    }
+  }
+  return { terms: terms.join(' '), filters, hasFilters: Object.keys(filters).length > 0 };
+}
+
+/** WHERE fragments for the parsed filters; `m` = messages, sessionAlias = sessions. */
+function filterSql(f: SearchFilters, sessionAlias: string): { sql: string; params: unknown[] } {
+  const clauses: string[] = [];
+  const params: unknown[] = [];
+  if (f.tool !== undefined) {
+    clauses.push('m.tool_name = ? COLLATE NOCASE');
+    params.push(f.tool);
+  }
+  if (f.kind !== undefined) {
+    clauses.push('m.kind = ? COLLATE NOCASE');
+    params.push(f.kind);
+  }
+  if (f.isError) clauses.push('m.is_error = 1');
+  if (f.model !== undefined) {
+    clauses.push('m.model LIKE ?');
+    params.push(`%${f.model}%`);
+  }
+  if (f.project !== undefined) {
+    clauses.push(`${sessionAlias}.project_key LIKE ?`);
+    params.push(`%${f.project}%`);
+  }
+  if (f.before !== undefined) {
+    clauses.push('m.ts < ?');
+    params.push(f.before);
+  }
+  if (f.after !== undefined) {
+    clauses.push('m.ts >= ?');
+    params.push(f.after);
+  }
+  return { sql: clauses.map((c) => `AND ${c}`).join(' '), params };
+}
+
+/**
  * Sanitize free-form user input into an FTS5 MATCH expression: each token
  * becomes a quoted phrase (so FTS syntax like parens or NEAR can't error),
  * with a trailing * preserved as a prefix query.
@@ -386,7 +486,23 @@ const MATCHED_SESSIONS_SQL = `SELECT DISTINCT COALESCE(ms.parent_session_id, ms.
   JOIN sessions ms ON ms.id = m.session_id
   WHERE messages_fts MATCH ?`;
 
-function searchAggregates(db: Database.Database, match: string): SearchAggregates | null {
+function searchAggregates(
+  db: Database.Database,
+  match: string | null,
+  filters: SearchFilters,
+): SearchAggregates | null {
+  const f = filterSql(filters, 'ms');
+  const matched = match
+    ? `SELECT DISTINCT COALESCE(ms.parent_session_id, ms.id)
+       FROM messages_fts
+       JOIN messages m ON m.rowid = messages_fts.rowid
+       JOIN sessions ms ON ms.id = m.session_id
+       WHERE messages_fts MATCH ? ${f.sql}`
+    : `SELECT DISTINCT COALESCE(ms.parent_session_id, ms.id)
+       FROM messages m
+       JOIN sessions ms ON ms.id = m.session_id
+       WHERE 1=1 ${f.sql}`;
+  const params = match ? [match, ...f.params] : f.params;
   try {
     const row = db
       .prepare(
@@ -395,9 +511,9 @@ function searchAggregates(db: Database.Database, match: string): SearchAggregate
                 SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END) AS unpriced,
                 COALESCE(SUM(turn_count), 0) AS turns,
                 COALESCE(SUM(input_tokens + output_tokens), 0) AS tokens
-         FROM sessions WHERE id IN (${MATCHED_SESSIONS_SQL})`,
+         FROM sessions WHERE id IN (${matched})`,
       )
-      .get(match) as any;
+      .get(...params) as any;
     return {
       matchedSessions: row.n,
       totalCostUsd: row.cost,
@@ -410,41 +526,66 @@ function searchAggregates(db: Database.Database, match: string): SearchAggregate
   }
 }
 
+const SESSION_JOIN_COLUMNS = `s.id, s.project_path, s.project_key, s.parent_session_id,
+                s.started_at, s.ended_at, s.model,
+                s.turn_count, s.input_tokens, s.output_tokens, s.cache_read_tokens,
+                s.cache_write_tokens, s.cost_usd, s.files_touched_count`;
+
 export function searchMessages(
   db: Database.Database,
   q: { query: string; limit?: number; sessionId?: string },
 ): SearchResponse {
-  const match = toFtsQuery(q.query);
+  const parsed = parseSearchQuery(q.query);
+  const match = parsed.terms !== '' ? toFtsQuery(parsed.terms) : null;
   const empty: SearchResponse = { query: q.query, groups: [], totalHits: 0, aggregates: null };
-  if (!match) return empty;
+  if (match === null && !parsed.hasFilters) return empty;
   const limit = Math.min(Math.max(q.limit ?? 100, 1), 500);
+  const f = filterSql(parsed.filters, 's');
 
   // Session-scoped find (in-session Cmd-F) orders by position, not rank —
   // prev/next navigation needs document order.
   const sessionWhere = q.sessionId !== undefined ? 'AND m.session_id = ?' : '';
-  const order = q.sessionId !== undefined ? 'm.idx' : 'bm25(messages_fts)';
-  const params: unknown[] = [SNIPPET_OPEN, SNIPPET_CLOSE, match];
-  if (q.sessionId !== undefined) params.push(q.sessionId);
-  params.push(limit);
 
   let rows: any[];
   try {
-    rows = db
-      .prepare(
-        `SELECT m.uuid, m.session_id, m.idx, m.kind, m.tool_name, m.ts,
-                snippet(messages_fts, 0, ?, ?, '…', 12) AS snip,
-                s.id, s.project_path, s.project_key, s.parent_session_id,
-                s.started_at, s.ended_at, s.model,
-                s.turn_count, s.input_tokens, s.output_tokens, s.cache_read_tokens,
-                s.cache_write_tokens, s.cost_usd, s.files_touched_count
-         FROM messages_fts
-         JOIN messages m ON m.rowid = messages_fts.rowid
-         JOIN sessions s ON s.id = m.session_id
-         WHERE messages_fts MATCH ? ${sessionWhere}
-         ORDER BY ${order}
-         LIMIT ?`,
-      )
-      .all(...params);
+    if (match !== null) {
+      const order = q.sessionId !== undefined ? 'm.idx' : 'bm25(messages_fts)';
+      const params: unknown[] = [SNIPPET_OPEN, SNIPPET_CLOSE, match];
+      if (q.sessionId !== undefined) params.push(q.sessionId);
+      params.push(...f.params, limit);
+      rows = db
+        .prepare(
+          `SELECT m.uuid, m.session_id, m.idx, m.kind, m.tool_name, m.ts,
+                  snippet(messages_fts, 0, ?, ?, '…', 12) AS snip,
+                  ${SESSION_JOIN_COLUMNS}
+           FROM messages_fts
+           JOIN messages m ON m.rowid = messages_fts.rowid
+           JOIN sessions s ON s.id = m.session_id
+           WHERE messages_fts MATCH ? ${sessionWhere} ${f.sql}
+           ORDER BY ${order}
+           LIMIT ?`,
+        )
+        .all(...params);
+    } else {
+      // Operator-only query — no FTS involved; plain column filters, newest
+      // sessions first. The snippet is a raw excerpt (no match to mark).
+      const order = q.sessionId !== undefined ? 'm.idx' : 's.started_at DESC, m.idx';
+      const params: unknown[] = [];
+      if (q.sessionId !== undefined) params.push(q.sessionId);
+      params.push(...f.params, limit);
+      rows = db
+        .prepare(
+          `SELECT m.uuid, m.session_id, m.idx, m.kind, m.tool_name, m.ts,
+                  substr(m.text, 1, 240) AS snip,
+                  ${SESSION_JOIN_COLUMNS}
+           FROM messages m
+           JOIN sessions s ON s.id = m.session_id
+           WHERE 1=1 ${sessionWhere} ${f.sql}
+           ORDER BY ${order}
+           LIMIT ?`,
+        )
+        .all(...params);
+    }
   } catch {
     return empty; // belt and suspenders: a MATCH error must never 500
   }
@@ -471,8 +612,89 @@ export function searchMessages(
     groups: [...groups.values()],
     totalHits: rows.length,
     // Session-scoped find doesn't need money attached to it.
-    aggregates: q.sessionId === undefined ? searchAggregates(db, match) : null,
+    aggregates:
+      q.sessionId === undefined ? searchAggregates(db, match, parsed.filters) : null,
   };
+}
+
+/* ── saved searches (schema v5; survives rebuilds like session_meta) ── */
+
+const SAVED_NAME_MAX = 120;
+const SAVED_QUERY_MAX = 500;
+
+function rowToSavedSearch(r: any): SavedSearch {
+  return { id: r.id, name: r.name, query: r.query, createdAt: r.created_at ?? null };
+}
+
+export function listSavedSearches(db: Database.Database): SavedSearch[] {
+  return db
+    .prepare(`SELECT id, name, query, created_at FROM saved_searches ORDER BY id DESC`)
+    .all()
+    .map(rowToSavedSearch);
+}
+
+/** Create a saved search; the name defaults to the query. Null = nothing to save. */
+export function createSavedSearch(
+  db: Database.Database,
+  name: string | null,
+  query: string,
+): SavedSearch | null {
+  const q = query.trim().slice(0, SAVED_QUERY_MAX);
+  if (q === '') return null;
+  const n = (name ?? '').trim().slice(0, SAVED_NAME_MAX) || q;
+  const info = db
+    .prepare(`INSERT INTO saved_searches (name, query, created_at) VALUES (?, ?, ?)`)
+    .run(n, q, new Date().toISOString());
+  const row = db
+    .prepare(`SELECT id, name, query, created_at FROM saved_searches WHERE id = ?`)
+    .get(info.lastInsertRowid);
+  return rowToSavedSearch(row);
+}
+
+export function deleteSavedSearch(db: Database.Database, id: number): boolean {
+  return db.prepare(`DELETE FROM saved_searches WHERE id = ?`).run(id).changes > 0;
+}
+
+/* ── cross-session file history ("git blame for agent edits") ───────── */
+
+/** Files matching a path fragment, most recently touched first. */
+export function searchFiles(
+  db: Database.Database,
+  q: { query?: string; limit?: number },
+): FileSummary[] {
+  const limit = Math.min(Math.max(q.limit ?? 100, 1), 500);
+  const like = q.query ? `%${q.query}%` : '%';
+  const rows = db
+    .prepare(
+      `SELECT ft.path AS path,
+              COUNT(DISTINCT COALESCE(s.parent_session_id, s.id)) AS n,
+              MAX(COALESCE(s.ended_at, s.started_at)) AS last
+       FROM files_touched ft
+       JOIN sessions s ON s.id = ft.session_id
+       WHERE ft.path LIKE ?
+       GROUP BY ft.path
+       ORDER BY last DESC
+       LIMIT ?`,
+    )
+    .all(like, limit) as { path: string; n: number; last: string | null }[];
+  return rows.map((r) => ({ path: r.path, sessions: r.n, lastTouched: r.last }));
+}
+
+/** Every session that touched a path (subagent hits resolve to their root). */
+export function getFileHistory(db: Database.Database, path: string): FileHistoryResponse {
+  const rows = db
+    .prepare(
+      `SELECT ${SESSION_COLUMNS} FROM ${SESSIONS_JOINED}
+       WHERE sessions.id IN (
+         SELECT DISTINCT COALESCE(fs.parent_session_id, fs.id)
+         FROM files_touched ft
+         JOIN sessions fs ON fs.id = ft.session_id
+         WHERE ft.path = ?)
+       ORDER BY started_at DESC
+       LIMIT 500`,
+    )
+    .all(path);
+  return { path, sessions: rows.map(rowToSession) };
 }
 
 export function listProjects(db: Database.Database): ProjectInfo[] {

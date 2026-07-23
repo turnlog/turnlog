@@ -4,6 +4,41 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] — 2026-07-24
+
+### Added
+
+- Search operators: narrow any query with `tool:Bash`, `kind:prompt`,
+  `is:error`, `project:name`, `model:opus`, `before:2026-07`, `after:2026-01`
+  — combinable with text terms or usable alone. An always-visible cheat-line
+  under the search box lists them.
+- Saved searches: save the current query under a name; saved searches show
+  as chips under the search box, one click re-runs, deletable. Stored in the
+  local index database (survives rebuilds).
+- Cross-session file history: a new Files screen (header pill) — filter by
+  path, pick a file, and see every session that ever touched it, newest
+  first; expanding a session shows its edits to that file with
+  view-in-session jumps. The replay's diffs pivot links each file to its
+  history.
+- What's New page: in-app release notes in plain language at `#/whats-new`,
+  opened from the status dot in the header. Notes ship inside the package —
+  nothing is fetched.
+- A find-in-session button in the replay toolbar (same as ⌘F).
+
+### Changed
+
+- The diffs lens now opens as the per-file pivot (the former files view):
+  touched files with edit/failure counts on the left, that file's edits in
+  order on the right, each with a view-in-session jump — instead of a
+  chronological filtered log.
+- The header's search input is now a circle button (before the theme
+  toggle) that opens the search screen; the `/` shortcut goes there too and
+  the search input autofocuses.
+- The active lens now reads as the contrast surface, matching the sidebar's
+  toggle states; the What's New entry highlights like the header pills while
+  open; error prev/next buttons are properly centered with consistent icon
+  sizes.
+
 ## [0.3.1] — 2026-07-23
 
 ### Added

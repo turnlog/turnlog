@@ -3,10 +3,13 @@
  * type-only (erased at build time — nothing from src/ ends up in the bundle).
  */
 export type {
+  FileHistoryResponse,
+  FileSummary,
   IndexedEvent,
   MessageListResponse,
   MessageRow,
   ProjectInfo,
+  SavedSearch,
   SearchGroup,
   SearchHit,
   SearchResponse,

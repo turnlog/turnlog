@@ -32,6 +32,7 @@ import { BlockView } from '../replay/blocks';
 import SpineView from '../replay/Spine';
 import NoteDot from '../components/NoteDot';
 import Tooltip from '../components/Tooltip';
+import FilesView from '../replay/Files';
 import {
   ChartIcon,
   ChatIcon,
@@ -45,6 +46,7 @@ import {
   DownloadIcon,
   ErrorLensIcon,
   FolderIcon,
+  MagniferIcon,
   PenIcon,
   PinFilledIcon,
   PinIcon,
@@ -644,6 +646,16 @@ export default function Replay({
             </div>
             </div>
             <div className="replay-actions">
+            <Tooltip content="Find in session (⌘F)">
+              <button
+                className={`replay-action ${findOpen || searchQuery ? 'active' : ''}`}
+                onClick={() => (findOpen || searchQuery ? closeFind() : setFindOpen(true))}
+                aria-label="Find in session"
+                aria-pressed={findOpen || !!searchQuery}
+              >
+                <MagniferIcon size={16} />
+              </button>
+            </Tooltip>
             <Tooltip content={s?.pinned ? 'Unpin from sidebar top' : 'Pin to sidebar top'}>
               <button
                 className={`replay-action ${s?.pinned ? 'active' : ''}`}
@@ -700,7 +712,11 @@ export default function Replay({
         )}
       </div>
 
-      {activeLens !== null ? (
+      {activeLens === 'diffs' ? (
+        /* The diffs lens IS the per-file pivot: files left, that file's
+           edits in order right, each with a view-in-session jump. */
+        <FilesView sessionId={sessionId} />
+      ) : activeLens !== null ? (
         <LogView key={activeLens} sessionId={sessionId} jumpIdx={null} lens={activeLens} />
       ) : effectiveMode === 'spine' ? (
         turns.data ? (
@@ -725,12 +741,12 @@ export default function Replay({
           <span className="error-nav-count">{errorIdxs.data!.length}</span>
           <Tooltip content="Previous error">
             <button onClick={() => jumpError(-1)} aria-label="Previous error">
-              <ChevronUpIcon size={15} />
+              <ChevronUpIcon size={16} />
             </button>
           </Tooltip>
           <Tooltip content="Next error">
             <button onClick={() => jumpError(1)} aria-label="Next error">
-              <ChevronDownIcon size={15} />
+              <ChevronDownIcon size={16} />
             </button>
           </Tooltip>
         </div>
@@ -747,7 +763,7 @@ export default function Replay({
               onClick={() => goToHit(hitIdxs[(hitPos - 1 + hitIdxs.length) % hitIdxs.length]!)}
               aria-label="Previous match"
             >
-              <ChevronUpIcon size={15} />
+              <ChevronUpIcon size={16} />
             </button>
           </Tooltip>
           <Tooltip content="Next match">
@@ -755,7 +771,7 @@ export default function Replay({
               onClick={() => goToHit(hitIdxs[(hitPos + 1) % hitIdxs.length]!)}
               aria-label="Next match"
             >
-              <ChevronDownIcon size={15} />
+              <ChevronDownIcon size={16} />
             </button>
           </Tooltip>
           <Tooltip content="Clear search">

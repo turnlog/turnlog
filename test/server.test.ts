@@ -229,6 +229,68 @@ describe('write surface (session annotations + reveal)', () => {
   });
 });
 
+describe('saved searches', () => {
+  it('requires the token on read and write', async () => {
+    expect((await request('/api/searches')).status).toBe(401);
+    expect((await request('/api/searches', {}, 'POST', port, '{}')).status).toBe(401);
+  });
+
+  it('creates, lists, and deletes a saved search', async () => {
+    const created = await request(
+      withToken('/api/searches'),
+      {},
+      'POST',
+      port,
+      JSON.stringify({ name: 'errors', query: 'is:error tool:Bash' }),
+    );
+    expect(created.status).toBe(200);
+    const id = created.json().id as number;
+    expect(created.json().name).toBe('errors');
+
+    const list = await request(withToken('/api/searches'));
+    expect(list.status).toBe(200);
+    expect(list.json().some((s: any) => s.id === id)).toBe(true);
+
+    const del = await request(withToken(`/api/searches/${id}/delete`), {}, 'POST');
+    expect(del.status).toBe(200);
+    const after = await request(withToken('/api/searches'));
+    expect(after.json().some((s: any) => s.id === id)).toBe(false);
+  });
+
+  it('rejects empty and malformed bodies', async () => {
+    const noQuery = await request(withToken('/api/searches'), {}, 'POST', port, '{}');
+    expect(noQuery.status).toBe(400);
+    const empty = await request(
+      withToken('/api/searches'),
+      {},
+      'POST',
+      port,
+      JSON.stringify({ query: '   ' }),
+    );
+    expect(empty.status).toBe(400);
+    const gone = await request(withToken('/api/searches/999999/delete'), {}, 'POST');
+    expect(gone.status).toBe(404);
+  });
+});
+
+describe('file history routes', () => {
+  it('lists touched files and requires a path for history', async () => {
+    const files = await request(withToken('/api/files'));
+    expect(files.status).toBe(200);
+    expect(files.json().length).toBeGreaterThan(0);
+
+    const noPath = await request(withToken('/api/files/history'));
+    expect(noPath.status).toBe(400);
+
+    const path = files.json()[0].path as string;
+    const history = await request(
+      withToken(`/api/files/history?path=${encodeURIComponent(path)}`),
+    );
+    expect(history.status).toBe(200);
+    expect(history.json().sessions.length).toBeGreaterThan(0);
+  });
+});
+
 describe('shutdown route', () => {
   it('does not exist when no handler is wired (this test server)', async () => {
     const res = await request(withToken('/api/shutdown'), {}, 'POST');

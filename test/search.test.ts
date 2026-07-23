@@ -1,7 +1,13 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type Database from 'better-sqlite3';
 import { Indexer } from '../src/indexer/indexer.js';
-import { searchMessages, toFtsQuery } from '../src/server/api.js';
+import {
+  getFileHistory,
+  parseSearchQuery,
+  searchFiles,
+  searchMessages,
+  toFtsQuery,
+} from '../src/server/api.js';
 import { SNIPPET_CLOSE, SNIPPET_OPEN } from '../src/server/apiTypes.js';
 import { SESSION_A, SESSION_C, copyCorpus, testDb, tmpDir } from './helpers.js';
 
@@ -66,6 +72,86 @@ describe('searchMessages', () => {
   it('searches text inside tool results (file contents)', () => {
     const res = searchMessages(db, { query: 'session_id' });
     expect(res.totalHits).toBeGreaterThan(0);
+  });
+});
+
+describe('parseSearchQuery (operators)', () => {
+  it('extracts operators and keeps the rest as terms', () => {
+    const p = parseSearchQuery('tool:Bash is:error retry logic');
+    expect(p.filters).toEqual({ tool: 'Bash', isError: true });
+    expect(p.terms).toBe('retry logic');
+    expect(p.hasFilters).toBe(true);
+  });
+
+  it('treats unknown operators and malformed values as plain terms', () => {
+    const p = parseSearchQuery('file.ts:12 https://example.com is:banana before:soon');
+    expect(p.hasFilters).toBe(false);
+    expect(p.terms).toBe('file.ts:12 https://example.com is:banana before:soon');
+  });
+
+  it('accepts ISO date prefixes on before/after', () => {
+    const p = parseSearchQuery('before:2026-07 after:2025');
+    expect(p.filters).toEqual({ before: '2026-07', after: '2025' });
+    expect(p.terms).toBe('');
+  });
+});
+
+describe('search operators', () => {
+  it('tool: narrows FTS hits to one tool', () => {
+    const res = searchMessages(db, { query: 'tool:Bash flux' });
+    expect(res.totalHits).toBeGreaterThan(0);
+    for (const g of res.groups) {
+      for (const h of g.hits) expect(h.toolName).toBe('Bash');
+    }
+  });
+
+  it('operator-only queries work without any FTS terms', () => {
+    const res = searchMessages(db, { query: 'is:error' });
+    expect(res.totalHits).toBeGreaterThan(0);
+    // Failing results in the corpus live in SESSION_C's Bash failure.
+    expect(res.groups.some((g) => g.session.id === SESSION_C)).toBe(true);
+    expect(res.aggregates).not.toBeNull();
+  });
+
+  it('kind: filters to prompts', () => {
+    const res = searchMessages(db, { query: 'kind:prompt' });
+    expect(res.totalHits).toBeGreaterThan(0);
+    for (const g of res.groups) {
+      for (const h of g.hits) expect(h.kind).toBe('prompt');
+    }
+  });
+
+  it('an impossible date range matches nothing', () => {
+    const res = searchMessages(db, { query: 'before:1990' });
+    expect(res.totalHits).toBe(0);
+  });
+});
+
+describe('cross-session file history', () => {
+  it('lists touched files with session counts', () => {
+    const files = searchFiles(db, {});
+    expect(files.length).toBeGreaterThan(0);
+    for (const f of files) {
+      expect(f.path.length).toBeGreaterThan(0);
+      expect(f.sessions).toBeGreaterThan(0);
+    }
+  });
+
+  it('narrows by path fragment and resolves sessions for one file', () => {
+    const files = searchFiles(db, {});
+    const target = files[0]!;
+    const narrowed = searchFiles(db, { query: target.path.slice(-8) });
+    expect(narrowed.some((f) => f.path === target.path)).toBe(true);
+
+    const history = getFileHistory(db, target.path);
+    expect(history.path).toBe(target.path);
+    expect(history.sessions.length).toBeGreaterThan(0);
+    // Subagent hits resolve to roots — no child sessions in the timeline.
+    for (const s of history.sessions) expect(s.parentSessionId).toBeNull();
+  });
+
+  it('unknown paths return an empty timeline, never an error', () => {
+    expect(getFileHistory(db, '/nope/never.ts').sessions).toHaveLength(0);
   });
 });
 
