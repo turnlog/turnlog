@@ -7,7 +7,19 @@ import Tooltip from '../components/Tooltip';
 import { fmtCost, fmtCount, fmtModel, fmtTokens, projectName, tileClass } from '../format';
 import type { SpendDay, SpendResponse } from '../types';
 
-const PERIODS = [7, 30, 90] as const;
+/** The server clamps `days` at ten years — "all" in practice. */
+const ALL_DAYS = 3650;
+const PERIODS = [
+  { days: 7, label: '7d' },
+  { days: 30, label: '30d' },
+  { days: 90, label: '90d' },
+  { days: 365, label: '1y' },
+  { days: ALL_DAYS, label: 'all' },
+] as const;
+
+function periodText(sinceDays: number): string {
+  return sinceDays >= ALL_DAYS ? 'all time' : `last ${sinceDays} days`;
+}
 
 /* ── daily bars ──────────────────────────────────────────────────────
    Single series (magnitude over time): one hue — ink — with the hover
@@ -19,6 +31,17 @@ const PERIODS = [7, 30, 90] as const;
 function localKey(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** Long ranges ("1y", "all") start the axis at the first recorded day —
+ *  never zero-fill years of empty history ahead of the data. */
+function chartSpanDays(data: SpendResponse): number {
+  if (data.days.length === 0) return Math.min(data.sinceDays, 90);
+  const first = new Date(`${data.days[0]!.date}T00:00:00`);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const span = Math.round((today.getTime() - first.getTime()) / 86_400_000) + 1;
+  return Math.min(data.sinceDays, Math.max(span, 7));
 }
 
 function fillDays(days: SpendDay[], sinceDays: number): SpendDay[] {
@@ -85,7 +108,7 @@ function SpendChart({
   granularity: 'day' | 'week';
 }) {
   const buckets = useMemo(() => {
-    const filled = fillDays(data.days, data.sinceDays);
+    const filled = fillDays(data.days, chartSpanDays(data));
     return granularity === 'week' ? bucketWeeks(filled) : filled;
   }, [data, granularity]);
   const max = Math.max(...buckets.map((d) => d.costUsd), 0.01);
@@ -99,9 +122,9 @@ function SpendChart({
     <div
       className="spend-chart"
       role="img"
-      aria-label={`${granularity === 'week' ? 'Weekly' : 'Daily'} spend, last ${
-        data.sinceDays
-      } days. Total ${fmtCost(
+      aria-label={`${granularity === 'week' ? 'Weekly' : 'Daily'} spend, ${periodText(
+        data.sinceDays,
+      )}. Total ${fmtCost(
         data.totals.costUsd,
       )}, peak ${rangeLabel(buckets[peak]!)} at ${fmtCost(buckets[peak]!.costUsd)}.`}
     >
@@ -214,13 +237,17 @@ export default function Spend({ view = 'overview' }: { view?: 'overview' | 'cale
         <div className="view-toggle" role="tablist" aria-label="Period">
           {PERIODS.map((p) => (
             <button
-              key={p}
+              key={p.days}
               role="tab"
-              aria-selected={days === p}
-              className={days === p ? 'active' : ''}
-              onClick={() => setDays(p)}
+              aria-selected={days === p.days}
+              className={days === p.days ? 'active' : ''}
+              onClick={() => {
+                setDays(p.days);
+                // A year-plus of daily bars is unreadable — flip to weeks.
+                if (p.days >= 365) setGran('week');
+              }}
             >
-              {p}d
+              {p.label}
             </button>
           ))}
         </div>
@@ -269,7 +296,7 @@ export default function Spend({ view = 'overview' }: { view?: 'overview' | 'cale
               <div>
                 <strong className="spend-total">{fmtCost(d.totals.costUsd)}</strong>
                 <span className="spend-total-sub">
-                  est. · last {d.sinceDays} days · {fmtCount(d.totals.sessions)} session
+                  est. · {periodText(d.sinceDays)} · {fmtCount(d.totals.sessions)} session
                   {d.totals.sessions === 1 ? '' : 's'} ·{' '}
                   {fmtTokens(d.totals.inputTokens + d.totals.outputTokens)} tok
                   {d.query && (

@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { hasToken, useLiveEvents, useStatus } from './api';
-import { Brandmark, MagniferIcon, MoonIcon, SidebarIcon, SunIcon, WalletIcon } from './icons';
+import { hasToken, shutdownServer, useLiveEvents, useStatus } from './api';
+import {
+  Brandmark,
+  MagniferIcon,
+  MoonIcon,
+  PowerIcon,
+  SidebarIcon,
+  SunIcon,
+  WalletIcon,
+} from './icons';
 import { navigate, searchHash, useRoute } from './router';
 import Home from './screens/Home';
 import Replay from './screens/Replay';
@@ -127,6 +135,81 @@ function UpdateBanner() {
   );
 }
 
+/**
+ * Stops the whole app: asks the CLI process to exit, then the farewell screen
+ * tries to close the tab. Two clicks (arm, then confirm) so a stray click
+ * can't kill the server; the armed state disarms itself after a few seconds.
+ */
+function StopButton({ onStopped }: { onStopped: () => void }) {
+  const [armed, setArmed] = useState(false);
+
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), 4000);
+    return () => clearTimeout(t);
+  }, [armed]);
+
+  const stop = async () => {
+    try {
+      await shutdownServer();
+    } catch {
+      /* the process can die before the response makes it out — still stopped */
+    }
+    onStopped();
+  };
+
+  return (
+    <Tooltip content={armed ? 'Click again to stop' : 'Stop Turnlog'}>
+      <button
+        className={`circle stop-btn ${armed ? 'armed' : ''}`}
+        onClick={() => (armed ? void stop() : setArmed(true))}
+        aria-label={armed ? 'Confirm: stop Turnlog' : 'Stop Turnlog'}
+      >
+        <PowerIcon size={16} />
+      </button>
+    </Tooltip>
+  );
+}
+
+/** Post-shutdown farewell. window.close() only works when the tab has no
+ *  history beyond the CLI-opened URL — otherwise this screen stays up. */
+function Stopped() {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    window.close();
+  }, []);
+
+  const cmd = 'npx turnlog';
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(cmd);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard denied — ignore */
+    }
+  };
+
+  return (
+    <div className="stopped-screen">
+      <div className="stopped-card">
+        <span className="stopped-glyph" aria-hidden>
+          <PowerIcon size={22} />
+        </span>
+        <h1>Turnlog stopped</h1>
+        <p>
+          The local server has shut down — nothing is running on your machine.
+          It&rsquo;s safe to close this tab, or start again with:
+        </p>
+        <button className="stopped-cmd" onClick={copy} title="Copy command">
+          <code>{cmd}</code>
+          <span>{copied ? 'copied' : 'copy'}</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** Opened without the per-launch token: API calls will all 401. Explain. */
 function NoToken() {
   return (
@@ -150,6 +233,7 @@ export default function App() {
   const route = useRoute();
   const theme = useTheme();
   useLiveEvents(); // SSE: refresh index-derived queries the moment a session file reindexes
+  const [stopped, setStopped] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(
     () => localStorage.getItem('turnlog-sidebar') !== '0',
   );
@@ -167,6 +251,7 @@ export default function App() {
   }, []);
 
   if (!hasToken()) return <NoToken />;
+  if (stopped) return <Stopped />;
 
   return (
     <div className="app">
@@ -215,6 +300,7 @@ export default function App() {
               </button>
             </Tooltip>
             <StatusCircle />
+            <StopButton onStopped={() => setStopped(true)} />
           </div>
         </header>
         <UpdateBanner />

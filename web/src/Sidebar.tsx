@@ -9,9 +9,18 @@ import {
   type SessionsQuery,
 } from './api';
 import Dropdown from './components/Dropdown';
+import NoteDot from './components/NoteDot';
 import { SkeletonRows } from './components/Skeleton';
 import Tooltip from './components/Tooltip';
-import { Brandmark, EyeClosedIcon, PinIcon, SidebarIcon, SortVerticalIcon } from './icons';
+import {
+  Brandmark,
+  EyeClosedIcon,
+  EyeIcon,
+  PinFilledIcon,
+  PinIcon,
+  SidebarIcon,
+  SortVerticalIcon,
+} from './icons';
 import { setHideEmpty, setProjectFilter, useHideEmpty, useProjectFilter } from './filterStore';
 import {
   fmtCost,
@@ -50,7 +59,7 @@ function Item({
     <div
       role="button"
       tabIndex={0}
-      className={`side-item ${active ? 'active' : ''}`}
+      className={`side-item ${active ? 'active' : ''} ${s.pinned ? 'pinned' : ''}`}
       onClick={() => navigate(sessionHash(s.id))}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -69,6 +78,7 @@ function Item({
           {s.endedAt !== null && Date.now() - new Date(s.endedAt).getTime() < ACTIVE_MS && (
             <span className="side-item-live" role="img" aria-label="active in the last 5 minutes" />
           )}
+          {s.note && <NoteDot note={s.note} />}
           <Tooltip content={s.pinned ? 'Unpin' : 'Pin to top'}>
             <button
               className={`side-item-pin ${s.pinned ? 'pinned' : ''}`}
@@ -79,7 +89,7 @@ function Item({
               aria-label={s.pinned ? 'Unpin session' : 'Pin session to top'}
               aria-pressed={s.pinned}
             >
-              <PinIcon size={13} />
+              {s.pinned ? <PinFilledIcon size={13} /> : <PinIcon size={13} />}
             </button>
           </Tooltip>
           <span className="side-item-cost">{fmtCost(s.costUsd)}</span>
@@ -165,19 +175,20 @@ export default function Sidebar({
               onClick={() => setDir(dir === 'desc' ? 'asc' : 'desc')}
               aria-label={`Direction: ${dir}`}
             >
-              <SortVerticalIcon size={15} />
+              <SortVerticalIcon size={16} />
             </button>
           </Tooltip>
-        </div>
-        <div className="sidebar-filters">
-          <button
-            className={`filter-chip ${hideEmpty ? 'on' : ''}`}
-            onClick={() => setHideEmpty(!hideEmpty)}
-            aria-pressed={hideEmpty}
-          >
-            <EyeClosedIcon size={13} />
-            hide empty
-          </button>
+          {/* The eye is the state: open = empty sessions shown, closed = hidden. */}
+          <Tooltip content={hideEmpty ? 'Show empty sessions' : 'Hide empty sessions'}>
+            <button
+              className={`dir-toggle eye-toggle ${hideEmpty ? 'on' : ''}`}
+              onClick={() => setHideEmpty(!hideEmpty)}
+              aria-label={hideEmpty ? 'Show empty sessions' : 'Hide empty sessions'}
+              aria-pressed={hideEmpty}
+            >
+              {hideEmpty ? <EyeClosedIcon size={16} /> : <EyeIcon size={16} />}
+            </button>
+          </Tooltip>
         </div>
       </div>
 

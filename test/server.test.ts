@@ -229,6 +229,34 @@ describe('write surface (session annotations + reveal)', () => {
   });
 });
 
+describe('shutdown route', () => {
+  it('does not exist when no handler is wired (this test server)', async () => {
+    const res = await request(withToken('/api/shutdown'), {}, 'POST');
+    expect(res.status).toBe(404);
+  });
+
+  it('requires the token, then fires the handler after the response', async () => {
+    let fired!: () => void;
+    const called = new Promise<void>((resolve) => (fired = resolve));
+    const started = await startServer({
+      db,
+      driver: stubDriver,
+      token: TOKEN,
+      onShutdown: () => fired(),
+    });
+    try {
+      const unauth = await request('/api/shutdown', {}, 'POST', started.port);
+      expect(unauth.status).toBe(401);
+      const res = await request(withToken('/api/shutdown'), {}, 'POST', started.port, '{}');
+      expect(res.status).toBe(200);
+      expect(res.json()).toEqual({ ok: true });
+      await called; // the client got its response before the handler ran
+    } finally {
+      started.server.close();
+    }
+  });
+});
+
 describe('API', () => {
   it('serves the placeholder page without a token', async () => {
     const res = await request('/');

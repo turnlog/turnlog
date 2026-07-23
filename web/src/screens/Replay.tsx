@@ -29,8 +29,8 @@ import {
 } from '../format';
 import { navigate, sessionHash } from '../router';
 import { BlockView } from '../replay/blocks';
-import FilesView from '../replay/Files';
 import SpineView from '../replay/Spine';
+import NoteDot from '../components/NoteDot';
 import Tooltip from '../components/Tooltip';
 import {
   ChartIcon,
@@ -46,6 +46,7 @@ import {
   ErrorLensIcon,
   FolderIcon,
   PenIcon,
+  PinFilledIcon,
   PinIcon,
 } from '../icons';
 import { buildBlocks, idxToBlockMap } from '../replay/thread';
@@ -57,7 +58,7 @@ const PAGE = 300;
 const JUMP_BACKSCROLL = 40;
 const VIRTUOSO_BASE = 10_000_000;
 
-type ViewMode = 'spine' | 'log' | 'files';
+type ViewMode = 'spine' | 'log';
 
 /**
  * A contiguous window of messages, growable in both directions. The API
@@ -489,7 +490,7 @@ export default function Replay({
   const [mode, setMode] = useState<ViewMode>(() => {
     if (view) return view; // ?v= deep link wins over the persisted choice
     const stored = localStorage.getItem('turnlog-view');
-    return stored === 'log' || stored === 'files' ? stored : 'spine';
+    return stored === 'log' ? stored : 'spine';
   });
   const setModePersist = (m: ViewMode) => {
     localStorage.setItem('turnlog-view', m);
@@ -574,15 +575,15 @@ export default function Replay({
           </Tooltip>
           <div className="replay-heading">
             <span className="replay-project">
-              {s?.pinned && <PinIcon size={13} className="replay-pin-mark" />}
+              {s?.pinned && <PinFilledIcon size={13} className="replay-pin-mark" />}
               {s ? sessionName(s) : '…'}
             </span>
             <span className="replay-meta">
               <span className="replay-id">{shortId(sessionId)}</span>
               {s?.model && <span className="chip">{fmtModel(s.model)}</span>}
               <span className="replay-date">{s ? fmtDate(s.startedAt) : ''}</span>
+              {s?.note && <NoteDot note={s.note} />}
             </span>
-            {!editOpen && s?.note && <div className="replay-note">{s.note}</div>}
           </div>
           <div className="replay-controls-right">
             <div className="replay-views">
@@ -609,17 +610,6 @@ export default function Replay({
                 }}
               >
                 log
-              </button>
-              <button
-                role="tab"
-                aria-selected={activeLens === null && effectiveMode === 'files'}
-                className={activeLens === null && effectiveMode === 'files' ? 'active' : ''}
-                onClick={() => {
-                  setModePersist('files');
-                  if (activeLens) navigate(sessionHash(sessionId));
-                }}
-              >
-                files
               </button>
             </div>
             <div className="lens-actions" role="tablist" aria-label="Lens">
@@ -661,7 +651,7 @@ export default function Replay({
                 aria-label={s?.pinned ? 'Unpin session' : 'Pin session'}
                 aria-pressed={s?.pinned ?? false}
               >
-                <PinIcon size={16} />
+                {s?.pinned ? <PinFilledIcon size={16} /> : <PinIcon size={16} />}
               </button>
             </Tooltip>
             <Tooltip content={editOpen ? 'Close editor' : 'Name & note'}>
@@ -712,9 +702,7 @@ export default function Replay({
 
       {activeLens !== null ? (
         <LogView key={activeLens} sessionId={sessionId} jumpIdx={null} lens={activeLens} />
-      ) : effectiveMode === 'files' && jumpIdx === null ? (
-        <FilesView sessionId={sessionId} />
-      ) : effectiveMode === 'spine' || (effectiveMode === 'files' && jumpIdx !== null) ? (
+      ) : effectiveMode === 'spine' ? (
         turns.data ? (
           <SpineView sessionId={sessionId} data={turns.data} currentIdx={jumpIdx} />
         ) : turns.isError ? (

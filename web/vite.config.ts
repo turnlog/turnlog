@@ -16,7 +16,13 @@ export default defineConfig({
         // Rewrite Host to the target — the server's DNS-rebinding defense
         // (rightly) rejects the dev origin's Host with its foreign port.
         changeOrigin: true,
-        headers: apiToken ? { Authorization: `Bearer ${apiToken}` } : {},
+        headers: {
+          // Browsers attach Origin (the Vite port) to every POST; the
+          // server's cross-origin check (rightly) rejects the foreign port,
+          // so writes only pass when the proxy presents the target's own.
+          Origin: `http://127.0.0.1:${apiPort}`,
+          ...(apiToken ? { Authorization: `Bearer ${apiToken}` } : {}),
+        },
       },
     },
   },

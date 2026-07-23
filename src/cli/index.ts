@@ -119,6 +119,12 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
       exportFooter: settings.exportFooter,
       getUpdate: () => latestUpdate,
       events,
+      // The web UI's stop button — same path as Ctrl-C. `shutdown` is declared
+      // below but initialized long before this can fire.
+      onShutdown: () => {
+        console.log('\nStop requested from the web UI.');
+        void shutdown();
+      },
     },
     { port: opts.port },
   );

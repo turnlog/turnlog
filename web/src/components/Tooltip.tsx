@@ -25,10 +25,13 @@ interface Pos {
 export default function Tooltip({
   content,
   children,
+  className,
 }: {
   content: ReactNode;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   children: ReactElement<any>;
+  /** Extra class on the pill — variants like the sticky-note note popover. */
+  className?: string;
 }) {
   const [pos, setPos] = useState<Pos | null>(null);
   const [left, setLeft] = useState<number | null>(null);
@@ -84,7 +87,7 @@ export default function Tooltip({
         createPortal(
           <div
             ref={tipRef}
-            className={`tooltip ${pos.below ? 'below' : 'above'}`}
+            className={`tooltip ${pos.below ? 'below' : 'above'} ${className ?? ''}`}
             style={{
               left: left ?? pos.x,
               top: pos.y,

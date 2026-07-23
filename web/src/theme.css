@@ -88,6 +88,12 @@
   --diff-del-bg: rgba(240, 102, 63, 0.12);
   --diff-del-tx: #f2a48c;
 
+  /* session notes — the dot marker and its sticky-note paper. The paper
+     stays yellow in both themes: a sticky note is an artifact, not a surface. */
+  --c-note: #e5c04d;
+  --note-paper: #f9eda9;
+  --note-ink: #4a3d10;
+
   --shadow: 0 16px 44px rgba(0, 0, 0, 0.5);
 
   --sans: 'Geist', system-ui, sans-serif;
@@ -144,6 +150,10 @@
   --diff-add-tx: #23744a;
   --diff-del-bg: rgba(217, 67, 42, 0.1);
   --diff-del-tx: #b23a20;
+
+  --c-note: #d9a921;
+  --note-paper: #f9eda9;
+  --note-ink: #4a3d10;
 
   --shadow: 0 16px 44px rgba(30, 40, 70, 0.18);
 }

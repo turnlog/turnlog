@@ -92,6 +92,11 @@ export function useSetSessionMeta() {
   });
 }
 
+/** Ask the CLI process to exit — the header's stop button. */
+export async function shutdownServer(): Promise<void> {
+  await apiPost<{ ok: boolean }>('/api/shutdown', {});
+}
+
 /** Ask the server to reveal the session's JSONL in the OS file manager. */
 export function revealSession(id: string): void {
   void apiPost(`/api/sessions/${encodeURIComponent(id)}/reveal`, {}).catch(() => {
@@ -286,25 +291,6 @@ export function useSearch(q: string, sessionId?: string) {
     enabled: q.trim().length > 0,
     placeholderData: keepPreviousData,
     staleTime: 30_000,
-  });
-}
-
-/** Every row of one lens, paged to completion (files view needs all diffs). */
-export function useLensRows(sessionId: string, lens: string) {
-  return useQuery({
-    queryKey: ['lens-rows', sessionId, lens],
-    queryFn: async (): Promise<MessageRow[]> => {
-      const out: MessageRow[] = [];
-      let after = -1;
-      for (let i = 0; i < 10; i++) {
-        const res = await fetchMessages(sessionId, after, 2000, lens);
-        out.push(...res.messages);
-        if (out.length >= res.total || res.messages.length === 0) break;
-        after = res.messages[res.messages.length - 1]!.idx;
-      }
-      return out;
-    },
-    staleTime: 60_000,
   });
 }
 

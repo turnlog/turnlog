@@ -14,7 +14,7 @@ import { useSyncExternalStore } from 'react';
 export type Lens = 'diffs' | 'commands' | 'errors' | 'prompts';
 const LENS_VALUES: readonly string[] = ['diffs', 'commands', 'errors', 'prompts'];
 
-export type ViewParam = 'spine' | 'log' | 'files';
+export type ViewParam = 'spine' | 'log';
 
 export type Route =
   | { name: 'library' }
@@ -46,7 +46,7 @@ export function parseRoute(hash: string): Route {
       jumpIdx: m !== null && /^\d+$/.test(m) ? Number(m) : null,
       query: params.get('q'),
       lens: l !== null && LENS_VALUES.includes(l) ? (l as Lens) : null,
-      view: v === 'spine' || v === 'log' || v === 'files' ? v : null,
+      view: v === 'spine' || v === 'log' ? v : null,
     };
   }
   if (path === '/search') {

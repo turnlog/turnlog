@@ -4,6 +4,45 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] — 2026-07-23
+
+### Added
+
+- Stop Turnlog from the browser: a power button in the header (click twice —
+  it arms first) shuts the CLI process down cleanly and closes the tab where
+  the browser allows it, leaving a farewell card with a copyable
+  `npx turnlog` to start again. Backed by a new token-guarded
+  `POST /api/shutdown` route that only exists when the CLI wires it up.
+- Spend periods `1y` and `all` (all-time) alongside 7/30/90 days; the chart
+  axis starts at your first recorded day instead of zero-filling empty
+  history.
+
+### Changed
+
+- The hide-empty-sessions toggle is now a circular eye button next to the
+  sort direction control, matching the sidebar's other controls; the eye
+  reflects the state (open = empty sessions shown, closed = hidden) instead
+  of always showing a closed eye. Both sidebar toggles now center their
+  icons properly and use the same icon size as the replay actions.
+- Session notes surface as a tiny tilted sticky-note marker — on sidebar
+  rows and in the replay header's meta line — and hovering (or focusing) it
+  opens the note as a yellow folded-corner paper block. Replaces the inline
+  note text under the replay title.
+- Pinned sessions get a note-yellow row wash in the sidebar, so the pinned
+  block on top is visible at a glance.
+
+### Fixed
+
+- The note editor's textarea fell back to the browser's monospace default;
+  both annotation fields now use the app font.
+
+### Removed
+
+- The replay's "files" view — it drew from the same data as the diffs lens,
+  so the view toggle is back to spine · log and per-file browsing happens
+  through the diffs lens. `?v=files` deep links fall back to the default
+  view.
+
 ## [0.3.0] — 2026-07-22
 
 The first minor since the relaunch: sessions become annotatable. The index

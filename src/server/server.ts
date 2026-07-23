@@ -44,6 +44,10 @@ export interface ServerContext {
   /** Reveal a file in the OS file manager. Injectable for tests; defaults to
    *  the platform opener (`open -R` / `explorer /select,` / `xdg-open`). */
   reveal?: (filePath: string) => void;
+  /** Invoked by POST /api/shutdown (the web UI's stop button) after the
+   *  response flushes; the CLI wires this to its SIGINT shutdown path.
+   *  When absent the route does not exist. */
+  onShutdown?: () => void;
 }
 
 const ALLOWED_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '[::1]']);
@@ -332,9 +336,10 @@ export function createServer(ctx: ServerContext): http.Server {
 }
 
 /**
- * The write surface — exactly two routes, both per-session, both requiring
- * the same token + Host/Origin gates every request passes first. Any other
- * POST is 405, so the hardening posture stays "GET-only plus this allowlist".
+ * The write surface — the two per-session annotation routes plus shutdown,
+ * all requiring the same token + Host/Origin gates every request passes
+ * first. Any other POST is 405, so the hardening posture stays "GET-only
+ * plus this allowlist".
  */
 async function handleApiWrite(
   ctx: ServerContext,
@@ -375,6 +380,15 @@ async function handleApiWrite(
     const filePath = getSessionFilePath(db, decodeURIComponent(revealMatch[1]!));
     if (filePath === null) return sendJson(res, 404, { error: 'session not found' });
     (ctx.reveal ?? defaultReveal)(filePath);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (p === '/api/shutdown') {
+    const onShutdown = ctx.onShutdown;
+    if (!onShutdown) return sendJson(res, 404, { error: 'not found' });
+    req.resume(); // drain the (unread) body so the socket closes cleanly
+    // Fire only after the response has flushed — the handler exits the process.
+    res.once('finish', () => setImmediate(onShutdown));
     return sendJson(res, 200, { ok: true });
   }
 
