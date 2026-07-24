@@ -1,5 +1,5 @@
 /**
- * The single optional network touch in the whole product (deep-dive §5):
+ * The single optional network touch in the whole product:
  * a version check against the npm registry on `turnlog` startup. Opt out with
  * TURNLOG_NO_UPDATE_CHECK=1 or `"checkUpdates": false` in settings.json.
  * Fails silent — it must never block, delay, or error the CLI.

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useProjects, useSpend } from '../api';
 import { navigate } from '../router';
 import Calendar from './Calendar';
+import Disk from './Disk';
 import { Skel, SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
 import { fmtCost, fmtCount, fmtModel, fmtTokens, projectName, tileClass } from '../format';
@@ -191,7 +192,11 @@ function toCsv(data: SpendResponse): string {
 
 /* ── screen ──────────────────────────────────────────────────────── */
 
-export default function Spend({ view = 'overview' }: { view?: 'overview' | 'calendar' }) {
+export default function Spend({
+  view = 'overview',
+}: {
+  view?: 'overview' | 'calendar' | 'disk';
+}) {
   const [days, setDays] = useState<number>(30);
   const [gran, setGran] = useState<'day' | 'week'>('day');
   const [q, setQ] = useState('');
@@ -231,6 +236,14 @@ export default function Spend({ view = 'overview' }: { view?: 'overview' | 'cale
             onClick={() => navigate('#/spend?v=calendar')}
           >
             calendar
+          </button>
+          <button
+            role="tab"
+            aria-selected={view === 'disk'}
+            className={view === 'disk' ? 'active' : ''}
+            onClick={() => navigate('#/spend?v=disk')}
+          >
+            disk
           </button>
         </div>
         {view === 'overview' && (
@@ -285,8 +298,11 @@ export default function Spend({ view = 'overview' }: { view?: 'overview' | 'cale
         )}
       </div>
 
+      <div className="spend-body">
       {view === 'calendar' ? (
         <Calendar />
+      ) : view === 'disk' ? (
+        <Disk />
       ) : d === undefined ? (
         <SkeletonRows n={7} tile={28} />
       ) : (
@@ -384,6 +400,7 @@ export default function Spend({ view = 'overview' }: { view?: 'overview' | 'cale
           </section>
         </div>
       )}
+      </div>
     </div>
   );
 }

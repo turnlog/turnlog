@@ -1,5 +1,5 @@
 /**
- * Minimal built-in page served until the real web UI ships in Phase 2. Proves
+ * Minimal built-in page served when the web bundle is missing. Proves
  * the whole pipeline end to end: status, stats, and live search over the API.
  */
 export function placeholderHtml(): string {

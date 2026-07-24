@@ -4,6 +4,37 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] — 2026-07-24
+
+### Added
+
+- MCP server mode: `turnlog mcp` serves your session history to Claude Code
+  (or any MCP client) as read-only agent memory over stdio — five tools:
+  `search` (with operators), `list_sessions`, `get_session`, `get_messages`,
+  and `file_history`. Register with
+  `claude mcp add turnlog -- npx turnlog mcp`. No network, no writes; reads
+  the same index the app builds, with a quick incremental catch-up on start.
+- Message bookmarks: hover any block in a replay and mark the moment — a
+  bookmark toggle in the left gutter, stored in the local index (schema v6,
+  survives rebuilds), with a yellow jump rail beside the error rail to cycle
+  between marks. Served by token-guarded `GET`/`POST`
+  `/api/sessions/:id/bookmarks`.
+- Disk usage view: a third tab under Spend ranks sessions by on-disk bytes
+  (subagent transcript files rolled into their parent) with a relative-size
+  bar and a reveal-in-file-manager button per row. Turnlog stays read-only —
+  deleting is yours to do in the file manager.
+- `turnlog search <query>`: search from the terminal with the same operators
+  as the UI; hits grouped by session with highlighted matches, `--limit` and
+  `--json` flags, and — when the local server is running — a deep link per
+  session that opens the UI at the first match. The running server records
+  its URL in `server.json` next to the index (0600, removed on shutdown) to
+  make those links resolvable.
+
+### Fixed
+
+- The Spend header (title, tabs, period picker, filter, export) scrolled
+  away with the content; it now stays pinned while the body scrolls.
+
 ## [0.4.0] — 2026-07-24
 
 ### Added

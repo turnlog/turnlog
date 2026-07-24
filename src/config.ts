@@ -28,6 +28,16 @@ export function defaultProjectsDir(): string {
   return process.env.TURNLOG_PROJECTS_DIR ?? path.join(os.homedir(), '.claude', 'projects');
 }
 
+/**
+ * Where the running server records its tokened URL so `turnlog search` can
+ * print working deep links. Written 0600 and removed on shutdown — it sits
+ * next to the index DB, which already holds every session's content, so it
+ * adds no new exposure inside the same trust boundary.
+ */
+export function serverInfoPath(): string {
+  return path.join(ensureDataDir(), 'server.json');
+}
+
 export interface Settings {
   /** Per-model pricing overrides (USD per MTok), for Bedrock/enterprise rates. */
   modelPricing?: Record<string, Partial<ModelPricing>>;

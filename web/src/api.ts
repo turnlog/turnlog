@@ -8,6 +8,8 @@ import {
   type InfiniteData,
 } from '@tanstack/react-query';
 import type {
+  BookmarksResponse,
+  DiskUsageResponse,
   FileHistoryResponse,
   FileSummary,
   IndexedEvent,
@@ -316,7 +318,7 @@ export function useLensRows(sessionId: string, lens: string) {
   });
 }
 
-/** Positions of failing tool results — the 4c jump markers. */
+/** Positions of failing tool results — the error jump markers. */
 export function useErrorIdxs(sessionId: string) {
   return useQuery({
     queryKey: ['error-idxs', sessionId],
@@ -379,6 +381,41 @@ export function useDeleteSavedSearch() {
   return useMutation({
     mutationFn: (id: number) => apiPost<{ ok: boolean }>(`/api/searches/${id}/delete`, {}),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['saved-searches'] }),
+  });
+}
+
+/* ── message bookmarks ──────────────────────────────────────────────── */
+
+export function useBookmarks(sessionId: string) {
+  return useQuery({
+    queryKey: ['bookmarks', sessionId],
+    queryFn: () =>
+      apiFetch<BookmarksResponse>(
+        `/api/sessions/${encodeURIComponent(sessionId)}/bookmarks`,
+      ),
+    staleTime: 30_000,
+  });
+}
+
+export function useToggleBookmark(sessionId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ idx, on }: { idx: number; on: boolean }) =>
+      apiPost<BookmarksResponse>(
+        `/api/sessions/${encodeURIComponent(sessionId)}/bookmarks`,
+        { idx, on },
+      ),
+    onSuccess: (updated) => queryClient.setQueryData(['bookmarks', sessionId], updated),
+  });
+}
+
+/* ── disk usage ─────────────────────────────────────────────────────── */
+
+export function useDisk() {
+  return useQuery({
+    queryKey: ['disk'],
+    queryFn: () => apiFetch<DiskUsageResponse>('/api/disk'),
+    staleTime: 30_000,
   });
 }
 

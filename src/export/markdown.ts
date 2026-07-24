@@ -1,7 +1,7 @@
 import type { MessageRow, SessionMeta } from '../server/apiTypes.js';
 
 /**
- * Markdown serializer over the normalized model (deep-dive §2.5): prompts as
+ * Markdown serializer over the normalized model: prompts as
  * blockquotes, assistant prose verbatim, tool calls as <details> blocks,
  * Edit/Write as fenced ```diff. The output pastes cleanly into GitHub, Slack,
  * and gists — clipboard is how the tool spreads. Kept dependency-free: a

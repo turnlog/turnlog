@@ -54,7 +54,8 @@ URL, not just `127.0.0.1:<port>`.
 - **Search everything** — full-text FTS5 across your whole history, grouped by
   session, jump straight to the match. Identifiers and `snake_case` included.
   Subagent transcripts (the separate files newer Claude Code versions write per
-  Task run) are indexed too.
+  Task run) are indexed too. Also from the terminal: `turnlog search <query>`
+  prints hits with deep links into the running UI.
 - **Turn spine** — a 5,000-message session collapses to ten scannable turns,
   each with a mechanical summary (reads, edits, commands, errors).
 - **Lenses & files** — collapse a session to just its diffs, commands, or
@@ -69,6 +70,27 @@ URL, not just `127.0.0.1:<port>`.
   over a local event stream. No reloads, no polling loops.
 - **Export** — `turnlog export <id>` prints a session as markdown; a copy
   button does the same from the UI.
+- **Agent memory (MCP)** — `turnlog mcp` serves your history to Claude Code
+  as a read-only MCP server, so your agent can search its own past sessions
+  mid-task ("how did we fix this last month?").
+
+## Give your agent memory (MCP)
+
+```sh
+claude mcp add turnlog -- npx turnlog mcp
+```
+
+That one command registers Turnlog as a local MCP server in Claude Code. From
+then on, the agent can consult your session history mid-task through five
+read-only tools: `search` (same operators as the UI — `tool:`, `is:error`,
+`project:`, `before:`/`after:`…), `list_sessions`, `get_session` (the turn
+spine), `get_messages` (read the context around a hit), and `file_history`
+(every session that ever touched a file).
+
+It speaks MCP over stdio on your machine — no server port, no network, and
+strictly read-only. It reads the same index the app builds, so run `turnlog`
+or `turnlog index` once first; on each start it does a quick incremental
+catch-up so recent sessions are included.
 
 ## Privacy
 
@@ -94,6 +116,10 @@ turnlog                     Start the local server and open the UI
 turnlog index               Incrementally index ~/.claude/projects and exit
 turnlog index --rebuild     Drop the index and rebuild from scratch
 turnlog export <id>         Print a session as markdown (id or unique prefix)
+turnlog search <query>      Search from the terminal (--limit n, --json);
+                            same operators as the UI: tool: kind: is:error
+                            project: model: before: after:
+turnlog mcp                 Serve the index to your agent over MCP (stdio, read-only)
 ```
 
 The index lives in `~/.config/turnlog/` (`%APPDATA%\turnlog` on Windows);

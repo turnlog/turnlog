@@ -8,7 +8,7 @@ import { BlockView } from './blocks';
 import { buildBlocks } from './thread';
 
 /**
- * The turn spine (brainstorm §4a): the session collapsed to its prompts,
+ * The turn spine: the session collapsed to its prompts,
  * each with a mechanical summary of what happened underneath. The default
  * anti-scroll view — expand only the turn you care about.
  */

@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 export function openDb(path: string): Database.Database {
   const db = new Database(path);
@@ -121,6 +121,21 @@ function migrate(db: Database.Database): void {
         name       TEXT NOT NULL,
         query      TEXT NOT NULL,
         created_at TEXT
+      );
+    `);
+  }
+
+  if (version < 6) {
+    // Message-level bookmarks ("mark this moment"), written by the UI.
+    // User data like session_meta: rebuild() leaves it alone, and (session,
+    // idx) stays valid across reindexes — idx is line-ordered and the logs
+    // are append-only. No ADAPTER_VERSION bump.
+    db.exec(`
+      CREATE TABLE message_bookmarks (
+        session_id TEXT NOT NULL,
+        idx        INTEGER NOT NULL,
+        created_at TEXT,
+        PRIMARY KEY (session_id, idx)
       );
     `);
   }

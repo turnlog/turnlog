@@ -1,7 +1,7 @@
 name: Release
 
 # Tag a version (git tag v0.2.0 && git push --tags) → build, gate, publish.
-# npm is the entire distribution and update channel (deep-dive §5).
+# npm is the entire distribution and update channel.
 # Publishing uses npm trusted publishing (OIDC): no token secret — the
 # trusted publisher (this repo + workflow) is configured on npmjs.com.
 on:

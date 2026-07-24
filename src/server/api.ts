@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import { pricingForModel, type ModelPricing } from '../cost/pricing.js';
 import { sessionToMarkdown, type ExportOptions } from '../export/markdown.js';
 import type {
+  DiskUsageResponse,
   FileHistoryResponse,
   FileSummary,
   MessageListResponse,
@@ -162,6 +163,75 @@ export function setSessionMeta(
   return getSession(db, id);
 }
 
+/* ── message bookmarks ("mark this moment") ─────────────────────────── */
+
+/** Bookmarked message idxs for a session, ascending. Null = unknown session. */
+export function listBookmarks(db: Database.Database, sessionId: string): number[] | null {
+  const exists = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(sessionId);
+  if (!exists) return null;
+  return (
+    db
+      .prepare(`SELECT idx FROM message_bookmarks WHERE session_id = ? ORDER BY idx`)
+      .all(sessionId) as { idx: number }[]
+  ).map((r) => r.idx);
+}
+
+/**
+ * Set or clear one bookmark; returns the session's bookmarks after the write.
+ * Null = no message at that (session, idx) — never bookmark thin air.
+ */
+export function setBookmark(
+  db: Database.Database,
+  sessionId: string,
+  idx: number,
+  on: boolean,
+): number[] | null {
+  const target = db
+    .prepare(`SELECT 1 FROM messages WHERE session_id = ? AND idx = ?`)
+    .get(sessionId, idx);
+  if (!target) return null;
+  if (on) {
+    db.prepare(
+      `INSERT OR IGNORE INTO message_bookmarks (session_id, idx, created_at) VALUES (?, ?, ?)`,
+    ).run(sessionId, idx, new Date().toISOString());
+  } else {
+    db.prepare(`DELETE FROM message_bookmarks WHERE session_id = ? AND idx = ?`).run(
+      sessionId,
+      idx,
+    );
+  }
+  return listBookmarks(db, sessionId);
+}
+
+/* ── disk usage ("what's eating ~/.claude") ─────────────────────────── */
+
+/**
+ * Sessions ranked by on-disk bytes, subagent transcript files rolled into
+ * their parent. Read-only by design: Turnlog never deletes another tool's
+ * files — the UI pairs this with reveal-in-file-manager instead.
+ */
+export function getDiskUsage(db: Database.Database, limit = 200): DiskUsageResponse {
+  const totals = db
+    .prepare(`SELECT COALESCE(SUM(file_size), 0) AS bytes, COUNT(*) AS files FROM sessions`)
+    .get() as { bytes: number; files: number };
+  const rows = db
+    .prepare(
+      `SELECT ${SESSION_COLUMNS},
+              (SELECT COALESCE(SUM(f.file_size), 0) FROM sessions f
+               WHERE f.id = sessions.id OR f.parent_session_id = sessions.id) AS bytes
+       FROM ${SESSIONS_JOINED}
+       WHERE parent_session_id IS NULL
+       ORDER BY bytes DESC
+       LIMIT ?`,
+    )
+    .all(Math.min(Math.max(limit, 1), 1000));
+  return {
+    totalBytes: totals.bytes,
+    fileCount: totals.files,
+    sessions: rows.map((r) => ({ ...rowToSession(r), bytes: (r as { bytes: number }).bytes })),
+  };
+}
+
 /** The on-disk JSONL behind a session — for the reveal-in-file-manager action. */
 export function getSessionFilePath(db: Database.Database, id: string): string | null {
   const row = db.prepare(`SELECT file_path FROM sessions WHERE id = ?`).get(id) as
@@ -262,7 +332,7 @@ export function resolveSessionId(db: Database.Database, idOrPrefix: string): str
   return matches.length === 1 ? matches[0]!.id : null;
 }
 
-/** Full session as markdown (deep-dive §2.5) — CLI export + copy-as-markdown. */
+/** Full session as markdown — CLI export + copy-as-markdown. */
 export function getSessionExport(
   db: Database.Database,
   id: string,
@@ -715,7 +785,7 @@ export function listProjects(db: Database.Database): ProjectInfo[] {
 }
 
 /**
- * The spend view (roadmap Phase 2.6): daily rollups and splits over the
+ * The spend view: daily rollups and splits over the
  * session index, optionally narrowed to sessions matching an FTS query —
  * "what did this kind of work cost me". Session-start attribution.
  */

@@ -43,3 +43,6 @@ Thumbs.db
 
 # npm pack output
 *.tgz
+
+# Local maintainer notes for Claude Code — internal context, never committed
+CLAUDE.local.md

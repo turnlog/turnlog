@@ -1,9 +1,11 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useContext, useMemo, useState } from 'react';
 import CodeBlock from '../code/CodeBlock';
 import { langFromPath } from '../code/highlighter';
 import { fmtTime } from '../format';
+import { BookmarkFilledIcon, BookmarkIcon } from '../icons';
 import Markdown from '../md/Markdown';
 import type { MessageRow } from '../types';
+import { BookmarkContext } from './bookmarkContext';
 import { EditDiff, WriteDiff } from './DiffView';
 import { parseRaw, prettyRaw, type ToolResultView } from './raw';
 import type { Block } from './thread';
@@ -421,5 +423,27 @@ export function BlockView({
       <SidechainRun blocks={block.run} />
     );
 
-  return <div className={`block-slot ${isCurrent ? 'match-current' : ''}`}>{inner}</div>;
+  // "Mark this moment": every block kind gets the same gutter toggle; state
+  // arrives via context so log view and expanded spine turns share it.
+  const bookmarks = useContext(BookmarkContext);
+  const marked = bookmarks.idxs.has(block.repIdx);
+
+  return (
+    <div
+      className={`block-slot ${isCurrent ? 'match-current' : ''} ${marked ? 'bookmarked' : ''}`}
+    >
+      {bookmarks.toggle && (
+        <button
+          className={`block-bookmark ${marked ? 'on' : ''}`}
+          onClick={() => bookmarks.toggle!(block.repIdx)}
+          aria-label={marked ? 'Remove bookmark' : 'Bookmark this moment'}
+          aria-pressed={marked}
+          title={marked ? 'Remove bookmark' : 'Bookmark this moment'}
+        >
+          {marked ? <BookmarkFilledIcon size={14} /> : <BookmarkIcon size={14} />}
+        </button>
+      )}
+      {inner}
+    </div>
+  );
 }

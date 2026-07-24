@@ -1177,6 +1177,45 @@
   max-width: 960px;
   margin: 0 auto;
   padding: 0 24px;
+  position: relative; /* anchors the bookmark gutter toggle */
+}
+/* "Mark this moment": appears in the left gutter on hover; stays when set.
+   Bookmarks share the note-yellow language — marked things are yellow. */
+.block-bookmark {
+  position: absolute;
+  left: -8px; /* log view: the empty gutter left of the block rail */
+  top: 8px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--tx2);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.block-slot:hover .block-bookmark,
+.block-bookmark:focus-visible {
+  opacity: 1;
+}
+.block-bookmark:hover {
+  color: var(--tx0);
+  background: var(--bg1);
+}
+.block-bookmark.on {
+  opacity: 1;
+  color: var(--c-note);
+}
+/* Spine turn bodies indent 42px; the turn-number circle's center sits at
+   19px (head padding 4 + 30/2) — center the 24px toggle on the same axis:
+   42 offset − 12 half-width − 19 = 35. */
+.turn-body .block-slot .block-bookmark {
+  left: -35px;
+}
+/* Nested subagent runs have no gutter; keep them clean. */
+.sidechain-body .block-bookmark {
+  display: none;
 }
 .match-current > .block {
   outline: 1.5px solid var(--blue);
@@ -2077,7 +2116,7 @@
   background-size: 300% 100%;
 }
 
-/* ── 4e in-session find + you-are-here · 4c error markers ─────────── */
+/* ── in-session find + you-are-here · error markers ────────────────── */
 
 .find-bar {
   display: flex;
@@ -2141,11 +2180,17 @@
   white-space: nowrap;
 }
 
-.error-nav {
+.nav-rails {
   position: absolute;
   bottom: 20px;
   right: 20px;
   z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+.error-nav {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2176,6 +2221,19 @@
   color: var(--c-error);
   background: var(--bg1);
 }
+/* Bookmark rail: the error pill's sibling, in the note-yellow language. */
+.bookmark-nav {
+  border-color: color-mix(in srgb, var(--c-note) 40%, transparent);
+}
+.bookmark-nav-ico {
+  color: var(--c-note);
+}
+.bookmark-nav-count {
+  color: var(--c-note);
+}
+.bookmark-nav button:hover {
+  color: var(--tx0);
+}
 
 .outline-item.current .outline-n {
   background: var(--contrast-solid);
@@ -2193,7 +2251,7 @@
   color: var(--accent-on);
 }
 
-/* ── 4d files view (outcome pivot) ─────────────────────────────────── */
+/* ── files view (per-file diffs pivot) ─────────────────────────────── */
 
 .files-wrap {
   flex: 1;
@@ -2462,6 +2520,106 @@
   padding: 6px 4px 16px 45px;
 }
 
+/* ── disk usage (inside Spend) ─────────────────────────────────────── */
+
+.disk {
+  width: 100%;
+}
+.disk-total {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 4px 6px 14px;
+}
+.disk-total strong {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.disk-total span {
+  font-size: 13px;
+  color: var(--tx1);
+}
+.disk-list {
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+.disk-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+/* Relative-size bar behind each row — magnitude at a glance. */
+.disk-row-bar {
+  position: absolute;
+  inset: 2px auto 2px 0;
+  background: color-mix(in srgb, var(--blue) 10%, transparent);
+  border-radius: 10px;
+  pointer-events: none;
+}
+.disk-row-main {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: 12px;
+}
+.disk-row-main:hover {
+  background: var(--bg1);
+}
+.disk-row-name {
+  font-weight: 600;
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.disk-row-date {
+  flex: none;
+  font-size: 12px;
+  color: var(--tx2);
+}
+.disk-row-bytes {
+  margin-left: auto;
+  flex: none;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--tx0);
+}
+.disk-row-reveal {
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--tx2);
+}
+.disk-row-reveal:hover {
+  color: var(--tx0);
+  background: var(--bg2);
+}
+.disk-note {
+  margin: 0 6px 30px;
+  font-size: 12.5px;
+  color: var(--tx2);
+}
+.disk-note code {
+  background: var(--bg2);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 11.5px;
+}
+
 /* ── what's new (bundled release notes — nothing fetched) ──────────── */
 
 .whatsnew {
@@ -2562,20 +2720,28 @@
   color: var(--accent);
 }
 
-/* ── spend screen (Phase 2.6) ──────────────────────────────────────── */
+/* ── spend screen ──────────────────────────────────────────────────── */
 
 .spend {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   width: 100%;
 }
+/* The head stays put; only the body below it scrolls. */
 .spend-head {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
   padding: 12px 4px 18px;
+}
+.spend-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 .spend-head h1 {
   font-size: 26px;
@@ -2768,7 +2934,7 @@
   margin: 0;
 }
 
-/* ── calendar (Phase 2.7) ──────────────────────────────────────────── */
+/* ── calendar ──────────────────────────────────────────────────────── */
 
 .calendar {
   flex: 1;

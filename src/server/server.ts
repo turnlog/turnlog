@@ -8,6 +8,7 @@ import type { IndexDriver } from '../indexer/driver.js';
 import {
   createSavedSearch,
   deleteSavedSearch,
+  getDiskUsage,
   getFileHistory,
   getSession,
   getSessionExport,
@@ -15,6 +16,7 @@ import {
   getSpend,
   getStats,
   isLens,
+  listBookmarks,
   listMessages,
   listProjects,
   listSavedSearches,
@@ -22,6 +24,7 @@ import {
   listTurns,
   searchFiles,
   searchMessages,
+  setBookmark,
   setSessionMeta,
 } from './api.js';
 import type { SessionMetaPatch } from './apiTypes.js';
@@ -389,6 +392,23 @@ async function handleApiWrite(
     return sendJson(res, 200, { ok: true });
   }
 
+  const bookmarkMatch = /^\/api\/sessions\/([^/]+)\/bookmarks$/.exec(p);
+  if (bookmarkMatch) {
+    const body = await readJsonBody(req);
+    if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+      throw new HttpError(400, 'expected a JSON object');
+    }
+    const raw = body as Record<string, unknown>;
+    if (typeof raw.idx !== 'number' || !Number.isInteger(raw.idx)) {
+      throw new HttpError(400, 'idx must be an integer');
+    }
+    if (typeof raw.on !== 'boolean') throw new HttpError(400, 'on must be a boolean');
+    const sessionId = decodeURIComponent(bookmarkMatch[1]!);
+    const idxs = setBookmark(db, sessionId, raw.idx, raw.on);
+    if (idxs === null) return sendJson(res, 404, { error: 'no message at that idx' });
+    return sendJson(res, 200, { sessionId, idxs });
+  }
+
   if (p === '/api/searches') {
     const body = await readJsonBody(req);
     if (typeof body !== 'object' || body === null || Array.isArray(body)) {
@@ -502,6 +522,17 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
       200,
       searchFiles(db, { query: q.get('q') ?? undefined, limit: numParam(q, 'limit') }),
     );
+  }
+  if (p === '/api/disk') {
+    return sendJson(res, 200, getDiskUsage(db, numParam(q, 'limit') ?? 200));
+  }
+
+  const bookmarksMatch = /^\/api\/sessions\/([^/]+)\/bookmarks$/.exec(p);
+  if (bookmarksMatch) {
+    const sessionId = decodeURIComponent(bookmarksMatch[1]!);
+    const idxs = listBookmarks(db, sessionId);
+    if (idxs === null) return sendJson(res, 404, { error: 'session not found' });
+    return sendJson(res, 200, { sessionId, idxs });
   }
 
   const turnsMatch = /^\/api\/sessions\/([^/]+)\/turns$/.exec(p);

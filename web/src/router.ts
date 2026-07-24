@@ -27,7 +27,7 @@ export type Route =
       view: ViewParam | null;
     }
   | { name: 'search'; query: string }
-  | { name: 'spend'; view: 'overview' | 'calendar' }
+  | { name: 'spend'; view: 'overview' | 'calendar' | 'disk' }
   | { name: 'whatsnew' }
   | { name: 'files'; query: string; path: string | null };
 
@@ -55,7 +55,8 @@ export function parseRoute(hash: string): Route {
     return { name: 'search', query: params.get('q') ?? '' };
   }
   if (path === '/spend') {
-    return { name: 'spend', view: params.get('v') === 'calendar' ? 'calendar' : 'overview' };
+    const v = params.get('v');
+    return { name: 'spend', view: v === 'calendar' || v === 'disk' ? v : 'overview' };
   }
   if (path === '/whats-new') {
     return { name: 'whatsnew' };

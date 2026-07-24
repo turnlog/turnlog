@@ -9,7 +9,7 @@ import { parseRaw } from './raw';
 import { buildBlocks, type Block } from './thread';
 
 /**
- * The outcome pivot (brainstorm §4d): not the conversation — what the
+ * The per-file pivot: not the conversation — what the
  * session did to the code. Files on the left, that file's edits in order
  * on the right. Grouping happens client-side from the diffs lens, so no
  * schema or endpoint was needed.

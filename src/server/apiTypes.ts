@@ -1,6 +1,6 @@
 /**
- * The typed contract between the local server and the web UI. Phase 2's React
- * app imports these types.
+ * The typed contract between the local server and the web UI — the React app
+ * imports these types (type-only, so nothing from src/ enters the bundle).
  */
 
 export interface SessionMeta {
@@ -71,7 +71,7 @@ export interface MessageListResponse {
 }
 
 /**
- * Lenses collapse a session to one dimension (brainstorm §4b). Tool lenses
+ * Lenses collapse a session to one dimension. Tool lenses
  * include both the tool_use and its paired tool_result rows.
  */
 export const LENSES = ['diffs', 'commands', 'errors', 'prompts'] as const;
@@ -139,6 +139,25 @@ export interface FileSummary {
 export interface FileHistoryResponse {
   path: string;
   sessions: SessionMeta[];
+}
+
+/** Bookmarked message idxs for one session (`GET/POST …/bookmarks`). */
+export interface BookmarksResponse {
+  sessionId: string;
+  idxs: number[];
+}
+
+/** A session with its on-disk footprint (subagent files rolled in). */
+export interface DiskSessionInfo extends SessionMeta {
+  bytes: number;
+}
+
+export interface DiskUsageResponse {
+  /** Every indexed JSONL file summed, children included. */
+  totalBytes: number;
+  fileCount: number;
+  /** Root sessions ranked by family bytes, largest first. */
+  sessions: DiskSessionInfo[];
 }
 
 /**

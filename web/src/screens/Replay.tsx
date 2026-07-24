@@ -10,12 +10,15 @@ import {
   fetchExport,
   fetchMessages,
   revealSession,
+  useBookmarks,
   useErrorIdxs,
   useSearch,
   useSession,
   useSetSessionMeta,
+  useToggleBookmark,
   useTurns,
 } from '../api';
+import { BookmarkContext } from '../replay/bookmarkContext';
 import {
   fmtCost,
   fmtCount,
@@ -34,6 +37,7 @@ import NoteDot from '../components/NoteDot';
 import Tooltip from '../components/Tooltip';
 import FilesView from '../replay/Files';
 import {
+  BookmarkFilledIcon,
   ChartIcon,
   ChatIcon,
   CheckIcon,
@@ -309,7 +313,7 @@ function StatsPanel({ s }: { s: SessionMeta }) {
   );
 }
 
-/** In-session find (4e): drives the same ?q= the global search uses. */
+/** In-session find: drives the same ?q= the global search uses. */
 function FindBar({
   sessionId,
   query,
@@ -521,7 +525,7 @@ export default function Replay({
   const [editOpen, setEditOpen] = useState(false);
   const setMeta = useSetSessionMeta();
 
-  // Match navigation — session-scoped, so the hit list is complete (4e).
+  // Match navigation — session-scoped, so the hit list is complete.
   const search = useSearch(searchQuery ?? '', sessionId);
   const hitIdxs = useMemo(() => {
     if (!searchQuery || !search.data) return [];
@@ -547,10 +551,8 @@ export default function Replay({
     if (searchQuery) navigate(sessionHash(sessionId));
   };
 
-  // Error jump markers (4c): cycle through failing results in either view.
-  const errorIdxs = useErrorIdxs(sessionId);
-  const jumpError = (dir: 1 | -1) => {
-    const list = errorIdxs.data ?? [];
+  // Jump rails: cycle through a sorted idx list via the ?m= mechanism.
+  const jumpIn = (list: number[], dir: 1 | -1) => {
     if (list.length === 0) return;
     const cur = jumpIdx ?? -1;
     const target =
@@ -559,6 +561,22 @@ export default function Replay({
         : ([...list].reverse().find((i) => i < cur) ?? list[list.length - 1]!);
     navigate(sessionHash(sessionId, { m: target, q: searchQuery ?? undefined }));
   };
+  const errorIdxs = useErrorIdxs(sessionId);
+  const jumpError = (dir: 1 | -1) => jumpIn(errorIdxs.data ?? [], dir);
+
+  // Bookmarks: "mark this moment" state, provided to every BlockView below.
+  const bookmarks = useBookmarks(sessionId);
+  const toggleBookmark = useToggleBookmark(sessionId);
+  const bookmarkIdxs = bookmarks.data?.idxs ?? [];
+  const jumpBookmark = (dir: 1 | -1) => jumpIn(bookmarkIdxs, dir);
+  const bookmarkCtx = useMemo(
+    () => ({
+      idxs: new Set(bookmarks.data?.idxs ?? []),
+      toggle: (idx: number) =>
+        toggleBookmark.mutate({ idx, on: !(bookmarks.data?.idxs ?? []).includes(idx) }),
+    }),
+    [bookmarks.data, toggleBookmark],
+  );
 
   const goToHit = (idx: number) => {
     navigate(sessionHash(sessionId, { m: idx, q: searchQuery ?? undefined }));
@@ -567,6 +585,7 @@ export default function Replay({
   const s = session.data;
 
   return (
+    <BookmarkContext.Provider value={bookmarkCtx}>
     <div className="replay">
       <div className="replay-head">
         <div className="replay-title">
@@ -735,22 +754,40 @@ export default function Replay({
         <LogView sessionId={sessionId} jumpIdx={jumpIdx} turns={turns.data?.turns} />
       )}
 
-      {(errorIdxs.data?.length ?? 0) > 0 && (
-        <div className="error-nav" title="Jump between failing tool results">
-          <span className="dot dot-accent" />
-          <span className="error-nav-count">{errorIdxs.data!.length}</span>
-          <Tooltip content="Previous error">
-            <button onClick={() => jumpError(-1)} aria-label="Previous error">
-              <ChevronUpIcon size={16} />
-            </button>
-          </Tooltip>
-          <Tooltip content="Next error">
-            <button onClick={() => jumpError(1)} aria-label="Next error">
-              <ChevronDownIcon size={16} />
-            </button>
-          </Tooltip>
-        </div>
-      )}
+      <div className="nav-rails">
+        {bookmarkIdxs.length > 0 && (
+          <div className="error-nav bookmark-nav" title="Jump between bookmarks">
+            <BookmarkFilledIcon size={13} className="bookmark-nav-ico" />
+            <span className="error-nav-count bookmark-nav-count">{bookmarkIdxs.length}</span>
+            <Tooltip content="Previous bookmark">
+              <button onClick={() => jumpBookmark(-1)} aria-label="Previous bookmark">
+                <ChevronUpIcon size={16} />
+              </button>
+            </Tooltip>
+            <Tooltip content="Next bookmark">
+              <button onClick={() => jumpBookmark(1)} aria-label="Next bookmark">
+                <ChevronDownIcon size={16} />
+              </button>
+            </Tooltip>
+          </div>
+        )}
+        {(errorIdxs.data?.length ?? 0) > 0 && (
+          <div className="error-nav" title="Jump between failing tool results">
+            <span className="dot dot-accent" />
+            <span className="error-nav-count">{errorIdxs.data!.length}</span>
+            <Tooltip content="Previous error">
+              <button onClick={() => jumpError(-1)} aria-label="Previous error">
+                <ChevronUpIcon size={16} />
+              </button>
+            </Tooltip>
+            <Tooltip content="Next error">
+              <button onClick={() => jumpError(1)} aria-label="Next error">
+                <ChevronDownIcon size={16} />
+              </button>
+            </Tooltip>
+          </div>
+        )}
+      </div>
 
       {searchQuery && hitIdxs.length > 0 && (
         <div className="match-bar">
@@ -785,5 +822,6 @@ export default function Replay({
         </div>
       )}
     </div>
+    </BookmarkContext.Provider>
   );
 }

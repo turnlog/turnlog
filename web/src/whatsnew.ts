@@ -18,6 +18,32 @@ export interface ReleaseNotes {
 
 export const RELEASES: ReleaseNotes[] = [
   {
+    version: '0.5.0',
+    date: '2026-07-24',
+    notes: [
+      {
+        kind: 'added',
+        text: 'Give your agent memory: turnlog mcp lets Claude Code search your past sessions mid-task. Register once with: claude mcp add turnlog -- npx turnlog mcp',
+      },
+      {
+        kind: 'added',
+        text: 'Search from the terminal: turnlog search <query> — same operators as the UI, with links that open the running UI at the match.',
+      },
+      {
+        kind: 'added',
+        text: 'Bookmarks: hover any message in a replay and mark the moment; a yellow rail jumps between your marks.',
+      },
+      {
+        kind: 'added',
+        text: 'A disk tab under Spend shows which sessions are eating your storage, with a reveal button to clean up by hand.',
+      },
+      {
+        kind: 'improved',
+        text: 'The Spend header stays put while the content scrolls.',
+      },
+    ],
+  },
+  {
     version: '0.4.0',
     date: '2026-07-24',
     notes: [

@@ -2,7 +2,9 @@ import { parseArgs } from 'node:util';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { dbPath, defaultProjectsDir, loadSettings } from '../config.js';
+import readline from 'node:readline';
+import { dbPath, defaultProjectsDir, loadSettings, serverInfoPath } from '../config.js';
+import { renderSearch } from './search.js';
 import { getSessionExport, resolveSessionId } from '../server/api.js';
 import { openDb } from '../indexer/db.js';
 import { Indexer } from '../indexer/indexer.js';
@@ -20,6 +22,10 @@ Usage:
   turnlog index               Incrementally index ~/.claude/projects and exit
   turnlog index --rebuild     Drop the index and rebuild from scratch
   turnlog export <id>         Print a session as markdown (id or unique prefix)
+  turnlog search <query>      Search from the terminal (same operators as the UI:
+                              tool: kind: is:error project: model: before: after:)
+  turnlog mcp                 Serve the index as a read-only MCP server (stdio)
+                              Register: claude mcp add turnlog -- npx turnlog mcp
 
 Options:
   --port <n>       Fixed port instead of a random one
@@ -46,6 +52,8 @@ async function main(): Promise<void> {
         'no-open': { type: 'boolean' },
         'no-footer': { type: 'boolean' },
         rebuild: { type: 'boolean' },
+        limit: { type: 'string' },
+        json: { type: 'boolean' },
         help: { type: 'boolean', short: 'h' },
         version: { type: 'boolean', short: 'V' },
       },
@@ -78,6 +86,13 @@ async function main(): Promise<void> {
       return runIndex(projectsDir, values.rebuild === true);
     case 'export':
       return runExport(positionals[1], values['no-footer'] === true);
+    case 'search':
+      return runSearch(positionals.slice(1), {
+        limit: values.limit,
+        json: values.json === true,
+      });
+    case 'mcp':
+      return runMcp(projectsDir);
     default:
       fail(`Unknown command "${command}". Run turnlog --help.`);
   }
@@ -144,6 +159,16 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
     console.log('sessions appear in the UI as they are parsed.');
   }
 
+  // Let `turnlog search` print deep links into this instance. Token-bearing,
+  // so 0600 and removed on shutdown; same trust boundary as the DB beside it.
+  try {
+    fs.writeFileSync(serverInfoPath(), JSON.stringify({ url, pid: process.pid }), {
+      mode: 0o600,
+    });
+  } catch {
+    /* deep links just won't resolve */
+  }
+
   if (opts.open) openBrowser(url);
 
   driver
@@ -190,6 +215,11 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
     if (shuttingDown) return;
     shuttingDown = true;
     console.log('\nShutting down…');
+    try {
+      fs.unlinkSync(serverInfoPath());
+    } catch {
+      /* already gone */
+    }
     await stopWatching();
     await driver.close();
     events.close(); // open SSE responses would otherwise block server.close
@@ -240,6 +270,113 @@ async function runExport(idArg: string | undefined, noFooter: boolean): Promise<
   } finally {
     db.close();
   }
+}
+
+/**
+ * A running `turnlog` instance's tokened URL, verified live — or null.
+ * Loopback-only: this never leaves the machine.
+ */
+async function liveServerUrl(): Promise<string | null> {
+  try {
+    const info = JSON.parse(fs.readFileSync(serverInfoPath(), 'utf8')) as { url?: unknown };
+    if (typeof info.url !== 'string') return null;
+    const parsed = new URL(info.url);
+    const token = parsed.searchParams.get('token') ?? '';
+    const status = await fetch(new URL('/api/status', parsed), {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(800),
+    });
+    return status.ok ? info.url : null;
+  } catch {
+    return null; // no file, stale file, or no server listening
+  }
+}
+
+async function runSearch(
+  rest: string[],
+  opts: { limit?: string; json: boolean },
+): Promise<void> {
+  const query = rest.join(' ').trim();
+  if (!query) {
+    fail(
+      'Usage: turnlog search <query>\n' +
+        'Operators: tool: kind: is:error project: model: before: after: (combinable with text)',
+    );
+  }
+  let limit: number | undefined;
+  if (opts.limit !== undefined) {
+    limit = Number(opts.limit);
+    if (!Number.isFinite(limit)) fail('--limit must be a number');
+  }
+  const db = openDb(dbPath());
+  try {
+    const serverUrl = await liveServerUrl();
+    process.stdout.write(
+      renderSearch(db, query, {
+        limit,
+        json: opts.json,
+        color: process.stdout.isTTY === true && !opts.json,
+        serverUrl,
+      }),
+    );
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * MCP server mode: the index as read-only agent memory over stdio.
+ * stdout is the protocol channel — every diagnostic here goes to stderr.
+ */
+async function runMcp(projectsDir: string): Promise<void> {
+  const db = openDb(dbPath());
+  // The main app may be running and writing; wait out its locks briefly.
+  db.pragma('busy_timeout = 5000');
+
+  const known = (db.prepare(`SELECT COUNT(*) AS n FROM sessions`).get() as { n: number }).n;
+  if (known === 0) {
+    console.error('turnlog mcp: index is empty — run `turnlog` or `turnlog index` once to build it.');
+  } else {
+    // Warm incremental catch-up so results include recent sessions. A cold
+    // first build belongs to `turnlog index` — MCP clients time out on it.
+    try {
+      const settings = loadSettings();
+      await new Indexer(db, { projectsDir, pricingOverrides: settings.modelPricing }).scanAll();
+    } catch (err) {
+      console.error(
+        `turnlog mcp: index refresh failed (serving the existing index): ${
+          err instanceof Error ? err.message : err
+        }`,
+      );
+    }
+  }
+
+  const { handleMcpMessage, PARSE_ERROR } = await import('../mcp/mcp.js');
+  const write = (res: object) => process.stdout.write(`${JSON.stringify(res)}\n`);
+
+  const rl = readline.createInterface({ input: process.stdin, terminal: false });
+  rl.on('line', (line) => {
+    if (line.trim() === '') return;
+    let msg: unknown;
+    try {
+      msg = JSON.parse(line);
+    } catch {
+      write(PARSE_ERROR);
+      return;
+    }
+    // Batches were dropped from the MCP spec but cost nothing to tolerate.
+    for (const one of Array.isArray(msg) ? msg : [msg]) {
+      const res = handleMcpMessage(db, one);
+      if (res !== null) write(res);
+    }
+  });
+  // Client hung up (stdin closed) — the session is over.
+  rl.on('close', () => {
+    db.close();
+    process.exit(0);
+  });
+
+  console.error(`turnlog mcp: serving ${known} sessions over stdio (read-only, local)`);
 }
 
 main().catch((err) => {

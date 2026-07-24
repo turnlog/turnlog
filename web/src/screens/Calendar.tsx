@@ -9,7 +9,7 @@ import { navigate, sessionHash } from '../router';
 import type { SessionMeta } from '../types';
 
 /**
- * The calendar (roadmap Phase 2.7): sessions placed in time. Week view is a
+ * The calendar: sessions placed in time. Week view is a
  * day-row × time-axis timeline (days stack vertically, hours run across —
  * sessions read as horizontal Gantt-style blocks); month view is a per-day
  * heat of cost/count. "When did I work / what was I doing Tuesday afternoon".

@@ -291,6 +291,73 @@ describe('file history routes', () => {
   });
 });
 
+describe('message bookmarks', () => {
+  it('requires the token on read and write', async () => {
+    expect((await request(`/api/sessions/${SESSION_A}/bookmarks`)).status).toBe(401);
+    expect(
+      (await request(`/api/sessions/${SESSION_A}/bookmarks`, {}, 'POST', port, '{}')).status,
+    ).toBe(401);
+  });
+
+  it('toggles a bookmark and lists it back', async () => {
+    const on = await request(
+      withToken(`/api/sessions/${SESSION_A}/bookmarks`),
+      {},
+      'POST',
+      port,
+      JSON.stringify({ idx: 0, on: true }),
+    );
+    expect(on.status).toBe(200);
+    expect(on.json().idxs).toContain(0);
+
+    const list = await request(withToken(`/api/sessions/${SESSION_A}/bookmarks`));
+    expect(list.json().idxs).toContain(0);
+
+    const off = await request(
+      withToken(`/api/sessions/${SESSION_A}/bookmarks`),
+      {},
+      'POST',
+      port,
+      JSON.stringify({ idx: 0, on: false }),
+    );
+    expect(off.json().idxs).not.toContain(0);
+  });
+
+  it('rejects bad bodies and idxs with no message behind them', async () => {
+    const noIdx = await request(
+      withToken(`/api/sessions/${SESSION_A}/bookmarks`),
+      {},
+      'POST',
+      port,
+      '{}',
+    );
+    expect(noIdx.status).toBe(400);
+    const thinAir = await request(
+      withToken(`/api/sessions/${SESSION_A}/bookmarks`),
+      {},
+      'POST',
+      port,
+      JSON.stringify({ idx: 999999, on: true }),
+    );
+    expect(thinAir.status).toBe(404);
+    const noSession = await request(withToken('/api/sessions/nope/bookmarks'));
+    expect(noSession.status).toBe(404);
+  });
+});
+
+describe('disk usage route', () => {
+  it('ranks root sessions by family bytes, largest first', async () => {
+    const res = await request(withToken('/api/disk'));
+    expect(res.status).toBe(200);
+    const d = res.json();
+    expect(d.totalBytes).toBeGreaterThan(0);
+    expect(d.fileCount).toBeGreaterThan(0);
+    const bytes = d.sessions.map((s: any) => s.bytes);
+    expect([...bytes].sort((a: number, b: number) => b - a)).toEqual(bytes);
+    for (const s of d.sessions) expect(s.parentSessionId).toBeNull();
+  });
+});
+
 describe('shutdown route', () => {
   it('does not exist when no handler is wired (this test server)', async () => {
     const res = await request(withToken('/api/shutdown'), {}, 'POST');
