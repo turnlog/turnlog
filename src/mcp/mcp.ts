@@ -73,6 +73,8 @@ function compactSession(s: SessionMeta) {
     model: s.model ?? undefined,
     turns: s.turnCount,
     costUsd: s.costUsd ?? undefined,
+    // Resume chains: this session is one of N files of the same conversation.
+    chainLen: s.chainLen > 1 ? s.chainLen : undefined,
   };
 }
 

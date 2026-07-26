@@ -1,4 +1,5 @@
 import type { MessageRow, SessionMeta } from '../server/apiTypes.js';
+import { redactText } from './redact.js';
 
 /**
  * Markdown serializer over the normalized model: prompts as
@@ -11,12 +12,14 @@ import type { MessageRow, SessionMeta } from '../server/apiTypes.js';
 export interface ExportOptions {
   /** Append the "Exported with Turnlog" footer (default true, removable in settings). */
   attribution?: boolean;
+  /** Scrub secret-shaped tokens, emails, and home paths (export/redact.ts). */
+  redact?: boolean;
 }
 
 /** Cap enormous tool results / file writes so the markdown stays shareable. */
 const MAX_BLOCK_CHARS = 8000;
 
-interface RawView {
+export interface RawView {
   text: string[];
   thinking: string[];
   toolUses: { id: string | null; name: string; input: Record<string, unknown> }[];
@@ -50,8 +53,9 @@ function resultText(content: unknown): string {
   return '';
 }
 
-/** Tolerant extraction from the verbatim JSONL line — never throws. */
-function parseRaw(raw: string): RawView {
+/** Tolerant extraction from the verbatim JSONL line — never throws.
+ *  Shared with the HTML exporter (export/html.ts). */
+export function parseRaw(raw: string): RawView {
   const view: RawView = { text: [], thinking: [], toolUses: [], toolResults: [] };
   let obj: unknown;
   try {
@@ -101,7 +105,7 @@ function parseRaw(raw: string): RawView {
   return view;
 }
 
-function truncate(s: string): string {
+export function truncate(s: string): string {
   if (s.length <= MAX_BLOCK_CHARS) return s;
   return `${s.slice(0, MAX_BLOCK_CHARS)}\n… (${s.length - MAX_BLOCK_CHARS} more characters truncated)`;
 }
@@ -183,7 +187,7 @@ function toolBody(name: string, input: Record<string, unknown>): string {
   }
 }
 
-function toolSummary(name: string, input: Record<string, unknown>): string {
+export function toolSummary(name: string, input: Record<string, unknown>): string {
   const p = str(input.file_path) ?? str(input.notebook_path);
   if (p) return `${name} · ${shortPath(p)}`;
   const d = str(input.description) ?? str(input.pattern) ?? str(input.command)?.split('\n')[0];
@@ -274,5 +278,8 @@ export function sessionToMarkdown(
     );
   }
 
-  return out.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
+  // Markdown is plain text throughout, so redaction can run over the final
+  // document — one pass covers prose, code fences, and summaries alike.
+  const doc = out.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
+  return opts.redact ? redactText(doc) : doc;
 }

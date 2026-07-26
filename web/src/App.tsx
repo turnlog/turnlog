@@ -11,6 +11,7 @@ import {
   WalletIcon,
 } from './icons';
 import { navigate, useRoute } from './router';
+import { getPref, setPref, usePref } from './prefs';
 import Home from './screens/Home';
 import Replay from './screens/Replay';
 import FileHistory from './screens/FileHistory';
@@ -56,6 +57,9 @@ function StatusCircle() {
   const { data } = useStatus();
   const route = useRoute();
   const indexing = data?.state === 'indexing';
+  // First run on a new version: ring the dot until What's New has been seen.
+  const lastSeen = usePref('lastSeenVersion');
+  const hasNews = !!data && lastSeen !== data.appVersion;
   const label = data
     ? (data.lastError ??
       (indexing
@@ -63,10 +67,10 @@ function StatusCircle() {
         : `Index up to date · v${data.appVersion}`))
     : 'Connecting…';
   return (
-    <Tooltip content={`${label} · what’s new`}>
+    <Tooltip content={`${label} · ${hasNews ? 'see what’s new' : 'what’s new'}`}>
       <a
         href="#/whats-new"
-        className={`circle ${route.name === 'whatsnew' ? 'active' : ''}`}
+        className={`circle ${route.name === 'whatsnew' ? 'active' : ''} ${hasNews ? 'news' : ''}`}
         aria-label="Index status — open what's new"
         aria-current={route.name === 'whatsnew' ? 'page' : undefined}
       >
@@ -87,9 +91,7 @@ function StatusCircle() {
 function UpdateBanner() {
   const { data } = useStatus();
   const latest = data?.updateAvailable ?? null;
-  const [dismissed, setDismissed] = useState(() =>
-    localStorage.getItem('turnlog-update-dismissed'),
-  );
+  const [dismissed, setDismissed] = useState(() => getPref('updateDismissed'));
   const [copied, setCopied] = useState(false);
 
   if (!latest || dismissed === latest) return null;
@@ -105,7 +107,7 @@ function UpdateBanner() {
     }
   };
   const dismiss = () => {
-    localStorage.setItem('turnlog-update-dismissed', latest);
+    setPref('updateDismissed', latest);
     setDismissed(latest);
   };
 
@@ -229,12 +231,10 @@ export default function App() {
   const theme = useTheme();
   useLiveEvents(); // SSE: refresh index-derived queries the moment a session file reindexes
   const [stopped, setStopped] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(
-    () => localStorage.getItem('turnlog-sidebar') !== '0',
-  );
+  const [sidebarOpen, setSidebarOpen] = useState(() => getPref('sidebar') !== false);
   const toggleSidebar = () => {
     setSidebarOpen((v) => {
-      localStorage.setItem('turnlog-sidebar', v ? '0' : '1');
+      setPref('sidebar', !v);
       return !v;
     });
   };

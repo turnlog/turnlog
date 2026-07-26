@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { getPref, setPref, usePref } from './prefs';
 
 /**
  * Project filter shared between the sidebar and the home composer pills.
@@ -30,27 +31,17 @@ export function useProjectFilter(): string {
 
 /**
  * Hide-empty-sessions preference, shared between the sidebar list and the
- * calendar. Persisted so the choice survives relaunches.
+ * calendar. Server-side pref so the choice survives relaunches.
  */
 
-let hideEmpty = localStorage.getItem('turnlog-hide-empty') === '1';
-const hideEmptyListeners = new Set<() => void>();
-
 export function getHideEmpty(): boolean {
-  return hideEmpty;
+  return getPref('hideEmpty') === true;
 }
 
 export function setHideEmpty(value: boolean): void {
-  hideEmpty = value;
-  localStorage.setItem('turnlog-hide-empty', value ? '1' : '0');
-  hideEmptyListeners.forEach((fn) => fn());
-}
-
-function subscribeHideEmpty(fn: () => void): () => void {
-  hideEmptyListeners.add(fn);
-  return () => hideEmptyListeners.delete(fn);
+  setPref('hideEmpty', value);
 }
 
 export function useHideEmpty(): boolean {
-  return useSyncExternalStore(subscribeHideEmpty, getHideEmpty);
+  return usePref('hideEmpty') === true;
 }

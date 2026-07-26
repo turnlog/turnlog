@@ -188,6 +188,13 @@
     opacity: 0.3;
   }
 }
+/* Unseen release notes: note-yellow ring until What's New is opened. */
+.circle.news {
+  box-shadow: inset 0 0 0 1.5px var(--c-note);
+}
+.circle.news .status-dot {
+  background: var(--c-note);
+}
 
 .screen {
   flex: 1;
@@ -672,6 +679,21 @@
   padding: 2px 8px;
   flex: none;
 }
+/* Resume chain tip: the row stands for N session files, not one. */
+.chain-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--tx2);
+  background: var(--bg1);
+  border-radius: 999px;
+  padding: 2px 7px;
+  flex: none;
+}
+.side-item.active .chain-badge {
+  background: var(--card);
+}
 .side-item.active .side-item-model {
   background: var(--card);
 }
@@ -833,6 +855,69 @@
   letter-spacing: -0.01em;
   margin: 0;
 }
+/* Index health: full-width band under the bento — the cardinal rule, visible. */
+.health-card {
+  grid-column: 1 / -1;
+  padding: 20px 26px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.health-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--tx1);
+  white-space: nowrap;
+}
+.health-state.warn {
+  color: var(--c-error);
+}
+.health-facts {
+  font-size: 13.5px;
+  color: var(--tx1);
+}
+.health-unknown {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--tx2);
+}
+.health-unknown-lead {
+  margin-right: 2px;
+}
+.health-chip {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 3px 9px;
+}
+.health-skipped {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.health-skipped li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 12.5px;
+}
+.health-skipped code {
+  font-family: var(--mono);
+  color: var(--tx0);
+  overflow-wrap: anywhere;
+}
+.health-skipped span {
+  color: var(--c-error);
+  flex: none;
+}
+
 .see-all {
   font-size: 13px;
   color: var(--tx1);
@@ -960,6 +1045,29 @@
   align-items: center;
   gap: 8px;
   white-space: nowrap;
+}
+/* Resume-chain navigation: step between the parts of one conversation. */
+.chain-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.chain-nav-label {
+  font-size: 12px;
+  color: var(--tx2);
+}
+.chain-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: var(--tx2);
+}
+.chain-nav-btn:hover {
+  color: var(--tx0);
+  background: var(--bg2);
 }
 .replay-controls-right {
   margin-left: auto;
@@ -2154,7 +2262,7 @@
 }
 .you-are-here {
   position: absolute;
-  top: 0;
+  top: 8px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 5;

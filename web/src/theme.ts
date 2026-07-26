@@ -1,20 +1,25 @@
 import { useSyncExternalStore } from 'react';
+import { getPref, setPref } from './prefs';
 
 export type Theme = 'dark' | 'light';
 
-const STORAGE_KEY = 'turnlog-theme';
+let current: Theme = 'dark';
 
-function initial(): Theme {
+/** Called from main.tsx after prefs load, before the first render. */
+export function initTheme(): void {
   // URL override (dev/visual-testing hook), then saved choice, then OS.
   const fromUrl = new URLSearchParams(window.location.search).get('theme');
-  if (fromUrl === 'dark' || fromUrl === 'light') return fromUrl;
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored === 'dark' || stored === 'light') return stored;
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  const stored = getPref('theme');
+  current =
+    fromUrl === 'dark' || fromUrl === 'light'
+      ? fromUrl
+      : stored === 'dark' || stored === 'light'
+        ? stored
+        : window.matchMedia('(prefers-color-scheme: light)').matches
+          ? 'light'
+          : 'dark';
+  document.documentElement.dataset.theme = current;
 }
-
-let current: Theme = initial();
-document.documentElement.dataset.theme = current;
 
 const listeners = new Set<() => void>();
 
@@ -24,7 +29,7 @@ export function getTheme(): Theme {
 
 export function setTheme(theme: Theme): void {
   current = theme;
-  localStorage.setItem(STORAGE_KEY, theme);
+  setPref('theme', theme);
   document.documentElement.dataset.theme = theme;
   listeners.forEach((fn) => fn());
 }

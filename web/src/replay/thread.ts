@@ -106,6 +106,14 @@ function taskPrompt(block: Extract<Block, { kind: 'tool' }>): string | null {
 
 const norm = (s: string) => s.trim().slice(0, 200);
 
+/**
+ * Blocks for a file-based subagent transcript: plain tool folding, no
+ * sidechain regrouping — every row of the child file belongs to the one run.
+ */
+export function buildChildBlocks(rows: MessageRow[]): Block[] {
+  return foldTools(rows);
+}
+
 export function buildBlocks(rows: MessageRow[]): Block[] {
   const main: MessageRow[] = [];
   const side: MessageRow[] = [];

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { flattenSessions, useSessions, useStats, useStatus } from '../api';
+import { flattenSessions, useHealth, useSessions, useStats, useStatus } from '../api';
 import { setProjectFilter } from '../filterStore';
 import {
+  fmtBytes,
   fmtCost,
   fmtCount,
   fmtDate,
@@ -56,10 +57,62 @@ function RecentRow({ s }: { s: SessionMeta }) {
   );
 }
 
+/**
+ * Index health: the parser's cardinal rule (never crash, never drop) made
+ * visible — what was indexed, what was kept without being understood, and
+ * what could not be read at all.
+ */
+function HealthCard() {
+  const health = useHealth();
+  const h = health.data;
+  if (!h) return null;
+  const skipped = h.skipped.length;
+  return (
+    <section className="card health-card">
+      <div className="list-card-head">
+        <h2>Index health</h2>
+        <span className={`health-state ${skipped > 0 ? 'warn' : ''}`}>
+          <span className={`dot ${skipped > 0 ? 'dot-accent' : 'dot-mint'}`} />
+          {skipped > 0
+            ? `${fmtCount(skipped)} file${skipped === 1 ? '' : 's'} skipped`
+            : 'everything readable is indexed'}
+        </span>
+      </div>
+      <div className="health-facts">
+        {fmtCount(h.indexedFiles)} session files · {fmtCount(h.events)} events ·{' '}
+        {fmtBytes(h.dbBytes)} index
+      </div>
+      {h.unknownEvents > 0 && (
+        <div className="health-unknown">
+          <span className="health-unknown-lead">
+            {fmtCount(h.unknownEvents)} unrecognized event
+            {h.unknownEvents === 1 ? '' : 's'} — kept raw, shown collapsed:
+          </span>
+          {h.unknownTypes.map((t) => (
+            <span key={t.type} className="chip health-chip">
+              {t.type} ×{fmtCount(t.count)}
+            </span>
+          ))}
+        </div>
+      )}
+      {skipped > 0 && (
+        <ul className="health-skipped">
+          {h.skipped.map((f) => (
+            <li key={f.file}>
+              <code>{f.file}</code>
+              <span>{f.message}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 export default function Home() {
   const stats = useStats();
   const status = useStatus();
-  const recent = useSessions({ sort: 'started_at', dir: 'desc' });
+  const recent = useSessions({ sort: 'started_at', dir: 'desc', collapseChains: true });
   const [query, setQuery] = useState('');
 
   const s = stats.data;
@@ -199,6 +252,8 @@ export default function Home() {
             ))}
           </ul>
         </section>
+
+        <HealthCard />
       </div>
     </div>
   );

@@ -1,14 +1,17 @@
 import { memo, useContext, useMemo, useState } from 'react';
+import { useChildRows } from '../api';
 import CodeBlock from '../code/CodeBlock';
 import { langFromPath } from '../code/highlighter';
-import { fmtTime } from '../format';
+import { SkeletonLines } from '../components/Skeleton';
+import { fmtCount, fmtTime } from '../format';
 import { BookmarkFilledIcon, BookmarkIcon } from '../icons';
 import Markdown from '../md/Markdown';
-import type { MessageRow } from '../types';
-import { BookmarkContext } from './bookmarkContext';
+import type { ChildSessionSummary, MessageRow } from '../types';
+import { BookmarkContext, type BookmarkState } from './bookmarkContext';
+import { ChildSessionsContext, matchChildSession } from './childSessions';
 import { EditDiff, WriteDiff } from './DiffView';
 import { parseRaw, prettyRaw, type ToolResultView } from './raw';
-import type { Block } from './thread';
+import { buildChildBlocks, type Block } from './thread';
 
 /* ── shared bits ─────────────────────────────────────────────────────── */
 
@@ -272,6 +275,44 @@ export function SidechainRun({ blocks, label }: { blocks: Block[]; label?: strin
   );
 }
 
+/** Child idxs belong to another session — the parent's gutter must not claim them. */
+const NO_BOOKMARKS: BookmarkState = { idxs: new Set(), toggle: null };
+
+/**
+ * A file-based subagent transcript nested under its Task call — the same
+ * fold as SidechainRun, but the rows live in a child session and load on
+ * first expand.
+ */
+function ChildSessionRun({ child, label }: { child: ChildSessionSummary; label: string }) {
+  const [open, setOpen] = useState(false);
+  const rows = useChildRows(child.id, open);
+  const blocks = useMemo(() => buildChildBlocks(rows.data ?? []), [rows.data]);
+  return (
+    <div className="sidechain">
+      <button className="sidechain-head" onClick={() => setOpen(!open)}>
+        <Caret open={open} />
+        <span className="sidechain-label">{label}</span>
+        <span className="sidechain-count">{fmtCount(child.turnCount)} events</span>
+      </button>
+      {open && (
+        <div className="sidechain-body">
+          {rows.isLoading ? (
+            <SkeletonLines n={3} />
+          ) : rows.isError ? (
+            <div className="tool-note">failed to load subagent transcript</div>
+          ) : (
+            <BookmarkContext.Provider value={NO_BOOKMARKS}>
+              {blocks.map((b, i) => (
+                <BlockView key={i} block={b} currentIdx={null} />
+              ))}
+            </BookmarkContext.Provider>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const ToolBlockView = memo(function ToolBlockView({
   block,
   forceOpen,
@@ -290,6 +331,14 @@ const ToolBlockView = memo(function ToolBlockView({
     [view, block.use.toolUseId, block.use.toolName],
   );
   const isOpen = open || forceOpen;
+
+  // Task calls whose transcript went to a separate file (newer CC) get the
+  // child session nested where the inline sidechain run would have been.
+  const childSessions = useContext(ChildSessionsContext);
+  const child =
+    block.use.toolName === 'Task' && block.run === null
+      ? matchChildSession(childSessions, str(use.input.prompt), block.use.ts)
+      : null;
 
   const resultView = block.result ? parseRaw(block.result) : null;
   const failed = resultView?.toolResults[0]?.isError === true;
@@ -321,6 +370,12 @@ const ToolBlockView = memo(function ToolBlockView({
       {block.run && (
         <SidechainRun
           blocks={block.run}
+          label={str(use.input.subagent_type) ?? 'subagent run'}
+        />
+      )}
+      {child && (
+        <ChildSessionRun
+          child={child}
           label={str(use.input.subagent_type) ?? 'subagent run'}
         />
       )}

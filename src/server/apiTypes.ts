@@ -29,6 +29,19 @@ export interface SessionMeta {
   pinned: boolean;
   customName: string | null;
   note: string | null;
+  /**
+   * Sessions in this session's resume chain, itself included (1 =
+   * standalone). Resuming into a new session id copies history forward, so
+   * chain parts share their first message's uuid — one logical conversation
+   * across files.
+   */
+  chainLen: number;
+}
+
+/** `GET /api/sessions/:id/chain` — every part of a resume chain, oldest first. */
+export interface SessionChainResponse {
+  sessionId: string;
+  chain: SessionMeta[];
 }
 
 /** Partial update for a session's user annotations (`POST …/meta`). */
@@ -147,6 +160,30 @@ export interface BookmarksResponse {
   idxs: number[];
 }
 
+/**
+ * A subagent transcript session (`<session>/subagents/*.jsonl`) belonging to
+ * one parent, with the anchor the replay needs to nest it: the transcript's
+ * opening prompt IS the spawning Task call's `input.prompt`.
+ */
+export interface ChildSessionSummary extends SessionMeta {
+  firstPrompt: string;
+}
+
+/** `GET /api/sessions/:id/children` — file-based subagent transcripts. */
+export interface SessionChildrenResponse {
+  sessionId: string;
+  children: ChildSessionSummary[];
+}
+
+/**
+ * UI preferences (`GET/POST /api/prefs`) — server-side because the random
+ * per-launch port gives the browser a new origin (and thus a fresh
+ * localStorage) every run. POST merges: keys set to null are deleted.
+ */
+export interface PrefsResponse {
+  prefs: Record<string, unknown>;
+}
+
 /** A session with its on-disk footprint (subagent files rolled in). */
 export interface DiskSessionInfo extends SessionMeta {
   bytes: number;
@@ -255,6 +292,34 @@ export interface StatsResponse {
 export interface IndexedEvent {
   sessionId: string | null;
   at: string;
+}
+
+/** A file the indexer could not read during the last scan — never silent. */
+export interface SkippedFile {
+  file: string;
+  message: string;
+}
+
+/**
+ * `GET /api/health` — the cardinal rule made visible: what the index holds,
+ * what it kept without understanding (kind='unknown', stored raw), and what
+ * it could not read at all.
+ */
+export interface HealthResponse {
+  state: 'idle' | 'indexing';
+  lastScanAt: string | null;
+  /** From the last full scan this launch; empty before one completes. */
+  skipped: SkippedFile[];
+  /** Indexed JSONL files (sessions incl. subagent transcripts). */
+  indexedFiles: number;
+  /** Message rows in the index. */
+  events: number;
+  /** Records stored with kind='unknown' — kept raw, rendered collapsed. */
+  unknownEvents: number;
+  /** Unknown records grouped by their raw `type`, largest first. */
+  unknownTypes: { type: string; count: number }[];
+  /** SQLite database size on disk. */
+  dbBytes: number;
 }
 
 export interface StatusResponse {

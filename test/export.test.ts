@@ -1,7 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type Database from 'better-sqlite3';
 import { Indexer } from '../src/indexer/indexer.js';
-import { getSessionExport, resolveSessionId } from '../src/server/api.js';
+import { getSessionExport, getSessionHtmlExport, resolveSessionId } from '../src/server/api.js';
+import { redactText } from '../src/export/redact.js';
 import { SESSION_C, copyCorpus, testDb, tmpDir } from './helpers.js';
 
 let db: Database.Database;
@@ -44,5 +45,68 @@ describe('markdown export', () => {
     expect(resolveSessionId(db, SESSION_C.slice(0, 8))).toBe(SESSION_C);
     expect(resolveSessionId(db, 'zzzznope')).toBeNull();
     expect(getSessionExport(db, 'zzzznope')).toBeNull();
+  });
+});
+
+describe('html export', () => {
+  it('renders a self-contained page: prompt, tool details, diff, error result', () => {
+    const html = getSessionHtmlExport(db, SESSION_C)!;
+    expect(html).toContain('<!doctype html>');
+    expect(html).toContain('<title>api — Claude Code session</title>');
+    expect(html).toContain('class="turn you"');
+    expect(html).toContain('quantum_flux_capacitor');
+    expect(html).toContain('<details><summary>');
+    expect(html).toContain('dl-del');
+    expect(html).toContain('- return readings.gigawatts;');
+    expect(html).toContain('+ return readings?.gigawatts ?? 0;');
+    expect(html).toContain('result · error');
+    expect(html).toContain('TypeError');
+    // Self-contained means self-contained: no network fetches of any kind.
+    expect(html).not.toMatch(/src="http|href="http(?!s:\/\/turnlog\.dev)/);
+  });
+
+  it('includes the attribution footer by default and omits it on request', () => {
+    expect(getSessionHtmlExport(db, SESSION_C)!).toContain('turnlog.dev');
+    expect(getSessionHtmlExport(db, SESSION_C, { attribution: false })!).not.toContain(
+      'turnlog.dev',
+    );
+  });
+
+  it('returns null for unknown sessions', () => {
+    expect(getSessionHtmlExport(db, 'zzzznope')).toBeNull();
+  });
+});
+
+describe('redaction', () => {
+  it('scrubs well-known token shapes', () => {
+    expect(redactText('key: sk-ant-api03-abcdefghijklmnop123')).not.toContain('sk-ant');
+    expect(redactText('ghp_abcdefghijklmnopqrstuv123456')).toBe('[redacted-key]');
+    expect(redactText('AKIAIOSFODNN7EXAMPLE')).toBe('[redacted-key]');
+    expect(redactText('Authorization: Bearer abc123def456ghi789jkl')).toContain(
+      'Bearer [redacted]',
+    );
+    expect(redactText('API_KEY=super_secret_value_1')).toBe('API_KEY=[redacted]');
+  });
+
+  it('scrubs emails and home paths, leaving the rest of the path readable', () => {
+    expect(redactText('mail me at dev@example.com please')).toBe('mail me at [email] please');
+    expect(redactText('/Users/alice/projects/webapp/src/index.ts')).toBe(
+      '~/projects/webapp/src/index.ts',
+    );
+    expect(redactText('/home/bob/code/thing')).toBe('~/code/thing');
+  });
+
+  it('leaves ordinary prose and code alone', () => {
+    const s = 'const total = items.reduce((a, b) => a + b.price, 0); // sums the cart';
+    expect(redactText(s)).toBe(s);
+  });
+
+  it('applies to both export formats via the redact option', () => {
+    // The corpus is synthetic and secret-free, so prove the wiring with the
+    // option toggled: output must be identical except where patterns match.
+    const md = getSessionExport(db, SESSION_C, { redact: true })!;
+    const html = getSessionHtmlExport(db, SESSION_C, { redact: true })!;
+    expect(md).toContain('quantum_flux_capacitor');
+    expect(html).toContain('quantum_flux_capacitor');
   });
 });

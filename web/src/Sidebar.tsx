@@ -16,6 +16,7 @@ import {
   Brandmark,
   EyeClosedIcon,
   EyeIcon,
+  HistoryIcon,
   PinFilledIcon,
   PinIcon,
   SidebarIcon,
@@ -95,6 +96,14 @@ function Item({
           <span className="side-item-cost">{fmtCost(s.costUsd)}</span>
         </span>
         <span className="side-item-sub">
+          {s.chainLen > 1 && (
+            <Tooltip content={`Resumed conversation — ${s.chainLen} session files`}>
+              <span className="chain-badge">
+                <HistoryIcon size={11} />
+                {s.chainLen}
+              </span>
+            </Tooltip>
+          )}
           <span>{fmtDate(s.startedAt)}</span>
           <span>· {fmtCount(s.turnCount)}t</span>
           <span>· {fmtTokens(s.inputTokens + s.outputTokens)} tok</span>
@@ -121,7 +130,15 @@ export default function Sidebar({
 
   const status = useStatus();
   const projects = useProjects();
-  const sessions = useSessions({ sort, dir, project: project || undefined, hideEmpty });
+  // Resume chains collapse to their tip — the tip file carries the whole
+  // copied history, so earlier parts would read as duplicate rows here.
+  const sessions = useSessions({
+    sort,
+    dir,
+    project: project || undefined,
+    hideEmpty,
+    collapseChains: true,
+  });
 
   const rows = useMemo(() => flattenSessions(sessions.data), [sessions.data]);
   const total = sessions.data?.pages[0]?.total ?? 0;

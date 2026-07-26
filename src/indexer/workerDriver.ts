@@ -15,6 +15,7 @@ export class WorkerDriver implements IndexDriver {
     { resolve: (v: any) => void; reject: (e: Error) => void }
   >();
   private nextId = 1;
+  private lastSummary: ScanSummary | null = null;
   private current: IndexStatus = {
     state: 'idle',
     filesTotal: 0,
@@ -73,16 +74,20 @@ export class WorkerDriver implements IndexDriver {
     return { ...this.current };
   }
 
-  scan(): Promise<ScanSummary> {
-    return this.send<ScanSummary>('scan');
+  lastScan(): ScanSummary | null {
+    return this.lastSummary;
+  }
+
+  async scan(): Promise<ScanSummary> {
+    return (this.lastSummary = await this.send<ScanSummary>('scan'));
   }
 
   async indexFile(filePath: string): Promise<void> {
     await this.send('file', filePath);
   }
 
-  rebuild(): Promise<ScanSummary> {
-    return this.send<ScanSummary>('rebuild');
+  async rebuild(): Promise<ScanSummary> {
+    return (this.lastSummary = await this.send<ScanSummary>('rebuild'));
   }
 
   async close(): Promise<void> {

@@ -1,7 +1,9 @@
 import type Database from 'better-sqlite3';
 import { pricingForModel, type ModelPricing } from '../cost/pricing.js';
+import { sessionToHtml } from '../export/html.js';
 import { sessionToMarkdown, type ExportOptions } from '../export/markdown.js';
 import type {
+  ChildSessionSummary,
   DiskUsageResponse,
   FileHistoryResponse,
   FileSummary,
@@ -25,7 +27,10 @@ const SESSION_COLUMNS = `
   id, project_path, project_key, parent_session_id, started_at, ended_at, model, turn_count,
   input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
   cost_usd, files_touched_count,
-  COALESCE(session_meta.pinned, 0) AS pinned, custom_name, note
+  COALESCE(session_meta.pinned, 0) AS pinned, custom_name, note,
+  (SELECT COUNT(*) FROM sessions c
+   WHERE c.root_uuid = sessions.root_uuid AND c.project_key IS sessions.project_key
+     AND c.parent_session_id IS NULL) AS chain_len
 `;
 
 /** Sessions with their user annotations (pin/name/note) joined in. */
@@ -50,6 +55,8 @@ function rowToSession(r: any): SessionMeta {
     pinned: !!r.pinned,
     customName: r.custom_name ?? null,
     note: r.note ?? null,
+    // NULL root_uuid never matches the subquery — 0 reads as standalone.
+    chainLen: r.chain_len > 0 ? r.chain_len : 1,
   };
 }
 
@@ -72,6 +79,12 @@ export interface ListSessionsQuery {
   until?: string;
   /** Drop sessions with nothing in them (0 turns or 0 tokens, no cost). */
   hideEmpty?: boolean;
+  /**
+   * Collapse resume chains to their most recent part (the tip carries the
+   * whole copied history anyway). The calendar wants every part at its real
+   * time, so this is opt-in.
+   */
+  collapseChains?: boolean;
 }
 
 export function listSessions(db: Database.Database, q: ListSessionsQuery): SessionListResponse {
@@ -104,6 +117,21 @@ export function listSessions(db: Database.Database, q: ListSessionsQuery): Sessi
             AND COALESCE(cost_usd, 0) = 0 AND COALESCE(session_meta.pinned, 0) = 0)`,
     );
   }
+  if (q.collapseChains) {
+    // Keep only each chain's tip — the part with the latest activity (ties
+    // break on id so the choice is stable). Pins never hide, here either.
+    clauses.push(
+      `(COALESCE(session_meta.pinned, 0) = 1 OR root_uuid IS NULL OR NOT EXISTS (
+          SELECT 1 FROM sessions o
+          WHERE o.root_uuid = sessions.root_uuid
+            AND o.project_key IS sessions.project_key
+            AND o.parent_session_id IS NULL
+            AND o.id <> sessions.id
+            AND (COALESCE(o.ended_at, o.started_at, '') > COALESCE(sessions.ended_at, sessions.started_at, '')
+                 OR (COALESCE(o.ended_at, o.started_at, '') = COALESCE(sessions.ended_at, sessions.started_at, '')
+                     AND o.id > sessions.id))))`,
+    );
+  }
   const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
 
   const rows = db
@@ -124,6 +152,64 @@ export function getSession(db: Database.Database, id: string): SessionMeta | nul
     .prepare(`SELECT ${SESSION_COLUMNS} FROM ${SESSIONS_JOINED} WHERE sessions.id = ?`)
     .get(id);
   return row ? rowToSession(row) : null;
+}
+
+/**
+ * Every part of a session's resume chain, oldest first. Parts share their
+ * first message's uuid (resume copies history forward), and ordering by last
+ * activity puts the live continuation at the end. Null = unknown session; a
+ * standalone session is a chain of one.
+ */
+export function getSessionChain(db: Database.Database, id: string): SessionMeta[] | null {
+  const row = db.prepare(`SELECT root_uuid, project_key FROM sessions WHERE id = ?`).get(id) as
+    | { root_uuid: string | null; project_key: string | null }
+    | undefined;
+  if (!row) return null;
+  if (row.root_uuid !== null) {
+    // Project-scoped: a shared root uuid only means "same conversation"
+    // within one project dir (resume writes to the cwd's project).
+    const rows = db
+      .prepare(
+        `SELECT ${SESSION_COLUMNS} FROM ${SESSIONS_JOINED}
+         WHERE root_uuid = ? AND project_key IS ? AND parent_session_id IS NULL
+         ORDER BY COALESCE(ended_at, started_at, ''), sessions.id`,
+      )
+      .all(row.root_uuid, row.project_key);
+    if (rows.length > 0) return rows.map(rowToSession);
+  }
+  // No root uuid (empty file) or no root siblings (subagent transcript).
+  const self = getSession(db, id);
+  return self ? [self] : null;
+}
+
+const FIRST_PROMPT_MAX = 400;
+
+/**
+ * A session's file-based subagent transcripts, oldest first, each with its
+ * opening prompt — the replay matches that against Task `input.prompt` to
+ * nest the transcript under the call that spawned it. Null = unknown session.
+ */
+export function listSessionChildren(
+  db: Database.Database,
+  id: string,
+): ChildSessionSummary[] | null {
+  const exists = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(id);
+  if (!exists) return null;
+  const rows = db
+    .prepare(
+      `SELECT ${SESSION_COLUMNS},
+              (SELECT text FROM messages m
+               WHERE m.session_id = sessions.id AND m.kind = 'prompt'
+               ORDER BY m.idx LIMIT 1) AS first_prompt
+       FROM ${SESSIONS_JOINED}
+       WHERE parent_session_id = ?
+       ORDER BY started_at, sessions.id`,
+    )
+    .all(id);
+  return rows.map((r: any) => ({
+    ...rowToSession(r),
+    firstPrompt: ((r.first_prompt as string | null) ?? '').slice(0, FIRST_PROMPT_MAX),
+  }));
 }
 
 /** Length caps keep the annotations table honest — these are labels, not documents. */
@@ -201,6 +287,76 @@ export function setBookmark(
     );
   }
   return listBookmarks(db, sessionId);
+}
+
+/* ── UI preferences (server-side; the random port resets localStorage) ── */
+
+const PREF_KEY_MAX = 64;
+const PREF_VALUE_MAX = 2048;
+const PREF_PATCH_MAX = 32;
+const PREF_COUNT_MAX = 200;
+
+/** All stored UI prefs as one object; corrupt values are skipped, not fatal. */
+export function getPrefs(db: Database.Database): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const rows = db.prepare(`SELECT key, value FROM ui_prefs`).all() as {
+    key: string;
+    value: string;
+  }[];
+  for (const r of rows) {
+    try {
+      out[r.key] = JSON.parse(r.value);
+    } catch {
+      /* unreadable value — drop it from the view, leave the row */
+    }
+  }
+  return out;
+}
+
+/**
+ * Merge a patch into the stored prefs: each key is set to its JSON value,
+ * null deletes. Validates the whole patch before touching anything; returns
+ * the full prefs after the write, or null if the patch is unacceptable.
+ */
+export function setPrefs(
+  db: Database.Database,
+  patch: Record<string, unknown>,
+): Record<string, unknown> | null {
+  const entries = Object.entries(patch);
+  if (entries.length === 0 || entries.length > PREF_PATCH_MAX) return null;
+  const writes: Array<{ key: string; value: string | null }> = [];
+  for (const [key, value] of entries) {
+    if (key.length === 0 || key.length > PREF_KEY_MAX) return null;
+    if (value === null || value === undefined) {
+      writes.push({ key, value: null });
+      continue;
+    }
+    let encoded: string;
+    try {
+      encoded = JSON.stringify(value);
+    } catch {
+      return null;
+    }
+    if (encoded === undefined || encoded.length > PREF_VALUE_MAX) return null;
+    writes.push({ key, value: encoded });
+  }
+  const count = db.prepare(`SELECT COUNT(*) AS n FROM ui_prefs`).get() as { n: number };
+  if (count.n + writes.length > PREF_COUNT_MAX) return null;
+
+  const now = new Date().toISOString();
+  const tx = db.transaction(() => {
+    for (const w of writes) {
+      if (w.value === null) {
+        db.prepare(`DELETE FROM ui_prefs WHERE key = ?`).run(w.key);
+      } else {
+        db.prepare(
+          `INSERT OR REPLACE INTO ui_prefs (key, value, updated_at) VALUES (?, ?, ?)`,
+        ).run(w.key, w.value, now);
+      }
+    }
+  });
+  tx();
+  return getPrefs(db);
 }
 
 /* ── disk usage ("what's eating ~/.claude") ─────────────────────────── */
@@ -345,6 +501,21 @@ export function getSessionExport(
     .all(id)
     .map(rowToMessage);
   return sessionToMarkdown(session, rows, opts);
+}
+
+/** Full session as a self-contained styled HTML page — the shareable export. */
+export function getSessionHtmlExport(
+  db: Database.Database,
+  id: string,
+  opts: ExportOptions = {},
+): string | null {
+  const session = getSession(db, id);
+  if (!session) return null;
+  const rows = db
+    .prepare(`SELECT ${MESSAGE_COLUMNS} FROM messages WHERE session_id = ? ORDER BY idx`)
+    .all(id)
+    .map(rowToMessage);
+  return sessionToHtml(session, rows, opts);
 }
 
 const READ_TOOLS = new Set(['Read', 'Grep', 'Glob', 'LS', 'NotebookRead']);
@@ -599,7 +770,10 @@ function searchAggregates(
 const SESSION_JOIN_COLUMNS = `s.id, s.project_path, s.project_key, s.parent_session_id,
                 s.started_at, s.ended_at, s.model,
                 s.turn_count, s.input_tokens, s.output_tokens, s.cache_read_tokens,
-                s.cache_write_tokens, s.cost_usd, s.files_touched_count`;
+                s.cache_write_tokens, s.cost_usd, s.files_touched_count,
+                (SELECT COUNT(*) FROM sessions c
+                 WHERE c.root_uuid = s.root_uuid AND c.project_key IS s.project_key
+                   AND c.parent_session_id IS NULL) AS chain_len`;
 
 export function searchMessages(
   db: Database.Database,
@@ -875,6 +1049,50 @@ export function getSpend(
     },
     sinceDays,
     query: match ? q.query! : null,
+  };
+}
+
+/**
+ * The DB half of `GET /api/health` (the server merges in the driver's scan
+ * state): index size plus the unknown-record tally — the cardinal rule's
+ * "never crash, never drop" residue, surfaced instead of silent.
+ */
+export function getIndexHealth(db: Database.Database): {
+  indexedFiles: number;
+  events: number;
+  unknownEvents: number;
+  unknownTypes: { type: string; count: number }[];
+  dbBytes: number;
+} {
+  const files = db.prepare(`SELECT COUNT(*) AS n FROM sessions`).get() as { n: number };
+  const events = db.prepare(`SELECT COUNT(*) AS n FROM messages`).get() as { n: number };
+  const unknown = db
+    .prepare(`SELECT COUNT(*) AS n FROM messages WHERE kind = 'unknown'`)
+    .get() as { n: number };
+  // json_valid guards json_extract: garbage lines are stored verbatim too.
+  const types = db
+    .prepare(
+      `SELECT COALESCE(json_extract(raw_json, '$.type'), '(untyped)') AS type, COUNT(*) AS n
+       FROM messages WHERE kind = 'unknown' AND json_valid(raw_json)
+       GROUP BY 1 ORDER BY n DESC, type LIMIT 12`,
+    )
+    .all() as { type: string; n: number }[];
+  const unknownTypes = types.map((t) => ({ type: t.type, count: t.n }));
+  const garbage = db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM messages WHERE kind = 'unknown' AND NOT json_valid(raw_json)`,
+    )
+    .get() as { n: number };
+  if (garbage.n > 0) unknownTypes.push({ type: '(unparseable)', count: garbage.n });
+  const dbBytes =
+    (db.pragma('page_count', { simple: true }) as number) *
+    (db.pragma('page_size', { simple: true }) as number);
+  return {
+    indexedFiles: files.n,
+    events: events.n,
+    unknownEvents: unknown.n,
+    unknownTypes,
+    dbBytes,
   };
 }
 

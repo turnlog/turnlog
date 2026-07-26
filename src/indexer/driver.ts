@@ -15,6 +15,9 @@ export interface IndexStatus {
  */
 export interface IndexDriver {
   status(): IndexStatus;
+  /** Summary of the last full scan/rebuild this launch (null before one ran) —
+   *  the health panel's source for skipped files. */
+  lastScan(): ScanSummary | null;
   scan(): Promise<ScanSummary>;
   indexFile(filePath: string): Promise<void>;
   rebuild(): Promise<ScanSummary>;
@@ -31,6 +34,7 @@ export class InProcessDriver implements IndexDriver {
     lastScanAt: null,
   };
   private queue: Promise<unknown> = Promise.resolve();
+  private lastSummary: ScanSummary | null = null;
 
   constructor(db: Database.Database, opts: IndexerOptions) {
     this.indexer = new Indexer(db, opts);
@@ -38,6 +42,10 @@ export class InProcessDriver implements IndexDriver {
 
   status(): IndexStatus {
     return { ...this.current };
+  }
+
+  lastScan(): ScanSummary | null {
+    return this.lastSummary;
   }
 
   private enqueue<T>(op: () => Promise<T>): Promise<T> {
@@ -65,8 +73,15 @@ export class InProcessDriver implements IndexDriver {
     }
   }
 
+  private remember(summary: ScanSummary): ScanSummary {
+    this.lastSummary = summary;
+    return summary;
+  }
+
   scan(): Promise<ScanSummary> {
-    return this.enqueue(() => this.run(() => this.indexer.scanAll(this.onProgress)));
+    return this.enqueue(() =>
+      this.run(() => this.indexer.scanAll(this.onProgress).then((s) => this.remember(s))),
+    );
   }
 
   indexFile(filePath: string): Promise<void> {
@@ -78,7 +93,9 @@ export class InProcessDriver implements IndexDriver {
   }
 
   rebuild(): Promise<ScanSummary> {
-    return this.enqueue(() => this.run(() => this.indexer.rebuild(this.onProgress)));
+    return this.enqueue(() =>
+      this.run(() => this.indexer.rebuild(this.onProgress).then((s) => this.remember(s))),
+    );
   }
 
   async close(): Promise<void> {

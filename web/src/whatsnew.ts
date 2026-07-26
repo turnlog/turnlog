@@ -18,6 +18,40 @@ export interface ReleaseNotes {
 
 export const RELEASES: ReleaseNotes[] = [
   {
+    version: '0.6.0',
+    date: '2026-07-26',
+    notes: [
+      {
+        kind: 'added',
+        text: 'Resumed sessions now stitch into one conversation — the sidebar shows a single row with a part count, and the replay header steps between the parts.',
+      },
+      {
+        kind: 'added',
+        text: 'Subagent work that Claude Code logs to separate files now appears inside the parent replay, folded under the Task that ran it.',
+      },
+      {
+        kind: 'added',
+        text: 'Export any session as a single styled HTML page — dark and light, tool calls collapsible, nothing loads from the network. Next to the markdown export in the replay header.',
+      },
+      {
+        kind: 'added',
+        text: 'Redacted exports: scrub API keys, emails, and home-folder paths from a markdown or HTML export before you share it.',
+      },
+      {
+        kind: 'added',
+        text: 'An index health panel on the home screen: what’s indexed, the index size on disk, and anything Turnlog couldn’t read — nothing is dropped silently.',
+      },
+      {
+        kind: 'improved',
+        text: 'Your theme, sidebar, and view choices now survive restarts instead of resetting each launch.',
+      },
+      {
+        kind: 'improved',
+        text: 'After an update, the header status dot wears a yellow ring until you’ve opened What’s New.',
+      },
+    ],
+  },
+  {
     version: '0.5.0',
     date: '2026-07-24',
     notes: [

@@ -12,13 +12,17 @@ import type {
   DiskUsageResponse,
   FileHistoryResponse,
   FileSummary,
+  HealthResponse,
   IndexedEvent,
   MessageListResponse,
   MessageRow,
+  PrefsResponse,
   SavedSearch,
   SpendResponse,
   ProjectInfo,
   SearchResponse,
+  SessionChainResponse,
+  SessionChildrenResponse,
   SessionListResponse,
   SessionMeta,
   SessionMetaPatch,
@@ -83,6 +87,15 @@ async function apiPost<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/** UI prefs live server-side (ui_prefs) so they survive the random port. */
+export function fetchPrefs(): Promise<PrefsResponse> {
+  return apiFetch<PrefsResponse>('/api/prefs');
+}
+
+export function postPrefs(patch: Record<string, unknown>): Promise<PrefsResponse> {
+  return apiPost<PrefsResponse>('/api/prefs', patch);
+}
+
 /** Update a session's pin/name/note; caches refresh from the returned row. */
 export function useSetSessionMeta() {
   const queryClient = useQueryClient();
@@ -115,6 +128,8 @@ export interface SessionsQuery {
   project?: string;
   /** Drop sessions with nothing in them (0 turns or 0 tokens, no cost). */
   hideEmpty?: boolean;
+  /** Collapse resume chains to their most recent part (sidebar list). */
+  collapseChains?: boolean;
 }
 
 const PAGE = 100;
@@ -151,7 +166,7 @@ type AppQueryClient = ReturnType<typeof useQueryClient>;
 
 /** Refresh everything derived from the index; target one session when known. */
 function invalidateIndexDerived(queryClient: AppQueryClient, sessionId: string | null): void {
-  for (const key of ['sessions', 'sessions-range', 'stats', 'projects', 'spend']) {
+  for (const key of ['sessions', 'sessions-range', 'stats', 'projects', 'spend', 'health']) {
     void queryClient.invalidateQueries({ queryKey: [key] });
   }
   if (sessionId !== null) {
@@ -196,6 +211,15 @@ export function useStats() {
   });
 }
 
+/** Index health: skipped files + unknown-record tally (the cardinal rule, visible). */
+export function useHealth() {
+  return useQuery({
+    queryKey: ['health'],
+    queryFn: () => apiFetch<HealthResponse>('/api/health'),
+    staleTime: 30_000,
+  });
+}
+
 export function useProjects() {
   return useQuery({
     queryKey: ['projects'],
@@ -209,6 +233,7 @@ export function useSessions(q: SessionsQuery) {
   if (q.dir) params.set('dir', q.dir);
   if (q.project) params.set('project', q.project);
   if (q.hideEmpty) params.set('hideEmpty', '1');
+  if (q.collapseChains) params.set('chains', 'collapse');
 
   return useInfiniteQuery({
     queryKey: [
@@ -217,6 +242,7 @@ export function useSessions(q: SessionsQuery) {
       q.dir ?? 'desc',
       q.project ?? '',
       q.hideEmpty ?? false,
+      q.collapseChains ?? false,
     ],
     queryFn: ({ pageParam }) =>
       apiFetch<SessionListResponse>(
@@ -296,6 +322,50 @@ export function useSearch(q: string, sessionId?: string) {
     enabled: q.trim().length > 0,
     placeholderData: keepPreviousData,
     staleTime: 30_000,
+  });
+}
+
+/** Every part of a session's resume chain, oldest first (chainLen > 1 only). */
+export function useSessionChain(sessionId: string) {
+  return useQuery({
+    queryKey: ['chain', sessionId],
+    queryFn: () =>
+      apiFetch<SessionChainResponse>(
+        `/api/sessions/${encodeURIComponent(sessionId)}/chain`,
+      ),
+    staleTime: 60_000,
+  });
+}
+
+/** File-based subagent transcripts of a session (`<session>/subagents/`). */
+export function useSessionChildren(sessionId: string) {
+  return useQuery({
+    queryKey: ['children', sessionId],
+    queryFn: () =>
+      apiFetch<SessionChildrenResponse>(
+        `/api/sessions/${encodeURIComponent(sessionId)}/children`,
+      ),
+    staleTime: 60_000,
+  });
+}
+
+/** Every row of a subagent transcript, fetched when its fold first opens. */
+export function useChildRows(childId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['child-rows', childId],
+    queryFn: async (): Promise<MessageRow[]> => {
+      const out: MessageRow[] = [];
+      let after = -1;
+      for (let i = 0; i < 10; i++) {
+        const res = await fetchMessages(childId, after, 2000);
+        out.push(...res.messages);
+        if (out.length >= res.total || res.messages.length === 0) break;
+        after = res.messages[res.messages.length - 1]!.idx;
+      }
+      return out;
+    },
+    enabled,
+    staleTime: 60_000,
   });
 }
 
@@ -441,9 +511,13 @@ export function useFileHistory(path: string | null) {
   });
 }
 
-/** Session as markdown (text, not JSON) — copy/download from replay. */
-export async function fetchExport(sessionId: string): Promise<string> {
-  const res = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/export`, {
+/** Session as markdown or a self-contained HTML page — the replay's exports. */
+export async function fetchExport(
+  sessionId: string,
+  format: 'markdown' | 'html' = 'markdown',
+): Promise<string> {
+  const param = format === 'html' ? '?format=html' : '';
+  const res = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/export${param}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new ApiError(res.status, 'export failed');

@@ -14,11 +14,14 @@ import {
   useErrorIdxs,
   useSearch,
   useSession,
+  useSessionChain,
+  useSessionChildren,
   useSetSessionMeta,
   useToggleBookmark,
   useTurns,
 } from '../api';
 import { BookmarkContext } from '../replay/bookmarkContext';
+import { ChildSessionsContext } from '../replay/childSessions';
 import {
   fmtCost,
   fmtCount,
@@ -31,6 +34,7 @@ import {
   shortId,
 } from '../format';
 import { navigate, sessionHash } from '../router';
+import { getPref, setPref } from '../prefs';
 import { BlockView } from '../replay/blocks';
 import SpineView from '../replay/Spine';
 import NoteDot from '../components/NoteDot';
@@ -44,7 +48,9 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronUpIcon,
+  ChevronRightIcon,
   CmdLensIcon,
+  CodeFileIcon,
   CopyIcon,
   DiffLensIcon,
   DownloadIcon,
@@ -63,6 +69,8 @@ import type { Lens, ViewParam } from '../router';
 const PAGE = 300;
 const JUMP_BACKSCROLL = 40;
 const VIRTUOSO_BASE = 10_000_000;
+/** Stable identity for the no-subagents case — most sessions. */
+const EMPTY_CHILDREN: never[] = [];
 
 type ViewMode = 'spine' | 'log';
 
@@ -393,13 +401,14 @@ function ExportButton({ sessionId }: { sessionId: string }) {
       /* clipboard denied — ignore */
     }
   };
-  const download = async () => {
-    const md = await fetchExport(sessionId).catch(() => null);
-    if (md === null) return;
-    const url = URL.createObjectURL(new Blob([md], { type: 'text/markdown' }));
+  const download = async (format: 'markdown' | 'html') => {
+    const body = await fetchExport(sessionId, format).catch(() => null);
+    if (body === null) return;
+    const [type, ext] = format === 'html' ? ['text/html', 'html'] : ['text/markdown', 'md'];
+    const url = URL.createObjectURL(new Blob([body], { type }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${sessionId.slice(0, 8)}.md`;
+    a.download = `${sessionId.slice(0, 8)}.${ext}`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -417,13 +426,66 @@ function ExportButton({ sessionId }: { sessionId: string }) {
       <Tooltip content="Download markdown">
         <button
           className="replay-action"
-          onClick={download}
+          onClick={() => void download('markdown')}
           aria-label="Download session as markdown"
         >
           <DownloadIcon size={16} />
         </button>
       </Tooltip>
+      <Tooltip content="Download as web page (.html)">
+        <button
+          className="replay-action"
+          onClick={() => void download('html')}
+          aria-label="Download session as a self-contained web page"
+        >
+          <CodeFileIcon size={16} />
+        </button>
+      </Tooltip>
     </>
+  );
+}
+
+/**
+ * Resume-chain navigation: this conversation continued across session files
+ * (chainLen > 1 — the component only mounts then). Oldest part is 1.
+ */
+function ChainNav({ sessionId }: { sessionId: string }) {
+  const chain = useSessionChain(sessionId);
+  const parts = chain.data?.chain ?? [];
+  const pos = parts.findIndex((p) => p.id === sessionId);
+  if (parts.length < 2 || pos === -1) return null;
+  const prev = pos > 0 ? parts[pos - 1] : null;
+  const next = pos < parts.length - 1 ? parts[pos + 1] : null;
+  return (
+    <span className="chain-nav">
+      {prev && (
+        <Tooltip content={`Earlier part · ${fmtDate(prev.startedAt)}`}>
+          <a
+            href={sessionHash(prev.id)}
+            className="chain-nav-btn"
+            aria-label="Earlier part of this conversation"
+          >
+            <ChevronLeftIcon size={14} />
+          </a>
+        </Tooltip>
+      )}
+      <Tooltip content="Resumed conversation — one thread across session files">
+        <span className="chain-nav-label">
+          part {pos + 1}/{parts.length}
+        </span>
+      </Tooltip>
+      {next && (
+        <Tooltip content={`Later part · ${fmtDate(next.startedAt)}`}>
+          <a
+            href={sessionHash(next.id)}
+            className="chain-nav-btn"
+            aria-label="Later part of this conversation"
+          >
+            <ChevronRightIcon size={14} />
+          </a>
+        </Tooltip>
+      )}
+    </span>
   );
 }
 
@@ -495,11 +557,10 @@ export default function Replay({
   const turns = useTurns(sessionId);
   const [mode, setMode] = useState<ViewMode>(() => {
     if (view) return view; // ?v= deep link wins over the persisted choice
-    const stored = localStorage.getItem('turnlog-view');
-    return stored === 'log' ? stored : 'spine';
+    return getPref('view') === 'log' ? 'log' : 'spine';
   });
   const setModePersist = (m: ViewMode) => {
-    localStorage.setItem('turnlog-view', m);
+    setPref('view', m);
     setMode(m);
   };
   // Sessions without prompts (pure summaries etc.) have no spine to show.
@@ -582,10 +643,16 @@ export default function Replay({
     navigate(sessionHash(sessionId, { m: idx, q: searchQuery ?? undefined }));
   };
 
+  // File-based subagent transcripts, nested under their Task calls by every
+  // BlockView below (log view and expanded spine turns alike).
+  const childrenQuery = useSessionChildren(sessionId);
+  const childSessions = childrenQuery.data?.children ?? EMPTY_CHILDREN;
+
   const s = session.data;
 
   return (
     <BookmarkContext.Provider value={bookmarkCtx}>
+    <ChildSessionsContext.Provider value={childSessions}>
     <div className="replay">
       <div className="replay-head">
         <div className="replay-title">
@@ -603,6 +670,7 @@ export default function Replay({
               <span className="replay-id">{shortId(sessionId)}</span>
               {s?.model && <span className="chip">{fmtModel(s.model)}</span>}
               <span className="replay-date">{s ? fmtDate(s.startedAt) : ''}</span>
+              {s && s.chainLen > 1 && <ChainNav sessionId={sessionId} />}
               {s?.note && <NoteDot note={s.note} />}
             </span>
           </div>
@@ -822,6 +890,7 @@ export default function Replay({
         </div>
       )}
     </div>
+    </ChildSessionsContext.Provider>
     </BookmarkContext.Provider>
   );
 }

@@ -10,21 +10,27 @@ import {
   deleteSavedSearch,
   getDiskUsage,
   getFileHistory,
+  getIndexHealth,
+  getPrefs,
   getSession,
+  getSessionChain,
   getSessionExport,
   getSessionFilePath,
+  getSessionHtmlExport,
   getSpend,
   getStats,
   isLens,
   listBookmarks,
   listMessages,
   listProjects,
+  listSessionChildren,
   listSavedSearches,
   listSessions,
   listTurns,
   searchFiles,
   searchMessages,
   setBookmark,
+  setPrefs,
   setSessionMeta,
 } from './api.js';
 import type { SessionMetaPatch } from './apiTypes.js';
@@ -344,8 +350,8 @@ export function createServer(ctx: ServerContext): http.Server {
 }
 
 /**
- * The write surface — session annotations, saved searches, and shutdown,
- * all requiring the same token + Host/Origin gates every request passes
+ * The write surface — session annotations, saved searches, UI prefs, and
+ * shutdown, all requiring the same token + Host/Origin gates every request passes
  * first. Any other POST is 405, so the hardening posture stays "GET-only
  * plus this allowlist". Deletion rides POST (…/delete) to keep the method
  * surface at GET/HEAD/POST.
@@ -431,6 +437,16 @@ async function handleApiWrite(
     return sendJson(res, 200, { ok: true });
   }
 
+  if (p === '/api/prefs') {
+    const body = await readJsonBody(req);
+    if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+      throw new HttpError(400, 'expected a JSON object');
+    }
+    const prefs = setPrefs(db, body as Record<string, unknown>);
+    if (prefs === null) throw new HttpError(400, 'invalid prefs patch');
+    return sendJson(res, 200, { prefs });
+  }
+
   if (p === '/api/shutdown') {
     const onShutdown = ctx.onShutdown;
     if (!onShutdown) return sendJson(res, 404, { error: 'not found' });
@@ -492,6 +508,7 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
         since: q.get('since') ?? undefined,
         until: q.get('until') ?? undefined,
         hideEmpty: q.get('hideEmpty') === '1',
+        collapseChains: q.get('chains') === 'collapse',
       }),
     );
   }
@@ -526,6 +543,18 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
   if (p === '/api/disk') {
     return sendJson(res, 200, getDiskUsage(db, numParam(q, 'limit') ?? 200));
   }
+  if (p === '/api/prefs') {
+    return sendJson(res, 200, { prefs: getPrefs(db) });
+  }
+  if (p === '/api/health') {
+    const s = driver.status();
+    return sendJson(res, 200, {
+      state: s.state,
+      lastScanAt: s.lastScanAt,
+      skipped: driver.lastScan()?.errors ?? [],
+      ...getIndexHealth(db),
+    });
+  }
 
   const bookmarksMatch = /^\/api\/sessions\/([^/]+)\/bookmarks$/.exec(p);
   if (bookmarksMatch) {
@@ -533,6 +562,22 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
     const idxs = listBookmarks(db, sessionId);
     if (idxs === null) return sendJson(res, 404, { error: 'session not found' });
     return sendJson(res, 200, { sessionId, idxs });
+  }
+
+  const chainMatch = /^\/api\/sessions\/([^/]+)\/chain$/.exec(p);
+  if (chainMatch) {
+    const sessionId = decodeURIComponent(chainMatch[1]!);
+    const chain = getSessionChain(db, sessionId);
+    if (chain === null) return sendJson(res, 404, { error: 'session not found' });
+    return sendJson(res, 200, { sessionId, chain });
+  }
+
+  const childrenMatch = /^\/api\/sessions\/([^/]+)\/children$/.exec(p);
+  if (childrenMatch) {
+    const sessionId = decodeURIComponent(childrenMatch[1]!);
+    const children = listSessionChildren(db, sessionId);
+    if (children === null) return sendJson(res, 404, { error: 'session not found' });
+    return sendJson(res, 200, { sessionId, children });
   }
 
   const turnsMatch = /^\/api\/sessions\/([^/]+)\/turns$/.exec(p);
@@ -544,10 +589,30 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
 
   const exportMatch = /^\/api\/sessions\/([^/]+)\/export$/.exec(p);
   if (exportMatch) {
+    const id = decodeURIComponent(exportMatch[1]!);
     const footerParam = q.get('footer');
-    const attribution =
-      footerParam === '0' || footerParam === 'false' ? false : (ctx.exportFooter ?? true);
-    const md = getSessionExport(db, decodeURIComponent(exportMatch[1]!), { attribution });
+    const opts = {
+      attribution:
+        footerParam === '0' || footerParam === 'false' ? false : (ctx.exportFooter ?? true),
+      redact: q.get('redact') === '1',
+    };
+    if (q.get('format') === 'html') {
+      const html = getSessionHtmlExport(db, id, opts);
+      if (html === null) return sendJson(res, 404, { error: 'session not found' });
+      const payload = Buffer.from(html, 'utf8');
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        // Session logs are untrusted input. The markup is fully escaped, but
+        // an export endpoint has no business rendering on the app's origin —
+        // force a download instead.
+        'Content-Disposition': `attachment; filename="${id.slice(0, 8)}.html"`,
+        'Content-Length': payload.length,
+        'X-Content-Type-Options': 'nosniff',
+      });
+      res.end(payload);
+      return;
+    }
+    const md = getSessionExport(db, id, opts);
     if (md === null) return sendJson(res, 404, { error: 'session not found' });
     const payload = Buffer.from(md, 'utf8');
     res.writeHead(200, {

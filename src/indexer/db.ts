@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 export function openDb(path: string): Database.Database {
   const db = new Database(path);
@@ -137,6 +137,36 @@ function migrate(db: Database.Database): void {
         created_at TEXT,
         PRIMARY KEY (session_id, idx)
       );
+    `);
+  }
+
+  if (version < 7) {
+    // ui_prefs: server-side UI preferences, written by the web UI. The random
+    // per-launch port gives the browser a fresh origin every run, so
+    // localStorage resets — the index dir is the stable home. User data like
+    // session_meta: rebuild() leaves it alone.
+    //
+    // root_uuid: the uuid of a session's first real message. Resuming into a
+    // new session id copies the whole history forward (same message uuids,
+    // rewritten sessionId), so files sharing a root_uuid are one logical
+    // conversation — the resume-chain linkage. Backfilled here from messages
+    // (fallback uuids are '<sessionId>:<line>', never shared across files),
+    // computed by the indexer from now on; no reindex needed.
+    db.exec(`
+      CREATE TABLE ui_prefs (
+        key        TEXT PRIMARY KEY,
+        value      TEXT NOT NULL,
+        updated_at TEXT
+      );
+      ALTER TABLE sessions ADD COLUMN root_uuid TEXT;
+      UPDATE sessions SET root_uuid = (
+        SELECT m.uuid FROM messages m
+        WHERE m.session_id = sessions.id
+          AND m.role IN ('user', 'assistant')
+          AND m.uuid NOT LIKE sessions.id || ':%'
+        ORDER BY m.idx LIMIT 1
+      );
+      CREATE INDEX idx_sessions_root ON sessions(root_uuid);
     `);
   }
 

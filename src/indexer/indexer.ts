@@ -77,15 +77,21 @@ export class Indexer {
     this.insFileTouched = db.prepare(
       `INSERT OR IGNORE INTO files_touched (session_id, path, change_kind) VALUES (?, ?, ?)`,
     );
+    // root_uuid identifies the logical conversation: resuming into a new
+    // session id copies history forward with the original message uuids, so
+    // files sharing a first-message uuid are parts of one resume chain. Only
+    // a from-byte-zero pass sees the first message — incremental passes hand
+    // in null and COALESCE keeps the stored value.
     this.upsertSession = db.prepare(
       `INSERT INTO sessions
-         (id, project_key, project_path, file_path, parent_session_id, adapter_version,
-          file_byte_offset, file_mtime_ms, file_size, line_count)
-       VALUES (@id, @projectKey, @projectPath, @filePath, @parentSessionId, @adapterVersion,
-               @offset, @mtimeMs, @size, @lineCount)
+         (id, project_key, project_path, file_path, parent_session_id, root_uuid,
+          adapter_version, file_byte_offset, file_mtime_ms, file_size, line_count)
+       VALUES (@id, @projectKey, @projectPath, @filePath, @parentSessionId, @rootUuid,
+               @adapterVersion, @offset, @mtimeMs, @size, @lineCount)
        ON CONFLICT (id) DO UPDATE SET
          file_path         = excluded.file_path,
          parent_session_id = excluded.parent_session_id,
+         root_uuid         = COALESCE(excluded.root_uuid, sessions.root_uuid),
          adapter_version   = excluded.adapter_version,
          file_byte_offset  = excluded.file_byte_offset,
          file_mtime_ms     = excluded.file_mtime_ms,
@@ -290,6 +296,7 @@ export class Indexer {
     let newOffset = startOffset;
     let linesParsed = 0;
     let firstCwd: string | null = null;
+    let rootUuid: string | null = null;
 
     // Usage dedupe: CC writes one line per content block of a response, each
     // repeating the same message.id and usage. Seed with ids already indexed
@@ -319,11 +326,22 @@ export class Indexer {
           break;
         }
       }
-      const rec = normalizeLine(chunk.text, `${sessionId}:${lineNo}`);
+      const fallbackId = `${sessionId}:${lineNo}`;
+      const rec = normalizeLine(chunk.text, fallbackId);
       lineNo += 1;
       newOffset = chunk.end;
       if (rec) {
         if (firstCwd === null && rec.cwd) firstCwd = rec.cwd;
+        // First real message of the file (matches the schema-v7 backfill:
+        // user/assistant role with an actual uuid, not the line fallback).
+        if (
+          rootUuid === null &&
+          startOffset === 0 &&
+          (rec.role === 'user' || rec.role === 'assistant') &&
+          rec.uuid !== fallbackId
+        ) {
+          rootUuid = rec.uuid;
+        }
         let dupUsage = false;
         if (rec.messageId !== null) {
           if (seenMessageIds.has(rec.messageId)) dupUsage = true;
@@ -342,6 +360,7 @@ export class Indexer {
       projectPath: firstCwd,
       filePath,
       parentSessionId,
+      rootUuid,
       adapterVersion: ADAPTER_VERSION,
       offset: newOffset,
       mtimeMs: st.mtimeMs,

@@ -4,7 +4,7 @@ import type Database from 'better-sqlite3';
 import { Indexer } from '../src/indexer/indexer.js';
 import type { IndexDriver } from '../src/indexer/driver.js';
 import { SseHub, startServer } from '../src/server/server.js';
-import { SESSION_A, SESSION_C, copyCorpus, testDb, tmpDir } from './helpers.js';
+import { SESSION_A, SESSION_C, SESSION_D, SUBAGENT_D, copyCorpus, testDb, tmpDir } from './helpers.js';
 
 const TOKEN = 'test-token-1234567890abcdef';
 
@@ -14,6 +14,12 @@ let port: number;
 
 const stubDriver: IndexDriver = {
   status: () => ({ state: 'idle', filesTotal: 4, filesDone: 4, lastError: null, lastScanAt: null }),
+  lastScan: () => ({
+    filesSeen: 5,
+    filesIndexed: 4,
+    linesParsed: 0,
+    errors: [{ file: '/projects/broken.jsonl', message: 'EACCES' }],
+  }),
   scan: async () => ({ filesSeen: 0, filesIndexed: 0, linesParsed: 0, errors: [] }),
   indexFile: async () => undefined,
   rebuild: async () => ({ filesSeen: 0, filesIndexed: 0, linesParsed: 0, errors: [] }),
@@ -342,6 +348,125 @@ describe('message bookmarks', () => {
     expect(thinAir.status).toBe(404);
     const noSession = await request(withToken('/api/sessions/nope/bookmarks'));
     expect(noSession.status).toBe(404);
+  });
+});
+
+describe('html export route', () => {
+  it('serves format=html as a download, never rendered on the app origin', async () => {
+    const res = await request(withToken(`/api/sessions/${SESSION_C}/export?format=html`));
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('text/html');
+    expect(res.headers['content-disposition']).toContain('attachment');
+    expect(res.body).toContain('<!doctype html>');
+  });
+
+  it('keeps markdown as the default format and accepts redact=1', async () => {
+    const md = await request(withToken(`/api/sessions/${SESSION_C}/export?redact=1`));
+    expect(md.headers['content-type']).toContain('text/markdown');
+    expect(md.body).toContain('# api — Claude Code session');
+  });
+});
+
+describe('index health route', () => {
+  it('surfaces unknown-record counts by type and the last scan’s skipped files', async () => {
+    const res = await request(withToken('/api/health'));
+    expect(res.status).toBe(200);
+    const h = res.json();
+    expect(h.indexedFiles).toBeGreaterThan(0);
+    expect(h.events).toBeGreaterThan(0);
+    expect(h.dbBytes).toBeGreaterThan(0);
+    // The corpus carries records no adapter understands — kept, counted, named.
+    expect(h.unknownEvents).toBeGreaterThanOrEqual(2);
+    const types = Object.fromEntries(h.unknownTypes.map((t: any) => [t.type, t.count]));
+    expect(types['ai-title']).toBe(1);
+    expect(types['queue-operation']).toBe(1);
+    // Skipped files come from the driver's last scan summary.
+    expect(h.skipped).toEqual([{ file: '/projects/broken.jsonl', message: 'EACCES' }]);
+  });
+});
+
+describe('session chain route', () => {
+  it('serves a standalone session as a chain of one; 404 for unknown ids', async () => {
+    const res = await request(withToken(`/api/sessions/${SESSION_A}/chain`));
+    expect(res.status).toBe(200);
+    const body = res.json();
+    expect(body.sessionId).toBe(SESSION_A);
+    expect(body.chain.map((s: any) => s.id)).toEqual([SESSION_A]);
+    expect(body.chain[0].chainLen).toBe(1);
+    const missing = await request(withToken('/api/sessions/nope/chain'));
+    expect(missing.status).toBe(404);
+  });
+});
+
+describe('subagent children route', () => {
+  it('lists a session’s file-based subagent transcripts with their opening prompt', async () => {
+    const res = await request(withToken(`/api/sessions/${SESSION_D}/children`));
+    expect(res.status).toBe(200);
+    const body = res.json();
+    expect(body.sessionId).toBe(SESSION_D);
+    expect(body.children.length).toBe(1);
+    const child = body.children[0];
+    expect(child.id).toBe(SUBAGENT_D);
+    expect(child.parentSessionId).toBe(SESSION_D);
+    // The anchor: the transcript's opening prompt is the Task call's input.prompt.
+    expect(child.firstPrompt).toContain('Scan src/ for TODO');
+  });
+
+  it('returns an empty list for sessions without subagents and 404 for unknown ids', async () => {
+    const none = await request(withToken(`/api/sessions/${SESSION_A}/children`));
+    expect(none.json().children).toEqual([]);
+    const missing = await request(withToken('/api/sessions/nope/children'));
+    expect(missing.status).toBe(404);
+  });
+});
+
+describe('ui prefs', () => {
+  it('requires the token on read and write', async () => {
+    expect((await request('/api/prefs')).status).toBe(401);
+    expect((await request('/api/prefs', {}, 'POST', port, '{}')).status).toBe(401);
+  });
+
+  it('merges a patch and reads it back; null deletes', async () => {
+    const set = await request(
+      withToken('/api/prefs'),
+      {},
+      'POST',
+      port,
+      JSON.stringify({ theme: 'light', hideEmpty: true }),
+    );
+    expect(set.status).toBe(200);
+    expect(set.json().prefs).toMatchObject({ theme: 'light', hideEmpty: true });
+
+    const merged = await request(
+      withToken('/api/prefs'),
+      {},
+      'POST',
+      port,
+      JSON.stringify({ theme: 'dark' }),
+    );
+    expect(merged.json().prefs).toMatchObject({ theme: 'dark', hideEmpty: true });
+
+    const del = await request(
+      withToken('/api/prefs'),
+      {},
+      'POST',
+      port,
+      JSON.stringify({ hideEmpty: null }),
+    );
+    expect(del.json().prefs.hideEmpty).toBeUndefined();
+
+    const read = await request(withToken('/api/prefs'));
+    expect(read.status).toBe(200);
+    expect(read.json().prefs.theme).toBe('dark');
+  });
+
+  it('rejects non-object bodies, empty patches, and oversized values', async () => {
+    expect(
+      (await request(withToken('/api/prefs'), {}, 'POST', port, '[1,2]')).status,
+    ).toBe(400);
+    expect((await request(withToken('/api/prefs'), {}, 'POST', port, '{}')).status).toBe(400);
+    const huge = JSON.stringify({ big: 'x'.repeat(4000) });
+    expect((await request(withToken('/api/prefs'), {}, 'POST', port, huge)).status).toBe(400);
   });
 });
 

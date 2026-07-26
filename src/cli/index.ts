@@ -5,7 +5,7 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { dbPath, defaultProjectsDir, loadSettings, serverInfoPath } from '../config.js';
 import { renderSearch } from './search.js';
-import { getSessionExport, resolveSessionId } from '../server/api.js';
+import { getSessionExport, getSessionHtmlExport, resolveSessionId } from '../server/api.js';
 import { openDb } from '../indexer/db.js';
 import { Indexer } from '../indexer/indexer.js';
 import { WorkerDriver } from '../indexer/workerDriver.js';
@@ -21,7 +21,9 @@ Usage:
   turnlog                     Start the local server and open the UI
   turnlog index               Incrementally index ~/.claude/projects and exit
   turnlog index --rebuild     Drop the index and rebuild from scratch
-  turnlog export <id>         Print a session as markdown (id or unique prefix)
+  turnlog export <id>         Print a session as markdown (id or unique prefix);
+                              --html for a styled, self-contained web page,
+                              --redact to scrub keys, emails, and home paths
   turnlog search <query>      Search from the terminal (same operators as the UI:
                               tool: kind: is:error project: model: before: after:)
   turnlog mcp                 Serve the index as a read-only MCP server (stdio)
@@ -51,6 +53,8 @@ async function main(): Promise<void> {
         projects: { type: 'string' },
         'no-open': { type: 'boolean' },
         'no-footer': { type: 'boolean' },
+        html: { type: 'boolean' },
+        redact: { type: 'boolean' },
         rebuild: { type: 'boolean' },
         limit: { type: 'string' },
         json: { type: 'boolean' },
@@ -85,7 +89,11 @@ async function main(): Promise<void> {
     case 'index':
       return runIndex(projectsDir, values.rebuild === true);
     case 'export':
-      return runExport(positionals[1], values['no-footer'] === true);
+      return runExport(positionals[1], {
+        noFooter: values['no-footer'] === true,
+        html: values.html === true,
+        redact: values.redact === true,
+      });
     case 'search':
       return runSearch(positionals.slice(1), {
         limit: values.limit,
@@ -256,17 +264,25 @@ async function runIndex(projectsDir: string, rebuild: boolean): Promise<void> {
   db.close();
 }
 
-async function runExport(idArg: string | undefined, noFooter: boolean): Promise<void> {
+async function runExport(
+  idArg: string | undefined,
+  opts: { noFooter: boolean; html: boolean; redact: boolean },
+): Promise<void> {
   if (!idArg) fail('Usage: turnlog export <session-id>  (accepts a unique id prefix)');
   const db = openDb(dbPath());
   try {
     const id = resolveSessionId(db, idArg);
     if (!id) fail(`No session matches "${idArg}". Run turnlog and copy an id from the URL.`);
     const settings = loadSettings();
-    const attribution = noFooter ? false : (settings.exportFooter ?? true);
-    const md = getSessionExport(db, id, { attribution });
-    if (md === null) fail(`Session "${id}" not found.`);
-    process.stdout.write(md);
+    const exportOpts = {
+      attribution: opts.noFooter ? false : (settings.exportFooter ?? true),
+      redact: opts.redact,
+    };
+    const out = opts.html
+      ? getSessionHtmlExport(db, id, exportOpts)
+      : getSessionExport(db, id, exportOpts);
+    if (out === null) fail(`Session "${id}" not found.`);
+    process.stdout.write(out);
   } finally {
     db.close();
   }

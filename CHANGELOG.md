@@ -4,6 +4,44 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] — 2026-07-26
+
+### Added
+
+- Resume chains stitched together: resuming a session into a new file used to
+  show up as a near-duplicate row. Parts of one conversation are now linked
+  (they share their opening message), the sidebar lists only the latest part
+  with a badge showing the part count, and the replay header gains
+  part-by-part navigation. Served by `GET /api/sessions/:id/chain`; the
+  session list accepts `chains=collapse`.
+- Subagent transcripts nested in replay: Task runs that newer Claude Code
+  logs to separate files (`<session>/subagents/`) now appear inside the
+  parent replay, folded under the Task call that spawned them and loaded when
+  expanded — same as inline subagent runs. Served by
+  `GET /api/sessions/:id/children`.
+- UI preferences survive restarts: theme, sidebar visibility, hide-empty,
+  spine/log choice, and dismissed update notices now live in the local index
+  (`GET`/`POST /api/prefs`) instead of the browser — the random per-launch
+  port gave the browser a fresh localStorage every run, resetting them.
+- After an update, the header status dot wears a yellow ring until you open
+  What's New once; the page itself clears it.
+- Index health panel on the home screen: how many session files and events
+  are indexed, the on-disk index size, any files the last scan could not
+  read (with the reason), and a count of unrecognized record types — which
+  Turnlog keeps raw rather than dropping, so a Claude Code format change
+  shows up here as a number instead of as silent data loss. Served by
+  `GET /api/health`.
+- Static HTML export: every session can now leave as one self-contained,
+  styled web page — dark/light theme, prompts and replies as cards, tool
+  calls as collapsible details, diffs colored. Nothing in the file loads
+  from the network. Available as a new download button in the replay header,
+  `turnlog export <id> --html` in the terminal, and
+  `GET /api/sessions/:id/export?format=html`.
+- Redaction for exports: pass `--redact` (CLI) or `redact=1` (API) to scrub
+  API-key-shaped tokens, JWTs, `key=value` secrets, email addresses, and
+  home-directory paths from an export before sharing it — both the markdown
+  and HTML formats.
+
 ## [0.5.0] — 2026-07-24
 
 ### Added

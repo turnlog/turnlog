@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { useStatus } from '../api';
+import { getPref, setPref } from '../prefs';
 import { RELEASES } from '../whatsnew';
 
 function fmtReleaseDate(iso: string): string {
@@ -13,6 +15,13 @@ function fmtReleaseDate(iso: string): string {
 export default function WhatsNew() {
   const { data } = useStatus();
   const current = data?.appVersion ?? null;
+
+  // Reading this page clears the header dot's "new version" ring.
+  useEffect(() => {
+    if (current && getPref('lastSeenVersion') !== current) {
+      setPref('lastSeenVersion', current);
+    }
+  }, [current]);
 
   return (
     <div className="whatsnew">
