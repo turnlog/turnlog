@@ -177,10 +177,15 @@ export function sessionToHtml(
     ? session.model.replace(/^claude-/, '').replace(/-\d{8}$/, '')
     : null;
   const date = session.startedAt ? session.startedAt.slice(0, 10) : 'unknown date';
+  // The session's name leads when one exists (user's custom name, else CC's
+  // own title); the project then moves down into the meta line.
+  const title = session.customName ?? session.aiTitle;
   const meta = [
     date,
+    title ? project : null,
     model,
     `${session.turnCount} turns`,
+    opts.excerpt ? 'excerpt' : null,
     fmtDuration(session.startedAt, session.endedAt),
     `${fmtCost(session.costUsd)} est.`,
   ]
@@ -229,6 +234,9 @@ export function sessionToHtml(
         break;
       case 'system':
       case 'meta':
+      case 'title':
+      case 'attachment':
+      case 'mode':
       case 'unknown':
         break; // omitted from prose export
       default: {
@@ -272,13 +280,13 @@ export function sessionToHtml(
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(project)} — Claude Code session</title>
+<title>${esc(red(title ?? project))} — Claude Code session</title>
 <style>${STYLE}</style>
 </head>
 <body>
 <main>
 <header class="head">
-<h1>${esc(project)}</h1>
+<h1>${esc(red(title ?? project))}</h1>
 <p class="meta">${esc(meta)}</p>
 </header>
 ${body.join('\n')}

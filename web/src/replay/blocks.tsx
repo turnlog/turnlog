@@ -252,6 +252,34 @@ function ResultBody({ result }: { result: MessageRow }) {
   );
 }
 
+/**
+ * A road not taken: the prompt (and any work under it) that was interrupted
+ * and replaced by a retry. Folded away by default — it did not happen — but
+ * never dropped, so "what did I ask before I rephrased" stays answerable.
+ */
+function AbandonedRun({ blocks }: { blocks: Block[] }) {
+  const [open, setOpen] = useState(false);
+  const n = blocks.length;
+  return (
+    <div className="sidechain abandoned-run">
+      <button className="sidechain-head" onClick={() => setOpen(!open)}>
+        <Caret open={open} />
+        <span className="sidechain-label">abandoned attempt</span>
+        <span className="sidechain-count">
+          {n} event{n === 1 ? '' : 's'}
+        </span>
+      </button>
+      {open && (
+        <div className="sidechain-body">
+          {blocks.map((b, i) => (
+            <BlockView key={i} block={b} currentIdx={null} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SidechainRun({ blocks, label }: { blocks: Block[]; label?: string }) {
   const [open, setOpen] = useState(false);
   const turns = blocks.length;
@@ -410,6 +438,92 @@ const SystemBlock = memo(function SystemBlock({ row }: { row: MessageRow }) {
   );
 });
 
+function TitleBlock({ row }: { row: MessageRow }) {
+  return (
+    <div className="block block-summary">
+      <span className="chip chip-summary">title</span>
+      <span className="summary-text">{row.text}</span>
+    </div>
+  );
+}
+
+/** Attachment payloads worth a visible chip; everything else is bookkeeping. */
+const ATTACH_LABEL: Record<string, string> = {
+  file: 'file attached',
+  directory: 'directory attached',
+  edited_text_file: 'file edited',
+  queued_command: 'queued',
+  plan_mode: 'plan mode',
+  plan_mode_exit: 'left plan mode',
+  auto_mode: 'auto mode',
+  auto_mode_exit: 'left auto mode',
+};
+
+const AttachmentBlock = memo(function AttachmentBlock({ row }: { row: MessageRow }) {
+  const [open, setOpen] = useState(false);
+  const att = useMemo(() => {
+    try {
+      const a = (JSON.parse(row.raw) as { attachment?: unknown }).attachment;
+      return typeof a === 'object' && a !== null ? (a as Record<string, unknown>) : null;
+    } catch {
+      return null;
+    }
+  }, [row.raw]);
+  const type = str(att?.type) ?? '';
+  const label = ATTACH_LABEL[type];
+
+  if (label) {
+    // User-meaningful: path for file-ish subtypes, the prompt for queued ones.
+    const detail = row.text || str(att?.prompt) || str(att?.planFilePath) || '';
+    return (
+      <div className="block block-summary block-attachment">
+        <span className="chip chip-attach">{label}</span>
+        {detail && <span className="attach-detail">{shortPath(detail)}</span>}
+        <Ts iso={row.ts} />
+      </div>
+    );
+  }
+  // Harness bookkeeping (reminders, tool listings, …) — recognized, dim,
+  // collapsed. Same posture as unknown rows, minus the "unrecognized" alarm.
+  return (
+    <div className="block block-unknown">
+      <button className="system-head" onClick={() => setOpen(!open)}>
+        <Caret open={open} />
+        <span className="block-label">context{type ? ` · ${type}` : ''}</span>
+        <Ts iso={row.ts} />
+      </button>
+      {open && <ClampedText text={prettyRaw(row.raw)} />}
+    </div>
+  );
+});
+
+/**
+ * A mode/permission-mode change ("permissions · auto"). CC writes these
+ * repeatedly; thread.ts folds runs of the same value, so a rendered row is an
+ * actual switch.
+ */
+const ModeBlock = memo(function ModeBlock({ row }: { row: MessageRow }) {
+  const text = useMemo(() => {
+    try {
+      const o = JSON.parse(row.raw) as {
+        type?: unknown;
+        mode?: unknown;
+        permissionMode?: unknown;
+      };
+      if (typeof o.permissionMode === 'string') return `permissions · ${o.permissionMode}`;
+      if (typeof o.mode === 'string') return `mode · ${o.mode}`;
+    } catch {
+      /* degrade below */
+    }
+    return 'mode';
+  }, [row.raw]);
+  return (
+    <div className="block block-mode">
+      <span className="mode-text">{text}</span>
+    </div>
+  );
+});
+
 const UnknownBlock = memo(function UnknownBlock({ row }: { row: MessageRow }) {
   const [open, setOpen] = useState(false);
   const type = useMemo(() => {
@@ -443,6 +557,12 @@ function MessageBlock({ row }: { row: MessageRow }) {
     case 'system':
     case 'meta': // injected context (isMeta) — a dim collapsible row, not a prompt
       return <SystemBlock row={row} />;
+    case 'title':
+      return <TitleBlock row={row} />;
+    case 'attachment':
+      return <AttachmentBlock row={row} />;
+    case 'mode':
+      return <ModeBlock row={row} />;
     case 'tool_result':
       // Unpaired result (tool_use outside the loaded window) — still shown.
       return <ResultBody result={row} />;
@@ -474,6 +594,8 @@ export function BlockView({
       <MessageBlock row={block.row} />
     ) : block.kind === 'tool' ? (
       <ToolBlockView block={block} forceOpen={isCurrent} defaultOpen={defaultOpen} />
+    ) : block.kind === 'abandoned' ? (
+      <AbandonedRun blocks={block.run} />
     ) : (
       <SidechainRun blocks={block.run} />
     );

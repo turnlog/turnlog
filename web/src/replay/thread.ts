@@ -23,14 +23,98 @@ export type Block =
       run: Block[] | null;
       repIdx: number;
     }
-  | { kind: 'orphan-run'; run: Block[]; repIdx: number };
+  | { kind: 'orphan-run'; run: Block[]; repIdx: number }
+  | { kind: 'abandoned'; run: Block[]; repIdx: number };
+
+const INERT_KINDS = new Set(['meta', 'system', 'attachment', 'mode', 'title', 'unknown']);
+
+/**
+ * Rows on abandoned branches: interrupting Claude and retyping leaves the
+ * first attempt as a dead sibling subtree that file order would otherwise
+ * replay as a normal turn.
+ *
+ * Most multi-child nodes are not branches — continuation lines of one API
+ * response (same message id), `tool_result` rows pairing with their call, and
+ * injected bookkeeping records all hang off a shared parent. Past those, the
+ * last child in file order is the live path and earlier siblings are dead.
+ *
+ * Mirrors `findAbandonedIdxs` in `src/server/api.ts` (which does the same for
+ * the turn spine). This half sees only the loaded window: a fork whose halves
+ * straddle the window edge simply renders flat — degrade, never throw.
+ */
+export function findAbandoned(rows: MessageRow[]): Set<number> {
+  // Sidechains fork by design (parallel subagents share a parent) — the main
+  // chain is the only place a branch means "abandoned".
+  const main = rows.filter((r) => !r.isSidechain);
+  const byUuid = new Map(main.map((r) => [r.uuid, r]));
+  const children = new Map<string, MessageRow[]>();
+  for (const r of main) {
+    if (r.parentUuid === null) continue;
+    const list = children.get(r.parentUuid);
+    if (list) list.push(r);
+    else children.set(r.parentUuid, [r]);
+  }
+
+  const abandoned = new Set<number>();
+  for (const [parentUuid, kids] of children) {
+    if (kids.length < 2) continue;
+    const parentMsgId = byUuid.get(parentUuid)?.messageId ?? null;
+    const forks = kids.filter(
+      (c) =>
+        !(parentMsgId !== null && c.messageId === parentMsgId) &&
+        c.kind !== 'tool_result' &&
+        !INERT_KINDS.has(c.kind),
+    );
+    if (forks.length < 2) continue;
+    forks.sort((a, b) => a.idx - b.idx);
+    for (const dead of forks.slice(0, -1)) {
+      const stack = [dead];
+      while (stack.length > 0) {
+        const node = stack.pop()!;
+        if (abandoned.has(node.idx)) continue;
+        abandoned.add(node.idx);
+        for (const child of children.get(node.uuid) ?? []) stack.push(child);
+      }
+    }
+  }
+  return abandoned;
+}
+
+/**
+ * Mode rows split into two independent streams ('mode', 'permission-mode');
+ * CC rewrites each repeatedly with the same value. Only a changed value is a
+ * moment worth a row.
+ */
+function modeChange(row: MessageRow): { stream: string; value: string } | null {
+  try {
+    const o = JSON.parse(row.raw) as { type?: unknown; mode?: unknown; permissionMode?: unknown };
+    const stream = typeof o.type === 'string' ? o.type : '';
+    const value =
+      typeof o.permissionMode === 'string'
+        ? o.permissionMode
+        : typeof o.mode === 'string'
+          ? o.mode
+          : '';
+    return { stream, value };
+  } catch {
+    return null;
+  }
+}
 
 /** Fold tool_use/tool_result pairs; no sidechain handling at this level. */
 function foldTools(rows: MessageRow[]): Block[] {
   const blocks: Block[] = [];
   const pendingTools = new Map<string, Extract<Block, { kind: 'tool' }>>();
+  const lastMode = new Map<string, string>();
 
   for (const row of rows) {
+    if (row.kind === 'mode') {
+      const change = modeChange(row);
+      if (change) {
+        if (lastMode.get(change.stream) === change.value) continue; // repeat — fold away
+        lastMode.set(change.stream, change.value);
+      }
+    }
     if (row.kind === 'tool_use') {
       const block: Extract<Block, { kind: 'tool' }> = {
         kind: 'tool',
@@ -119,7 +203,31 @@ export function buildBlocks(rows: MessageRow[]): Block[] {
   const side: MessageRow[] = [];
   for (const row of rows) (row.isSidechain ? side : main).push(row);
 
-  const blocks = foldTools(main);
+  // Roads not taken fold away into one marker each, in place, so the replay
+  // reads as the conversation that actually happened without hiding the rest.
+  const dead = findAbandoned(main);
+  const live = dead.size === 0 ? main : main.filter((r) => !dead.has(r.idx));
+  const blocks = foldTools(live);
+  if (dead.size > 0) {
+    const deadRows = main.filter((r) => dead.has(r.idx));
+    const runs: MessageRow[][] = [];
+    for (const row of deadRows) {
+      // Consecutive dead rows belong to the same abandoned attempt.
+      const last = runs[runs.length - 1];
+      if (last && row.idx === last[last.length - 1]!.idx + 1) last.push(row);
+      else runs.push([row]);
+    }
+    for (const run of runs) {
+      const block: Block = {
+        kind: 'abandoned',
+        run: foldTools(run),
+        repIdx: run[0]!.idx,
+      };
+      const at = blocks.findIndex((b) => b.repIdx > block.repIdx);
+      if (at === -1) blocks.push(block);
+      else blocks.splice(at, 0, block);
+    }
+  }
   if (side.length === 0) return blocks;
 
   const runs = groupSidechainRuns(side);
@@ -174,6 +282,7 @@ export function idxToBlockMap(blocks: Block[]): Map<number, number> {
         if (b.result) map.set(b.result.idx, i);
         b.run?.forEach(claim);
       } else {
+        // orphan-run / abandoned — both carry a nested block list.
         b.run.forEach(claim);
       }
     };

@@ -14,6 +14,7 @@ import type {
   FileSummary,
   HealthResponse,
   IndexedEvent,
+  MaintenanceResponse,
   MessageListResponse,
   MessageRow,
   PrefsResponse,
@@ -220,6 +221,23 @@ export function useHealth() {
   });
 }
 
+/**
+ * Housekeeping on Turnlog's own index: 'prune' forgets session files that no
+ * longer exist, 'vacuum' repacks the database. Both refresh the health card.
+ */
+export function useMaintenance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (action: 'prune' | 'vacuum') =>
+      apiPost<MaintenanceResponse>('/api/maintenance', { action }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['health'] });
+      void queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
+    },
+  });
+}
+
 export function useProjects() {
   return useQuery({
     queryKey: ['projects'],
@@ -326,7 +344,7 @@ export function useSearch(q: string, sessionId?: string) {
 }
 
 /** Every part of a session's resume chain, oldest first (chainLen > 1 only). */
-export function useSessionChain(sessionId: string) {
+export function useSessionChain(sessionId: string, enabled = true) {
   return useQuery({
     queryKey: ['chain', sessionId],
     queryFn: () =>
@@ -334,6 +352,7 @@ export function useSessionChain(sessionId: string) {
         `/api/sessions/${encodeURIComponent(sessionId)}/chain`,
       ),
     staleTime: 60_000,
+    enabled,
   });
 }
 
@@ -512,14 +531,25 @@ export function useFileHistory(path: string | null) {
 }
 
 /** Session as markdown or a self-contained HTML page — the replay's exports. */
-export async function fetchExport(
-  sessionId: string,
-  format: 'markdown' | 'html' = 'markdown',
-): Promise<string> {
-  const param = format === 'html' ? '?format=html' : '';
-  const res = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/export${param}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+export interface ExportQuery {
+  format?: 'markdown' | 'html';
+  redact?: boolean;
+  /** Message-idx bounds for a partial export (the share panel's turn range). */
+  fromIdx?: number;
+  toIdx?: number;
+}
+
+export async function fetchExport(sessionId: string, q: ExportQuery = {}): Promise<string> {
+  const params = new URLSearchParams();
+  if (q.format === 'html') params.set('format', 'html');
+  if (q.redact) params.set('redact', '1');
+  if (q.fromIdx !== undefined) params.set('from', String(q.fromIdx));
+  if (q.toIdx !== undefined) params.set('to', String(q.toIdx));
+  const qs = params.toString();
+  const res = await fetch(
+    `/api/sessions/${encodeURIComponent(sessionId)}/export${qs ? `?${qs}` : ''}`,
+    { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+  );
   if (!res.ok) throw new ApiError(res.status, 'export failed');
   return res.text();
 }

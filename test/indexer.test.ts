@@ -45,7 +45,7 @@ describe('Indexer', () => {
     expect(count.n).toBe(6);
 
     const a = sessionRow(SESSION_A);
-    expect(a.turn_count).toBe(16);
+    expect(a.turn_count).toBe(22);
     expect(a.files_touched_count).toBe(2);
     expect(a.model).toBe('claude-opus-4-8');
     expect(a.project_path).toBe('/Users/dev/projects/webapp');
@@ -53,6 +53,71 @@ describe('Indexer', () => {
     expect(a.started_at).toBe('2026-07-01T10:00:00.000Z');
     expect(a.ended_at).toBe('2026-07-01T10:03:00.000Z');
     expect(a.cost_usd).toBeGreaterThan(0);
+  });
+
+  it('lifts CC titles onto the session row, custom outranking ai in the API', async () => {
+    await indexer.scanAll();
+    const a = sessionRow(SESSION_A);
+    expect(a.ai_title).toBe('WebSocket reconnect fix');
+    expect(a.cc_title).toBe('Reconnect surgery');
+    const meta = listSessions(db, {}).sessions.find((s) => s.id === SESSION_A);
+    expect(meta?.aiTitle).toBe('Reconnect surgery');
+  });
+
+  it('a later ai-title wins, and incremental passes keep stored titles', async () => {
+    await indexer.scanAll();
+    fs.appendFileSync(
+      sessionAPath(),
+      `{"type":"ai-title","aiTitle":"Reconnect + tests","sessionId":"${SESSION_A}"}\n`,
+    );
+    await indexer.indexFile(sessionAPath());
+    expect(sessionRow(SESSION_A).ai_title).toBe('Reconnect + tests');
+    // A pass that sees no title records must not clear the stored ones.
+    fs.appendFileSync(
+      sessionAPath(),
+      `{"parentUuid":"a5","isSidechain":false,"sessionId":"${SESSION_A}","type":"user","message":{"role":"user","content":"ok"},"uuid":"u7","timestamp":"2026-07-01T10:06:00.000Z"}\n`,
+    );
+    await indexer.indexFile(sessionAPath());
+    expect(sessionRow(SESSION_A).ai_title).toBe('Reconnect + tests');
+    expect(sessionRow(SESSION_A).cc_title).toBe('Reconnect surgery');
+  });
+
+  it('prunes sessions whose files are gone, keeping the user’s annotations', async () => {
+    const { pruneMissingSessions, setSessionMeta, getSession } = await import(
+      '../src/server/api.js'
+    );
+    await indexer.scanAll();
+    setSessionMeta(db, SESSION_A, { pinned: true, note: 'keep me' });
+
+    expect(pruneMissingSessions(db).pruned).toBe(0); // everything still on disk
+    fs.rmSync(sessionAPath());
+    expect(pruneMissingSessions(db).pruned).toBe(1);
+
+    expect(sessionRow(SESSION_A)).toBeUndefined();
+    const orphaned = db
+      .prepare('SELECT COUNT(*) AS n FROM messages WHERE session_id = ?')
+      .get(SESSION_A) as { n: number };
+    expect(orphaned.n).toBe(0);
+    // The FTS index must not keep phantoms of the deleted rows.
+    expect(searchMessages(db, { query: 'useWebSocket' }).totalHits).toBe(0);
+    // Annotations are user data: they outlive the file, like they outlive rebuild().
+    const meta = db
+      .prepare('SELECT pinned, note FROM session_meta WHERE session_id = ?')
+      .get(SESSION_A) as { pinned: number; note: string };
+    expect(meta).toMatchObject({ pinned: 1, note: 'keep me' });
+    expect(getSession(db, SESSION_A)).toBeNull();
+  });
+
+  it('vacuum repacks without losing anything', async () => {
+    const { vacuumIndex } = await import('../src/server/api.js');
+    await indexer.scanAll();
+    const before = db.prepare('SELECT COUNT(*) AS n FROM messages').get() as { n: number };
+    const res = vacuumIndex(db);
+    expect(res.dbBytes).toBeGreaterThan(0);
+    expect(res.freedBytes).toBeGreaterThanOrEqual(0);
+    const after = db.prepare('SELECT COUNT(*) AS n FROM messages').get() as { n: number };
+    expect(after.n).toBe(before.n);
+    expect(searchMessages(db, { query: 'useWebSocket' }).totalHits).toBeGreaterThan(0);
   });
 
   it('prefers per-message costUSD recorded by older CC versions', async () => {

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type Database from 'better-sqlite3';
 import { Indexer } from '../src/indexer/indexer.js';
-import { getSessionChain, listSessions, setSessionMeta } from '../src/server/api.js';
+import { getSessionChain, getSpend, listSessions, setSessionMeta } from '../src/server/api.js';
 import { testDb, tmpDir } from './helpers.js';
 
 /**
@@ -144,5 +144,19 @@ describe('resume-chain stitching', () => {
       .prepare(`SELECT root_uuid FROM sessions WHERE id = ?`)
       .get(SESSION_Y) as { root_uuid: string | null };
     expect(row.root_uuid).toBe('p1');
+  });
+
+  it('spend bills a chain’s shared prefix once, not once per part', () => {
+    const spend = getSpend(db, { days: 3650 });
+    // Undeduped, X (200/40) + Y (300/60 — it re-carries x1+x2) + Z (100/20)
+    // would read 600/120. Chain-aware: x1/x2 count once, in X.
+    expect(spend.totals.inputTokens).toBe(400);
+    expect(spend.totals.outputTokens).toBe(80);
+    expect(spend.totals.sessions).toBe(3);
+    const proj = spend.byProject.find((p) => p.key === '-Users-dev-projects-chainproj');
+    expect(proj?.tokens).toBe(480);
+    expect(proj?.sessions).toBe(3);
+    // The model split dedupes the same way.
+    expect(spend.byModel[0]?.tokens).toBe(480);
   });
 });

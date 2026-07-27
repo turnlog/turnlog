@@ -46,6 +46,20 @@ describe('markdown export', () => {
     expect(resolveSessionId(db, 'zzzznope')).toBeNull();
     expect(getSessionExport(db, 'zzzznope')).toBeNull();
   });
+
+  it('exports only the requested idx range, marked as an excerpt', () => {
+    // Rows 0–1 are the prompt + first prose; the Bash failure sits later.
+    const md = getSessionExport(db, SESSION_C, {}, { fromIdx: 0, toIdx: 1 })!;
+    expect(md).toContain('(excerpt)');
+    expect(md).toContain('> **You:**');
+    expect(md).not.toContain('<details><summary>Bash');
+    // Tail-only export drops the prompt.
+    const tail = getSessionExport(db, SESSION_C, {}, { fromIdx: 2 })!;
+    expect(tail).not.toContain('> **You:**');
+    expect(tail).toContain('<details><summary>Bash');
+    // An unbounded range is the whole session, unmarked.
+    expect(getSessionExport(db, SESSION_C, {}, {})!).not.toContain('(excerpt)');
+  });
 });
 
 describe('html export', () => {

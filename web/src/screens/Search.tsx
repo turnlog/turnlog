@@ -215,6 +215,7 @@ export default function Search({ query }: { query: string }) {
         </div>
         <div className="search-ops">
           narrow with <code>tool:Bash</code> <code>kind:prompt</code> <code>is:error</code>{' '}
+          <code>is:pinned</code> <code>has:note</code> <code>has:bookmark</code>{' '}
           <code>project:name</code> <code>model:opus</code> <code>before:2026-07</code>{' '}
           <code>after:2026-01</code>
         </div>

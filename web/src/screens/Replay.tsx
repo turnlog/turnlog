@@ -50,7 +50,6 @@ import {
   ChevronUpIcon,
   ChevronRightIcon,
   CmdLensIcon,
-  CodeFileIcon,
   CopyIcon,
   DiffLensIcon,
   DownloadIcon,
@@ -60,6 +59,8 @@ import {
   PenIcon,
   PinFilledIcon,
   PinIcon,
+  PlayCircleIcon,
+  ShareIcon,
 } from '../icons';
 import { buildBlocks, idxToBlockMap } from '../replay/thread';
 import { SkeletonRows } from '../components/Skeleton';
@@ -390,58 +391,223 @@ const LENS_LABELS: { value: Lens; label: string; Icon: typeof DiffLensIcon }[] =
   { value: 'prompts', label: 'prompts', Icon: ChatIcon },
 ];
 
-function ExportButton({ sessionId }: { sessionId: string }) {
+/** Quote a path for pasting into a shell; plain paths stay readable. */
+function shellQuote(p: string): string {
+  return /^[\w/.~-]+$/.test(p) ? p : `'${p.replaceAll("'", `'\\''`)}'`;
+}
+
+/**
+ * Close the find→act loop: copy the command that reopens this conversation in
+ * Claude Code. A resumed chain continues from its latest part — that file
+ * carries the whole copied history — so the tip's id is what gets copied.
+ */
+function ResumeButton({ session }: { session: SessionMeta }) {
   const [copied, setCopied] = useState(false);
+  const chain = useSessionChain(session.id, session.chainLen > 1);
+  const parts = chain.data?.chain;
+  const tip = parts && parts.length > 0 ? parts[parts.length - 1]! : session;
+  const isElsewhere = tip.id !== session.id;
+
   const copy = async () => {
+    const cd = tip.projectPath ? `cd ${shellQuote(tip.projectPath)} && ` : '';
     try {
-      await navigator.clipboard.writeText(await fetchExport(sessionId));
+      await navigator.clipboard.writeText(`${cd}claude --resume ${tip.id}`);
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
     } catch {
       /* clipboard denied — ignore */
     }
   };
-  const download = async (format: 'markdown' | 'html') => {
-    const body = await fetchExport(sessionId, format).catch(() => null);
+
+  return (
+    <Tooltip
+      content={
+        copied
+          ? 'Command copied — paste it in your terminal'
+          : isElsewhere
+            ? 'Continue this conversation (resumes the latest part)'
+            : 'Continue this session in Claude Code'
+      }
+    >
+      <button
+        className={`replay-action ${copied ? 'ok' : ''}`}
+        onClick={copy}
+        aria-label="Copy the claude --resume command for this session"
+      >
+        {copied ? <CheckIcon size={16} /> : <PlayCircleIcon size={16} />}
+      </button>
+    </Tooltip>
+  );
+}
+
+/**
+ * Share panel: one popover for every way a session leaves the app — format,
+ * an optional turn range (share the fix, not the 1,800-turn session), and a
+ * redact toggle with its scrub list spelled out so nothing is scrubbed (or
+ * kept) silently.
+ */
+function SharePanel({ sessionId }: { sessionId: string }) {
+  const [open, setOpen] = useState(false);
+  const [format, setFormat] = useState<'markdown' | 'html'>('markdown');
+  const [redact, setRedact] = useState(false);
+  const [whole, setWhole] = useState(true);
+  const [fromTurn, setFromTurn] = useState(1);
+  const [toTurn, setToTurn] = useState(1);
+  const [copied, setCopied] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const turns = useTurns(sessionId);
+  const turnList = turns.data?.turns ?? [];
+  const turnCount = turnList.length;
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const openPanel = () => {
+    setFromTurn(1);
+    setToTurn(Math.max(1, turnCount));
+    setWhole(true);
+    setOpen(true);
+  };
+
+  const clampTurn = (n: number) => Math.min(Math.max(1, n), Math.max(1, turnCount));
+  const idxRange = (): { fromIdx?: number; toIdx?: number } => {
+    if (whole || turnCount === 0) return {};
+    const a = clampTurn(Math.min(fromTurn, toTurn)) - 1;
+    const b = clampTurn(Math.max(fromTurn, toTurn)) - 1;
+    // endIdx is exclusive (the next turn's start); the export bound is inclusive.
+    return { fromIdx: turnList[a]!.idx, toIdx: turnList[b]!.endIdx - 1 };
+  };
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        await fetchExport(sessionId, { format, redact, ...idxRange() }),
+      );
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* clipboard denied — ignore */
+    }
+  };
+  const download = async () => {
+    const body = await fetchExport(sessionId, { format, redact, ...idxRange() }).catch(() => null);
     if (body === null) return;
     const [type, ext] = format === 'html' ? ['text/html', 'html'] : ['text/markdown', 'md'];
+    const rangeTag = whole || turnCount === 0 ? '' : `-t${clampTurn(fromTurn)}-${clampTurn(toTurn)}`;
     const url = URL.createObjectURL(new Blob([body], { type }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${sessionId.slice(0, 8)}.${ext}`;
+    a.download = `${sessionId.slice(0, 8)}${rangeTag}.${ext}`;
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const turnInput = (value: number, set: (n: number) => void, label: string) => (
+    <input
+      type="number"
+      className="share-num"
+      min={1}
+      max={Math.max(1, turnCount)}
+      value={value}
+      aria-label={label}
+      onChange={(e) => set(clampTurn(Number(e.target.value) || 1))}
+      onFocus={(e) => e.currentTarget.select()}
+    />
+  );
+
   return (
-    <>
-      <Tooltip content={copied ? 'Copied ✓' : 'Copy as markdown'}>
+    <div className="share-wrap" ref={rootRef}>
+      <Tooltip content="Share / export">
         <button
-          className={`replay-action ${copied ? 'ok' : ''}`}
-          onClick={copy}
-          aria-label="Copy session as markdown"
+          className={`replay-action ${open ? 'active' : ''}`}
+          onClick={() => (open ? setOpen(false) : openPanel())}
+          aria-label="Share or export this session"
+          aria-expanded={open}
         >
-          {copied ? <CheckIcon size={16} /> : <CopyIcon size={16} />}
+          <ShareIcon size={16} />
         </button>
       </Tooltip>
-      <Tooltip content="Download markdown">
-        <button
-          className="replay-action"
-          onClick={() => void download('markdown')}
-          aria-label="Download session as markdown"
-        >
-          <DownloadIcon size={16} />
-        </button>
-      </Tooltip>
-      <Tooltip content="Download as web page (.html)">
-        <button
-          className="replay-action"
-          onClick={() => void download('html')}
-          aria-label="Download session as a self-contained web page"
-        >
-          <CodeFileIcon size={16} />
-        </button>
-      </Tooltip>
-    </>
+      {open && (
+        <div className="share-pop" role="dialog" aria-label="Share this session">
+          <div className="share-row">
+            <span className="share-label">format</span>
+            <div className="view-toggle share-seg">
+              <button
+                className={format === 'markdown' ? 'active' : ''}
+                onClick={() => setFormat('markdown')}
+              >
+                markdown
+              </button>
+              <button className={format === 'html' ? 'active' : ''} onClick={() => setFormat('html')}>
+                web page
+              </button>
+            </div>
+          </div>
+          {turnCount > 1 && (
+            <div className="share-row">
+              <span className="share-label">turns</span>
+              <div className="view-toggle share-seg">
+                <button className={whole ? 'active' : ''} onClick={() => setWhole(true)}>
+                  all {turnCount}
+                </button>
+                <button className={!whole ? 'active' : ''} onClick={() => setWhole(false)}>
+                  range
+                </button>
+              </div>
+            </div>
+          )}
+          {!whole && turnCount > 1 && (
+            <div className="share-row">
+              <span className="share-label">range</span>
+              <div className="share-range">
+                {turnInput(fromTurn, setFromTurn, 'First turn to export')}
+                <span className="share-range-sep">to</span>
+                {turnInput(toTurn, setToTurn, 'Last turn to export')}
+              </div>
+            </div>
+          )}
+          <div className="share-row">
+            <span className="share-label">redact</span>
+            <div className="view-toggle share-seg">
+              <button className={!redact ? 'active' : ''} onClick={() => setRedact(false)}>
+                off
+              </button>
+              <button className={redact ? 'active' : ''} onClick={() => setRedact(true)}>
+                on
+              </button>
+            </div>
+          </div>
+          <p className="share-hint">
+            {redact
+              ? 'Scrubs API keys and tokens, key=value secrets, emails, and home paths.'
+              : 'Exports verbatim — switch redact on before sharing outside your machine.'}
+          </p>
+          <div className="share-actions">
+            <button className="share-btn" onClick={copy}>
+              {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
+              {copied ? 'copied' : 'copy'}
+            </button>
+            <button className="share-btn primary" onClick={() => void download()}>
+              <DownloadIcon size={14} />
+              download
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -668,6 +834,10 @@ export default function Replay({
             </span>
             <span className="replay-meta">
               <span className="replay-id">{shortId(sessionId)}</span>
+              {/* A title displaces the project from the heading — keep it here. */}
+              {s && sessionName(s) !== projectName(s) && (
+                <span className="replay-date">{projectName(s)}</span>
+              )}
               {s?.model && <span className="chip">{fmtModel(s.model)}</span>}
               <span className="replay-date">{s ? fmtDate(s.startedAt) : ''}</span>
               {s && s.chainLen > 1 && <ChainNav sessionId={sessionId} />}
@@ -772,7 +942,8 @@ export default function Replay({
                 <FolderIcon size={16} />
               </button>
             </Tooltip>
-            <ExportButton sessionId={sessionId} />
+            {s && <ResumeButton session={s} />}
+            <SharePanel sessionId={sessionId} />
             <Tooltip content={statsOpen ? 'Hide stats' : 'Session stats'}>
               <button
                 className={`replay-action ${statsOpen ? 'active' : ''}`}

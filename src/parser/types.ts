@@ -6,6 +6,9 @@ export type MessageKind =
   | 'summary'
   | 'system'
   | 'meta'
+  | 'title'
+  | 'attachment'
+  | 'mode'
   | 'unknown';
 
 export interface FileTouch {
@@ -37,6 +40,13 @@ export interface NormalizedRecord {
    * same usage object — usage must be counted once per messageId, not per line.
    */
   messageId: string | null;
+  /**
+   * Finer classification within a kind: 'ai' | 'custom' for titles, the
+   * attachment's own type for attachments, the mode value for mode records.
+   * In-memory only (goldens + indexer routing) — not a DB column; the UI
+   * derives it from `raw`.
+   */
+  subtype: string | null;
   /** Plain text extracted for full-text search. */
   text: string;
   tokensIn: number;

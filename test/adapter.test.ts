@@ -54,7 +54,7 @@ describe('adapter behavior', () => {
 
   it('never crashes, never drops: every non-blank line becomes a record', async () => {
     const records = await normalizeFile(sessionAFile);
-    expect(records).toHaveLength(16); // 17 lines, one blank
+    expect(records).toHaveLength(22); // 23 lines, one blank
   });
 
   it('classifies record kinds', async () => {
@@ -71,11 +71,40 @@ describe('adapter behavior', () => {
   it('stores unrecognized record types as unknown with raw preserved', async () => {
     const records = await normalizeFile(sessionAFile);
     const unknowns = records.filter((r) => r.kind === 'unknown');
-    // queue-operation, ai-title, and the malformed JSON line
-    expect(unknowns).toHaveLength(3);
+    // queue-operation (deliberately unadapted) and the malformed JSON line
+    expect(unknowns).toHaveLength(2);
     for (const rec of unknowns) expect(rec.raw.length).toBeGreaterThan(0);
-    const malformed = unknowns.find((r) => r.uuid.startsWith(`${SESSION_A}:`));
-    expect(malformed?.raw).toContain('"assist');
+    const malformed = unknowns.find((r) => r.raw.includes('"assist'));
+    expect(malformed?.uuid.startsWith(`${SESSION_A}:`)).toBe(true);
+  });
+
+  it('normalizes CC titles with their source in subtype', async () => {
+    const records = await normalizeFile(sessionAFile);
+    const titles = records.filter((r) => r.kind === 'title');
+    expect(titles.map((r) => [r.subtype, r.text])).toEqual([
+      ['ai', 'WebSocket reconnect fix'],
+      ['custom', 'Reconnect surgery'],
+    ]);
+  });
+
+  it('normalizes attachments: path-shaped subtypes searchable, bookkeeping silent', async () => {
+    const records = await normalizeFile(sessionAFile);
+    const attachments = records.filter((r) => r.kind === 'attachment');
+    expect(attachments.map((r) => [r.subtype, r.text])).toEqual([
+      ['file', '/Users/dev/projects/webapp/docs/websocket.md'],
+      ['total_tokens_reminder', ''],
+    ]);
+  });
+
+  it('normalizes mode and permission-mode records with the value in subtype', async () => {
+    const records = await normalizeFile(sessionAFile);
+    const modes = records.filter((r) => r.kind === 'mode');
+    expect(modes.map((r) => r.subtype)).toEqual(['normal', 'default', 'auto']);
+    // No timestamps, no uuids on these — fallback ids, empty search text.
+    for (const m of modes) {
+      expect(m.uuid.startsWith(`${SESSION_A}:`)).toBe(true);
+      expect(m.text).toBe('');
+    }
   });
 
   it('pairs tool_use with tool_result via toolUseId', async () => {

@@ -30,6 +30,12 @@ export interface SessionMeta {
   customName: string | null;
   note: string | null;
   /**
+   * Claude Code's own name for the conversation, lifted off its 'ai-title' /
+   * 'custom-title' log records (the user-set custom-title wins). Display
+   * precedence: Turnlog's customName, then this, then the project name.
+   */
+  aiTitle: string | null;
+  /**
    * Sessions in this session's resume chain, itself included (1 =
    * standalone). Resuming into a new session id copies history forward, so
    * chain parts share their first message's uuid — one logical conversation
@@ -64,6 +70,12 @@ export interface MessageRow {
   kind: string;
   toolName: string | null;
   toolUseId: string | null;
+  /**
+   * API response id. Claude Code writes one line per content block, so
+   * consecutive rows sharing this id are one response — which is how the
+   * replay tells a continuation line apart from a real branch.
+   */
+  messageId: string | null;
   ts: string | null;
   isSidechain: boolean;
   isError: boolean;
@@ -300,16 +312,8 @@ export interface SkippedFile {
   message: string;
 }
 
-/**
- * `GET /api/health` — the cardinal rule made visible: what the index holds,
- * what it kept without understanding (kind='unknown', stored raw), and what
- * it could not read at all.
- */
-export interface HealthResponse {
-  state: 'idle' | 'indexing';
-  lastScanAt: string | null;
-  /** From the last full scan this launch; empty before one completes. */
-  skipped: SkippedFile[];
+/** What the index itself holds — the DB half of the health snapshot. */
+export interface IndexFacts {
   /** Indexed JSONL files (sessions incl. subagent transcripts). */
   indexedFiles: number;
   /** Message rows in the index. */
@@ -320,6 +324,32 @@ export interface HealthResponse {
   unknownTypes: { type: string; count: number }[];
   /** SQLite database size on disk. */
   dbBytes: number;
+}
+
+/**
+ * `GET /api/health` — the cardinal rule made visible: what the index holds,
+ * what it kept without understanding (kind='unknown', stored raw), and what
+ * it could not read at all.
+ */
+export interface HealthResponse extends IndexFacts {
+  state: 'idle' | 'indexing';
+  lastScanAt: string | null;
+  /** From the last full scan this launch; empty before one completes. */
+  skipped: SkippedFile[];
+}
+
+/**
+ * `POST /api/maintenance` — housekeeping on Turnlog's own index (never on
+ * `~/.claude`, which stays read-only): `prune` drops rows for session files
+ * that no longer exist, `vacuum` repacks the database. Returns the action's
+ * result plus fresh index facts.
+ */
+export interface MaintenanceResponse extends IndexFacts {
+  action: 'prune' | 'vacuum';
+  /** Sessions removed from the index (prune only). */
+  pruned?: number;
+  /** Bytes reclaimed by repacking (vacuum only). */
+  freedBytes?: number;
 }
 
 export interface StatusResponse {

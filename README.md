@@ -83,12 +83,14 @@ claude mcp add turnlog -- npx turnlog mcp
 That one command registers Turnlog as a local MCP server in Claude Code. From
 then on, the agent can consult your session history mid-task through five
 read-only tools: `search` (same operators as the UI — `tool:`, `is:error`,
-`project:`, `before:`/`after:`…), `list_sessions`, `get_session` (the turn
+`is:pinned`, `has:note`, `project:`, `before:`/`after:`…), `list_sessions`,
+`get_session` (the turn
 spine), `get_messages` (read the context around a hit), and `file_history`
 (every session that ever touched a file).
 
 It speaks MCP over stdio on your machine — no server port, no network, and
-strictly read-only. It reads the same index the app builds, so run `turnlog`
+strictly read-only, with no flag that changes that. It reads the same index
+the app builds, so run `turnlog`
 or `turnlog index` once first; on each start it does a quick incremental
 catch-up so recent sessions are included.
 

@@ -63,6 +63,7 @@ export function normalizeV1(obj: any, raw: string, fallbackId: string): Normaliz
     isError: false,
     model: null,
     messageId: null,
+    subtype: null,
     text: '',
     tokensIn: 0,
     tokensOut: 0,
@@ -144,9 +145,61 @@ export function normalizeV1(obj: any, raw: string, fallbackId: string): Normaliz
       return rec;
     }
 
+    // CC's own name for the conversation. 'ai-title' is model-generated and
+    // may be rewritten as the session evolves; 'custom-title' is user-set and
+    // outranks it. The indexer lifts both onto the session row (last wins per
+    // stream); the title text itself is searchable.
+    case 'ai-title': {
+      rec.kind = 'title';
+      rec.subtype = 'ai';
+      rec.text = str(obj.aiTitle) ?? '';
+      return rec;
+    }
+    case 'custom-title': {
+      rec.kind = 'title';
+      rec.subtype = 'custom';
+      rec.text = str(obj.customTitle) ?? '';
+      return rec;
+    }
+
+    // Context CC injects on the user channel, subtyped by attachment.type.
+    // Only path-shaped subtypes contribute searchable text; a queued_command's
+    // prompt is skipped because it reappears as a real prompt when dequeued.
+    case 'attachment': {
+      const att = obj.attachment;
+      rec.kind = 'attachment';
+      rec.subtype = str(att?.type);
+      switch (rec.subtype) {
+        case 'file':
+        case 'edited_text_file':
+          rec.text = str(att.filename) ?? '';
+          break;
+        case 'directory':
+          rec.text = str(att.path) ?? '';
+          break;
+      }
+      return rec;
+    }
+
+    // Mode bookkeeping ('mode' / 'permission-mode'), written repeatedly —
+    // no uuid, no timestamp. Text stays empty (2.7k "normal" lines would
+    // pollute search); the UI reads the value from raw and renders changes.
+    case 'mode': {
+      rec.kind = 'mode';
+      rec.subtype = str(obj.mode);
+      return rec;
+    }
+    case 'permission-mode': {
+      rec.kind = 'mode';
+      rec.subtype = str(obj.permissionMode);
+      return rec;
+    }
+
     default:
-      // Unrecognized record type (ai-title, attachment, queue-operation, ...
-      // or whatever the next CC release invents). Stored, never dropped.
+      // Unrecognized record type (queue-operation, last-prompt,
+      // file-history-snapshot, bridge-session are known-but-meaningless and
+      // deliberate here; anything the next CC release invents also lands
+      // here). Stored, never dropped.
       return rec;
   }
 }

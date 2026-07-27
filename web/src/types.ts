@@ -11,6 +11,7 @@ export type {
   FileSummary,
   HealthResponse,
   IndexedEvent,
+  MaintenanceResponse,
   MessageListResponse,
   MessageRow,
   PrefsResponse,

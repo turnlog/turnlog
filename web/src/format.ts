@@ -1,10 +1,13 @@
 import type { SessionMeta } from './types';
 
-/** A session's display title: the user's custom name wins over the project. */
+/**
+ * A session's display title: the user's custom name, then Claude Code's own
+ * title for the conversation (ai-title/custom-title records), then the project.
+ */
 export function sessionName(
-  s: Pick<SessionMeta, 'customName' | 'projectPath' | 'projectKey'>,
+  s: Pick<SessionMeta, 'customName' | 'aiTitle' | 'projectPath' | 'projectKey'>,
 ): string {
-  return s.customName ?? projectName(s);
+  return s.customName ?? s.aiTitle ?? projectName(s);
 }
 
 /** `-Users-gor-WebstormProjects-turnlog` → `turnlog`; real paths → basename. */

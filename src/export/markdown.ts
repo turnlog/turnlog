@@ -14,6 +14,8 @@ export interface ExportOptions {
   attribution?: boolean;
   /** Scrub secret-shaped tokens, emails, and home paths (export/redact.ts). */
   redact?: boolean;
+  /** A turn range, not the whole session — the meta line says so honestly. */
+  excerpt?: boolean;
 }
 
 /** Cap enormous tool results / file writes so the markdown stays shareable. */
@@ -211,10 +213,13 @@ export function sessionToMarkdown(
     ? session.projectPath.split(/[\\/]/).filter(Boolean).pop()
     : (session.projectKey ?? 'session');
   const model = session.model ? ` · ${session.model.replace(/^claude-/, '').replace(/-\d{8}$/, '')}` : '';
+  // The session's name leads when one exists (user's custom name, else CC's
+  // own title); the project then moves down into the meta line.
+  const title = session.customName ?? session.aiTitle;
 
-  out.push(`# ${project} — Claude Code session`);
+  out.push(`# ${title ?? project} — Claude Code session${opts.excerpt ? ' (excerpt)' : ''}`);
   out.push(
-    `*${session.startedAt ?? 'unknown date'}${model} · ${session.turnCount} turns · ${fmtCost(session.costUsd)} est.*`,
+    `*${session.startedAt ?? 'unknown date'}${title ? ` · ${project}` : ''}${model} · ${session.turnCount} turns · ${fmtCost(session.costUsd)} est.*`,
   );
   out.push('');
 
@@ -246,6 +251,9 @@ export function sessionToMarkdown(
         break;
       case 'system':
       case 'meta':
+      case 'title':
+      case 'attachment':
+      case 'mode':
       case 'unknown':
         break; // omitted from prose export
       default: {

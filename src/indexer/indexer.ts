@@ -85,13 +85,17 @@ export class Indexer {
     this.upsertSession = db.prepare(
       `INSERT INTO sessions
          (id, project_key, project_path, file_path, parent_session_id, root_uuid,
+          ai_title, cc_title,
           adapter_version, file_byte_offset, file_mtime_ms, file_size, line_count)
        VALUES (@id, @projectKey, @projectPath, @filePath, @parentSessionId, @rootUuid,
+               @aiTitle, @ccTitle,
                @adapterVersion, @offset, @mtimeMs, @size, @lineCount)
        ON CONFLICT (id) DO UPDATE SET
          file_path         = excluded.file_path,
          parent_session_id = excluded.parent_session_id,
          root_uuid         = COALESCE(excluded.root_uuid, sessions.root_uuid),
+         ai_title          = COALESCE(excluded.ai_title, sessions.ai_title),
+         cc_title          = COALESCE(excluded.cc_title, sessions.cc_title),
          adapter_version   = excluded.adapter_version,
          file_byte_offset  = excluded.file_byte_offset,
          file_mtime_ms     = excluded.file_mtime_ms,
@@ -297,6 +301,11 @@ export class Indexer {
     let linesParsed = 0;
     let firstCwd: string | null = null;
     let rootUuid: string | null = null;
+    // CC rewrites its titles as the session evolves — last one wins per
+    // stream. Null when this pass saw none; the upsert then keeps the stored
+    // value (incremental passes start mid-file).
+    let aiTitle: string | null = null;
+    let ccTitle: string | null = null;
 
     // Usage dedupe: CC writes one line per content block of a response, each
     // repeating the same message.id and usage. Seed with ids already indexed
@@ -342,6 +351,10 @@ export class Indexer {
         ) {
           rootUuid = rec.uuid;
         }
+        if (rec.kind === 'title' && rec.text !== '') {
+          if (rec.subtype === 'custom') ccTitle = rec.text;
+          else aiTitle = rec.text;
+        }
         let dupUsage = false;
         if (rec.messageId !== null) {
           if (seenMessageIds.has(rec.messageId)) dupUsage = true;
@@ -361,6 +374,8 @@ export class Indexer {
       filePath,
       parentSessionId,
       rootUuid,
+      aiTitle,
+      ccTitle,
       adapterVersion: ADAPTER_VERSION,
       offset: newOffset,
       mtimeMs: st.mtimeMs,

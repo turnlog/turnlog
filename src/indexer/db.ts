@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 export function openDb(path: string): Database.Database {
   const db = new Database(path);
@@ -167,6 +167,17 @@ function migrate(db: Database.Database): void {
         ORDER BY m.idx LIMIT 1
       );
       CREATE INDEX idx_sessions_root ON sessions(root_uuid);
+    `);
+  }
+
+  if (version < 8) {
+    // CC's own session titles, lifted off 'ai-title' / 'custom-title' records
+    // (kind 'title' since adapter v4). cc_title is the user-set one and wins
+    // over ai_title in display; Turnlog's session_meta.custom_name outranks
+    // both. Backfill rides the ADAPTER_VERSION bump's full reindex.
+    db.exec(`
+      ALTER TABLE sessions ADD COLUMN ai_title TEXT;
+      ALTER TABLE sessions ADD COLUMN cc_title TEXT;
     `);
   }
 

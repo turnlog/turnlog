@@ -27,11 +27,13 @@ import {
   listSavedSearches,
   listSessions,
   listTurns,
+  pruneMissingSessions,
   searchFiles,
   searchMessages,
   setBookmark,
   setPrefs,
   setSessionMeta,
+  vacuumIndex,
 } from './api.js';
 import type { SessionMetaPatch } from './apiTypes.js';
 import type { ModelPricing } from '../cost/pricing.js';
@@ -447,6 +449,25 @@ async function handleApiWrite(
     return sendJson(res, 200, { prefs });
   }
 
+  // Maintenance acts on Turnlog's own index only — never on ~/.claude, which
+  // stays read-only. Both actions are idempotent and safe to repeat.
+  if (p === '/api/maintenance') {
+    const body = await readJsonBody(req);
+    if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+      throw new HttpError(400, 'expected a JSON object');
+    }
+    const action = (body as Record<string, unknown>).action;
+    if (action === 'prune') {
+      const { pruned } = pruneMissingSessions(db);
+      return sendJson(res, 200, { action, pruned, ...getIndexHealth(db) });
+    }
+    if (action === 'vacuum') {
+      const { freedBytes } = vacuumIndex(db);
+      return sendJson(res, 200, { action, freedBytes, ...getIndexHealth(db) });
+    }
+    throw new HttpError(400, 'action must be "prune" or "vacuum"');
+  }
+
   if (p === '/api/shutdown') {
     const onShutdown = ctx.onShutdown;
     if (!onShutdown) return sendJson(res, 404, { error: 'not found' });
@@ -596,8 +617,10 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
         footerParam === '0' || footerParam === 'false' ? false : (ctx.exportFooter ?? true),
       redact: q.get('redact') === '1',
     };
+    // Optional message-idx bounds: export a turn range instead of the session.
+    const range = { fromIdx: numParam(q, 'from'), toIdx: numParam(q, 'to') };
     if (q.get('format') === 'html') {
-      const html = getSessionHtmlExport(db, id, opts);
+      const html = getSessionHtmlExport(db, id, opts, range);
       if (html === null) return sendJson(res, 404, { error: 'session not found' });
       const payload = Buffer.from(html, 'utf8');
       res.writeHead(200, {
@@ -612,7 +635,7 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
       res.end(payload);
       return;
     }
-    const md = getSessionExport(db, id, opts);
+    const md = getSessionExport(db, id, opts, range);
     if (md === null) return sendJson(res, 404, { error: 'session not found' });
     const payload = Buffer.from(md, 'utf8');
     res.writeHead(200, {

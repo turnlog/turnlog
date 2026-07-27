@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import type Database from 'better-sqlite3';
 import { pricingForModel, type ModelPricing } from '../cost/pricing.js';
 import { sessionToHtml } from '../export/html.js';
@@ -26,7 +27,7 @@ import { LENSES, SNIPPET_CLOSE, SNIPPET_OPEN, type Lens } from './apiTypes.js';
 const SESSION_COLUMNS = `
   id, project_path, project_key, parent_session_id, started_at, ended_at, model, turn_count,
   input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
-  cost_usd, files_touched_count,
+  cost_usd, files_touched_count, ai_title, cc_title,
   COALESCE(session_meta.pinned, 0) AS pinned, custom_name, note,
   (SELECT COUNT(*) FROM sessions c
    WHERE c.root_uuid = sessions.root_uuid AND c.project_key IS sessions.project_key
@@ -55,6 +56,8 @@ function rowToSession(r: any): SessionMeta {
     pinned: !!r.pinned,
     customName: r.custom_name ?? null,
     note: r.note ?? null,
+    // CC's user-set custom-title outranks its generated ai-title.
+    aiTitle: r.cc_title ?? r.ai_title ?? null,
     // NULL root_uuid never matches the subquery — 0 reads as standalone.
     chainLen: r.chain_len > 0 ? r.chain_len : 1,
   };
@@ -437,8 +440,7 @@ export function listMessages(
 
   const rows = db
     .prepare(
-      `SELECT uuid, parent_uuid, idx, role, kind, tool_name, tool_use_id, ts, is_sidechain,
-              is_error, tokens_in, tokens_out, cost_usd, model, text, raw_json
+      `SELECT ${MESSAGE_COLUMNS}
        FROM messages WHERE session_id = @sid AND idx > @after ${lensSql}
        ORDER BY idx LIMIT @limit`,
     )
@@ -453,7 +455,7 @@ export function listMessages(
 }
 
 const MESSAGE_COLUMNS = `uuid, parent_uuid, idx, role, kind, tool_name, tool_use_id, ts,
-  is_sidechain, is_error, tokens_in, tokens_out, cost_usd, model, text, raw_json`;
+  is_sidechain, is_error, tokens_in, tokens_out, cost_usd, model, message_id, text, raw_json`;
 
 function rowToMessage(r: any): MessageRow {
   return {
@@ -464,6 +466,7 @@ function rowToMessage(r: any): MessageRow {
     kind: r.kind,
     toolName: r.tool_name,
     toolUseId: r.tool_use_id,
+    messageId: r.message_id ?? null,
     ts: r.ts,
     isSidechain: r.is_sidechain === 1,
     isError: r.is_error === 1,
@@ -489,18 +492,43 @@ export function resolveSessionId(db: Database.Database, idOrPrefix: string): str
 }
 
 /** Full session as markdown — CLI export + copy-as-markdown. */
+/** Message-idx bounds for a partial export — share the fix, not all 1,800 turns. */
+export interface ExportRange {
+  fromIdx?: number;
+  toIdx?: number;
+}
+
+function exportRows(db: Database.Database, id: string, range?: ExportRange): MessageRow[] {
+  const clauses = ['session_id = ?'];
+  const params: unknown[] = [id];
+  if (range?.fromIdx !== undefined) {
+    clauses.push('idx >= ?');
+    params.push(range.fromIdx);
+  }
+  if (range?.toIdx !== undefined) {
+    clauses.push('idx <= ?');
+    params.push(range.toIdx);
+  }
+  return db
+    .prepare(`SELECT ${MESSAGE_COLUMNS} FROM messages WHERE ${clauses.join(' AND ')} ORDER BY idx`)
+    .all(...params)
+    .map(rowToMessage);
+}
+
+function withExcerpt(opts: ExportOptions, range?: ExportRange): ExportOptions {
+  const partial = range?.fromIdx !== undefined || range?.toIdx !== undefined;
+  return partial ? { ...opts, excerpt: true } : opts;
+}
+
 export function getSessionExport(
   db: Database.Database,
   id: string,
   opts: ExportOptions = {},
+  range?: ExportRange,
 ): string | null {
   const session = getSession(db, id);
   if (!session) return null;
-  const rows = db
-    .prepare(`SELECT ${MESSAGE_COLUMNS} FROM messages WHERE session_id = ? ORDER BY idx`)
-    .all(id)
-    .map(rowToMessage);
-  return sessionToMarkdown(session, rows, opts);
+  return sessionToMarkdown(session, exportRows(db, id, range), withExcerpt(opts, range));
 }
 
 /** Full session as a self-contained styled HTML page — the shareable export. */
@@ -508,14 +536,11 @@ export function getSessionHtmlExport(
   db: Database.Database,
   id: string,
   opts: ExportOptions = {},
+  range?: ExportRange,
 ): string | null {
   const session = getSession(db, id);
   if (!session) return null;
-  const rows = db
-    .prepare(`SELECT ${MESSAGE_COLUMNS} FROM messages WHERE session_id = ? ORDER BY idx`)
-    .all(id)
-    .map(rowToMessage);
-  return sessionToHtml(session, rows, opts);
+  return sessionToHtml(session, exportRows(db, id, range), withExcerpt(opts, range));
 }
 
 const READ_TOOLS = new Set(['Read', 'Grep', 'Glob', 'LS', 'NotebookRead']);
@@ -534,11 +559,14 @@ export function listTurns(db: Database.Database, sessionId: string): TurnsRespon
 
   const rows = db
     .prepare(
-      `SELECT uuid, idx, kind, tool_name, ts, is_sidechain, is_error, tokens_out, text
+      `SELECT uuid, parent_uuid, message_id, idx, kind, tool_name, ts,
+              is_sidechain, is_error, tokens_out, text
        FROM messages WHERE session_id = ? ORDER BY idx`,
     )
     .all(sessionId) as Array<{
     uuid: string;
+    parent_uuid: string | null;
+    message_id: string | null;
     idx: number;
     kind: string;
     tool_name: string | null;
@@ -549,11 +577,17 @@ export function listTurns(db: Database.Database, sessionId: string): TurnsRespon
     text: string;
   }>;
 
+  const abandoned = findAbandonedIdxs(rows);
+
   const turns: TurnSummary[] = [];
   let current: TurnSummary | null = null;
   let preludeCount = 0;
 
   for (const r of rows) {
+    // A prompt on an abandoned branch was never actually answered (the user
+    // interrupted and retyped) — it must not open a turn or the spine counts
+    // conversations that never happened.
+    if (abandoned.has(r.idx)) continue;
     if (r.kind === 'prompt' && r.is_sidechain === 0) {
       if (current) current.endIdx = r.idx;
       const command = COMMAND_RE.exec(r.text)?.[1]?.trim() ?? null;
@@ -605,6 +639,84 @@ export function listTurns(db: Database.Database, sessionId: string): TurnsRespon
 }
 
 /**
+ * Rows on abandoned branches, by idx.
+ *
+ * `parentUuid` is a tree: interrupting Claude mid-answer and retyping (or a
+ * rewind) leaves the first attempt as a dead sibling subtree, which file-order
+ * rendering would otherwise show as a normal turn. Most multi-child nodes are
+ * NOT branches, so three shapes are excluded first:
+ *
+ *  - continuation lines of the parent's own API response (same message id —
+ *    CC writes one line per content block),
+ *  - `tool_result` rows, which attach to their `tool_use` rather than fork it,
+ *  - injected `meta`/`system`/bookkeeping records, which hang off whatever
+ *    came before them.
+ *
+ * What remains is a real fork; the last child in file order is the live path
+ * (the retry the conversation continued from) and the earlier siblings —
+ * with their whole subtrees — are abandoned.
+ *
+ * Mirrored client-side in `web/src/replay/thread.ts` (same rule, over the
+ * loaded window) — keep the two in step.
+ */
+interface BranchRow {
+  uuid: string;
+  parent_uuid?: string | null;
+  parentUuid?: string | null;
+  idx: number;
+  kind: string;
+  message_id?: string | null;
+  messageId?: string | null;
+  is_sidechain?: number;
+  isSidechain?: boolean;
+}
+
+const BRANCH_INERT_KINDS = new Set(['meta', 'system', 'attachment', 'mode', 'title', 'unknown']);
+
+export function findAbandonedIdxs(rows: BranchRow[]): Set<number> {
+  const parentOf = (r: BranchRow) => r.parent_uuid ?? r.parentUuid ?? null;
+  const msgIdOf = (r: BranchRow) => r.message_id ?? r.messageId ?? null;
+  const sideOf = (r: BranchRow) => r.is_sidechain === 1 || r.isSidechain === true;
+
+  const main = rows.filter((r) => !sideOf(r));
+  const byUuid = new Map(main.map((r) => [r.uuid, r]));
+  const children = new Map<string, BranchRow[]>();
+  for (const r of main) {
+    const p = parentOf(r);
+    if (p === null) continue;
+    const list = children.get(p);
+    if (list) list.push(r);
+    else children.set(p, [r]);
+  }
+
+  const abandoned = new Set<number>();
+  for (const [parentUuid, kids] of children) {
+    if (kids.length < 2) continue;
+    const parent = byUuid.get(parentUuid);
+    const parentMsgId = parent ? msgIdOf(parent) : null;
+    const forks = kids.filter(
+      (c) =>
+        !(parentMsgId !== null && msgIdOf(c) === parentMsgId) &&
+        c.kind !== 'tool_result' &&
+        !BRANCH_INERT_KINDS.has(c.kind),
+    );
+    if (forks.length < 2) continue;
+    forks.sort((a, b) => a.idx - b.idx);
+    // Everything but the live (last) child, and everything hanging off it.
+    for (const dead of forks.slice(0, -1)) {
+      const stack = [dead];
+      while (stack.length > 0) {
+        const node = stack.pop()!;
+        if (abandoned.has(node.idx)) continue;
+        abandoned.add(node.idx);
+        for (const child of children.get(node.uuid) ?? []) stack.push(child);
+      }
+    }
+  }
+  return abandoned;
+}
+
+/**
  * Search operators — `op:value` tokens mapped straight onto indexed columns.
  * Unknown operators and malformed values fall through as plain text terms,
  * so `file.ts:12` or `https://…` never break a query.
@@ -617,6 +729,12 @@ export interface SearchFilters {
   model?: string;
   before?: string;
   after?: string;
+  /** is:pinned — sessions the user pinned (annotation tables join the query language). */
+  pinned?: boolean;
+  /** has:note — sessions carrying a user note. */
+  hasNote?: boolean;
+  /** has:bookmark — bookmarked moments themselves (message-level, not the whole session). */
+  hasBookmark?: boolean;
 }
 
 export interface ParsedQuery {
@@ -626,7 +744,7 @@ export interface ParsedQuery {
   hasFilters: boolean;
 }
 
-const FILTER_OPS = new Set(['tool', 'kind', 'is', 'project', 'model', 'before', 'after']);
+const FILTER_OPS = new Set(['tool', 'kind', 'is', 'has', 'project', 'model', 'before', 'after']);
 const DATE_RE = /^\d{4}(-\d{2}(-\d{2})?)?$/;
 
 export function parseSearchQuery(input: string): ParsedQuery {
@@ -655,6 +773,12 @@ export function parseSearchQuery(input: string): ParsedQuery {
         break;
       case 'is':
         if (value.toLowerCase() === 'error') filters.isError = true;
+        else if (value.toLowerCase() === 'pinned') filters.pinned = true;
+        else terms.push(token);
+        break;
+      case 'has':
+        if (value.toLowerCase() === 'note') filters.hasNote = true;
+        else if (value.toLowerCase() === 'bookmark') filters.hasBookmark = true;
         else terms.push(token);
         break;
       case 'before':
@@ -697,6 +821,24 @@ function filterSql(f: SearchFilters, sessionAlias: string): { sql: string; param
   if (f.after !== undefined) {
     clauses.push('m.ts >= ?');
     params.push(f.after);
+  }
+  // Annotations live on the ROOT session (children are hidden from lists), so
+  // hits inside subagent transcripts must test the parent's annotations.
+  const annotated = `COALESCE(${sessionAlias}.parent_session_id, ${sessionAlias}.id)`;
+  if (f.pinned) {
+    clauses.push(
+      `EXISTS (SELECT 1 FROM session_meta sm WHERE sm.session_id = ${annotated} AND sm.pinned = 1)`,
+    );
+  }
+  if (f.hasNote) {
+    clauses.push(
+      `EXISTS (SELECT 1 FROM session_meta sm WHERE sm.session_id = ${annotated} AND sm.note IS NOT NULL)`,
+    );
+  }
+  if (f.hasBookmark) {
+    clauses.push(
+      `EXISTS (SELECT 1 FROM message_bookmarks b WHERE b.session_id = m.session_id AND b.idx = m.idx)`,
+    );
   }
   return { sql: clauses.map((c) => `AND ${c}`).join(' '), params };
 }
@@ -970,50 +1112,155 @@ export function getSpend(
   const sinceDays = Math.min(Math.max(Math.floor(q.days ?? 30), 1), 3650);
   const cutoff = new Date(Date.now() - sinceDays * 86_400_000).toISOString();
   const match = q.query ? toFtsQuery(q.query) : null;
-  const matchSql = match ? `AND id IN (${MATCHED_SESSIONS_SQL.replace('?', '@match')})` : '';
-  // Root sessions only: parent rows already carry their subagents' usage.
-  const where = `FROM sessions WHERE parent_session_id IS NULL AND started_at >= @cutoff ${matchSql}`;
-  const params = match ? { cutoff, match } : { cutoff };
 
-  const run = <T>(sql: string): T[] => db.prepare(sql).all(params) as T[];
+  // Chain-aware money: resuming a session copies its whole history into the
+  // new file — same message uuids under a new session id — so summing session
+  // aggregates bills a 3-part chain's shared prefix 3×. The copies are
+  // excluded up front: within each multi-part family (root_uuid + project),
+  // every message uuid's first occurrence (earliest part) keeps its usage and
+  // the rest drop. Chains are rare, so ranking only family messages is cheap;
+  // it spans ALL sessions, not just the window — a prefix owned by a part
+  // outside the window stays outside it.
+  const dupRowids = `
+    SELECT mrowid FROM (
+      SELECT m2.rowid AS mrowid,
+             ROW_NUMBER() OVER (
+               PARTITION BY s2.root_uuid, s2.project_key, m2.uuid
+               ORDER BY s2.started_at, s2.id
+             ) AS rn
+      FROM messages m2
+      JOIN sessions s2 ON s2.id = m2.session_id
+      JOIN (SELECT root_uuid, project_key FROM sessions
+            WHERE root_uuid IS NOT NULL AND parent_session_id IS NULL
+            GROUP BY root_uuid, project_key HAVING COUNT(*) > 1) fam
+        ON fam.root_uuid = s2.root_uuid AND fam.project_key IS s2.project_key
+    ) WHERE rn > 1`;
 
-  // date(..., 'localtime') buckets by the machine's calendar day — the server
-  // always runs on the user's own machine, so its timezone is the right one.
-  const days = run<{ date: string; cost: number; tokens: number; n: number }>(
-    `SELECT date(started_at, 'localtime') AS date, COALESCE(SUM(cost_usd), 0) AS cost,
-            COALESCE(SUM(input_tokens + output_tokens), 0) AS tokens, COUNT(*) AS n
-     ${where} GROUP BY date ORDER BY date`,
-  );
-  // Per-message attribution: sessions mix models (subagents, /model switches),
-  // so the split comes from the messages' own model column, not the session's.
-  // Placeholder models ('<synthetic>') carry no usage and are excluded.
-  const msgMatchSql = match
-    ? `AND COALESCE(s.parent_session_id, s.id) IN (${MATCHED_SESSIONS_SQL.replace('?', '@match')})`
-    : '';
-  const byModel = run<{ key: string; cost: number; tokens: number; n: number; cr: number }>(
-    `SELECT m.model AS key, COALESCE(SUM(m.cost_usd), 0) AS cost,
-            COALESCE(SUM(m.tokens_in + m.tokens_out), 0) AS tokens,
-            COUNT(DISTINCT COALESCE(s.parent_session_id, s.id)) AS n,
-            COALESCE(SUM(m.cache_read_tokens), 0) AS cr
-     FROM messages m JOIN sessions s ON s.id = m.session_id
-     WHERE m.model IS NOT NULL AND m.model NOT LIKE '<%'
-       AND s.started_at >= @cutoff ${msgMatchSql}
-     GROUP BY m.model ORDER BY cost DESC`,
-  );
-  const byProject = run<{ key: string | null; cost: number; tokens: number; n: number }>(
-    `SELECT project_key AS key, COALESCE(SUM(cost_usd), 0) AS cost,
-            COALESCE(SUM(input_tokens + output_tokens), 0) AS tokens, COUNT(*) AS n
-     ${where} GROUP BY project_key ORDER BY cost DESC`,
-  );
-  const totals = db
+  // One join-free scan of messages, aggregated per (session, model) — the
+  // join to sessions per row is what made SQL-side grouping slow (~0.5s on a
+  // real index; this shape runs in ~0.1s). Session attributes (project, day,
+  // window membership) fold in below from one small sessions read.
+  const cells = db
     .prepare(
-      `SELECT COUNT(*) AS n, COALESCE(SUM(cost_usd), 0) AS cost,
-              SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END) AS unpriced,
-              COALESCE(SUM(input_tokens), 0) AS tin, COALESCE(SUM(output_tokens), 0) AS tout,
-              COALESCE(SUM(cache_read_tokens), 0) AS cr, COALESCE(SUM(cache_write_tokens), 0) AS cw
-       ${where}`,
+      `SELECT m.session_id AS sessionId, m.model AS model,
+              COALESCE(SUM(m.cost_usd), 0) AS cost,
+              COALESCE(SUM(m.tokens_in), 0) AS tin, COALESCE(SUM(m.tokens_out), 0) AS tout,
+              COALESCE(SUM(m.cache_read_tokens), 0) AS cr,
+              COALESCE(SUM(m.cache_write_tokens), 0) AS cw
+       FROM messages m
+       WHERE m.rowid NOT IN (${dupRowids})
+       GROUP BY 1, 2`,
     )
-    .get(params) as any;
+    .all() as {
+    sessionId: string;
+    model: string | null;
+    cost: number;
+    tin: number;
+    tout: number;
+    cr: number;
+    cw: number;
+  }[];
+
+  interface SessionRowLite {
+    id: string;
+    parent_session_id: string | null;
+    project_key: string | null;
+    started_at: string | null;
+    cost_usd: number | null;
+  }
+  const sessions = db
+    .prepare(`SELECT id, parent_session_id, project_key, started_at, cost_usd FROM sessions`)
+    .all() as SessionRowLite[];
+  const byId = new Map(sessions.map((s) => [s.id, s]));
+  const matchedRoots = match
+    ? new Set(
+        (db.prepare(MATCHED_SESSIONS_SQL).raw().all(match) as [string][]).map((r) => r[0]),
+      )
+    : null;
+
+  // date(..., 'localtime') semantics, in JS: the machine's calendar day —
+  // the server always runs on the user's own machine, so its timezone is
+  // the right one.
+  const localDay = (iso: string): string => {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  const inWindow = (s: SessionRowLite): boolean => {
+    if (s.started_at === null || s.started_at < cutoff) return false;
+    const root = s.parent_session_id ?? s.id;
+    return matchedRoots === null || matchedRoots.has(root);
+  };
+
+  const dayMap = new Map<string, { cost: number; tokens: number }>();
+  const projMap = new Map<string, { cost: number; tokens: number }>();
+  const modelMap = new Map<
+    string,
+    { cost: number; tokens: number; cr: number; roots: Set<string> }
+  >();
+  const totals = { cost: 0, tin: 0, tout: 0, cr: 0, cw: 0 };
+  for (const c of cells) {
+    const s = byId.get(c.sessionId);
+    if (!s || !inWindow(s)) continue;
+    totals.cost += c.cost;
+    totals.tin += c.tin;
+    totals.tout += c.tout;
+    totals.cr += c.cr;
+    totals.cw += c.cw;
+    const date = localDay(s.started_at!);
+    const day = dayMap.get(date) ?? { cost: 0, tokens: 0 };
+    day.cost += c.cost;
+    day.tokens += c.tin + c.tout;
+    dayMap.set(date, day);
+    const pkey = s.project_key ?? '';
+    const proj = projMap.get(pkey) ?? { cost: 0, tokens: 0 };
+    proj.cost += c.cost;
+    proj.tokens += c.tin + c.tout;
+    projMap.set(pkey, proj);
+    // Per-message model attribution: sessions mix models (subagents, /model
+    // switches). Placeholder models ('<synthetic>') carry no usage — skipped.
+    if (c.model !== null && !c.model.startsWith('<')) {
+      const mdl = modelMap.get(c.model) ?? { cost: 0, tokens: 0, cr: 0, roots: new Set<string>() };
+      mdl.cost += c.cost;
+      mdl.tokens += c.tin + c.tout;
+      mdl.cr += c.cr;
+      mdl.roots.add(s.parent_session_id ?? s.id);
+      modelMap.set(c.model, mdl);
+    }
+  }
+
+  // Session counts and the unpriced tally stay session-derived (root sessions
+  // only — parents already show their subagents' work).
+  const windowRoots = sessions.filter((s) => s.parent_session_id === null && inWindow(s));
+  const dayN = new Map<string, number>();
+  const projN = new Map<string, number>();
+  for (const s of windowRoots) {
+    const date = localDay(s.started_at!);
+    dayN.set(date, (dayN.get(date) ?? 0) + 1);
+    const pkey = s.project_key ?? '';
+    projN.set(pkey, (projN.get(pkey) ?? 0) + 1);
+  }
+  const dayDates = new Set([...dayMap.keys(), ...dayN.keys()]);
+  const days = [...dayDates].sort().map((date) => {
+    const d = dayMap.get(date);
+    return { date, cost: d?.cost ?? 0, tokens: d?.tokens ?? 0, n: dayN.get(date) ?? 0 };
+  });
+  const byModel = [...modelMap.entries()]
+    .map(([key, m]) => ({ key, cost: m.cost, tokens: m.tokens, cr: m.cr, n: m.roots.size }))
+    .sort((a, b) => b.cost - a.cost);
+  const byProject = [...projMap.entries()]
+    .map(([key, p]) => ({
+      key: key === '' ? null : key,
+      cost: p.cost,
+      tokens: p.tokens,
+      n: projN.get(key) ?? 0,
+    }))
+    .sort((a, b) => b.cost - a.cost);
+
+  const sessionTotals = {
+    n: windowRoots.length,
+    unpriced: windowRoots.filter((s) => s.cost_usd === null).length,
+  };
 
   // Cache savings: reads billed at cacheRead instead of the full input rate.
   let cacheSavedUsd = 0;
@@ -1039,8 +1286,8 @@ export function getSpend(
     })),
     totals: {
       costUsd: totals.cost,
-      unpricedSessions: totals.unpriced ?? 0,
-      sessions: totals.n,
+      unpricedSessions: sessionTotals.unpriced ?? 0,
+      sessions: sessionTotals.n,
       inputTokens: totals.tin,
       outputTokens: totals.tout,
       cacheReadTokens: totals.cr,
@@ -1094,6 +1341,59 @@ export function getIndexHealth(db: Database.Database): {
     unknownTypes,
     dbBytes,
   };
+}
+
+/* ── index maintenance (our own data only; ~/.claude stays read-only) ── */
+
+/**
+ * Drop index rows for session files that no longer exist on disk. The watcher
+ * sees writes, not unlinks, so deleted logs linger in the index forever.
+ *
+ * User annotations (pins, names, notes, bookmarks) are deliberately NOT
+ * deleted: they are keyed by session id and survive `rebuild()` by the same
+ * reasoning — if the file returns (a moved project dir, a restored backup),
+ * so does everything the user wrote about it.
+ */
+export function pruneMissingSessions(db: Database.Database): { pruned: number } {
+  const rows = db.prepare(`SELECT id, file_path FROM sessions`).all() as {
+    id: string;
+    file_path: string;
+  }[];
+  const gone = rows.filter((r) => !fs.existsSync(r.file_path)).map((r) => r.id);
+  if (gone.length === 0) return { pruned: 0 };
+
+  // messages_fts is an external-content table: every row must be withdrawn
+  // with its text before the message row goes, or the index keeps phantoms.
+  const selRows = db.prepare(`SELECT rowid, text FROM messages WHERE session_id = ?`);
+  const ftsDelete = db.prepare(
+    `INSERT INTO messages_fts (messages_fts, rowid, text) VALUES ('delete', ?, ?)`,
+  );
+  const delMessages = db.prepare(`DELETE FROM messages WHERE session_id = ?`);
+  const delFiles = db.prepare(`DELETE FROM files_touched WHERE session_id = ?`);
+  const delSession = db.prepare(`DELETE FROM sessions WHERE id = ?`);
+  const tx = db.transaction((ids: string[]) => {
+    for (const id of ids) {
+      for (const r of selRows.all(id) as { rowid: number; text: string }[]) {
+        ftsDelete.run(r.rowid, r.text);
+      }
+      delMessages.run(id);
+      delFiles.run(id);
+      delSession.run(id);
+    }
+  });
+  tx(gone);
+  return { pruned: gone.length };
+}
+
+/** Repack the index file after deletions. Returns the bytes freed (never negative). */
+export function vacuumIndex(db: Database.Database): { freedBytes: number; dbBytes: number } {
+  const size = () =>
+    (db.pragma('page_count', { simple: true }) as number) *
+    (db.pragma('page_size', { simple: true }) as number);
+  const before = size();
+  db.exec('VACUUM');
+  const after = size();
+  return { freedBytes: Math.max(0, before - after), dbBytes: after };
 }
 
 export function getStats(db: Database.Database): StatsResponse {

@@ -23,9 +23,11 @@ Usage:
   turnlog index --rebuild     Drop the index and rebuild from scratch
   turnlog export <id>         Print a session as markdown (id or unique prefix);
                               --html for a styled, self-contained web page,
-                              --redact to scrub keys, emails, and home paths
+                              --redact to scrub keys, emails, and home paths,
+                              --from <n> / --to <n> to export a message range
   turnlog search <query>      Search from the terminal (same operators as the UI:
-                              tool: kind: is:error project: model: before: after:)
+                              tool: kind: is:error is:pinned has:note has:bookmark
+                              project: model: before: after:)
   turnlog mcp                 Serve the index as a read-only MCP server (stdio)
                               Register: claude mcp add turnlog -- npx turnlog mcp
 
@@ -55,6 +57,8 @@ async function main(): Promise<void> {
         'no-footer': { type: 'boolean' },
         html: { type: 'boolean' },
         redact: { type: 'boolean' },
+        from: { type: 'string' },
+        to: { type: 'string' },
         rebuild: { type: 'boolean' },
         limit: { type: 'string' },
         json: { type: 'boolean' },
@@ -93,6 +97,8 @@ async function main(): Promise<void> {
         noFooter: values['no-footer'] === true,
         html: values.html === true,
         redact: values.redact === true,
+        from: values.from,
+        to: values.to,
       });
     case 'search':
       return runSearch(positionals.slice(1), {
@@ -266,9 +272,16 @@ async function runIndex(projectsDir: string, rebuild: boolean): Promise<void> {
 
 async function runExport(
   idArg: string | undefined,
-  opts: { noFooter: boolean; html: boolean; redact: boolean },
+  opts: { noFooter: boolean; html: boolean; redact: boolean; from?: string; to?: string },
 ): Promise<void> {
   if (!idArg) fail('Usage: turnlog export <session-id>  (accepts a unique id prefix)');
+  const bound = (v: string | undefined, name: string): number | undefined => {
+    if (v === undefined) return undefined;
+    const n = Number(v);
+    if (!Number.isInteger(n) || n < 0) fail(`--${name} must be a non-negative integer`);
+    return n;
+  };
+  const range = { fromIdx: bound(opts.from, 'from'), toIdx: bound(opts.to, 'to') };
   const db = openDb(dbPath());
   try {
     const id = resolveSessionId(db, idArg);
@@ -279,8 +292,8 @@ async function runExport(
       redact: opts.redact,
     };
     const out = opts.html
-      ? getSessionHtmlExport(db, id, exportOpts)
-      : getSessionExport(db, id, exportOpts);
+      ? getSessionHtmlExport(db, id, exportOpts, range)
+      : getSessionExport(db, id, exportOpts, range);
     if (out === null) fail(`Session "${id}" not found.`);
     process.stdout.write(out);
   } finally {
@@ -316,7 +329,7 @@ async function runSearch(
   if (!query) {
     fail(
       'Usage: turnlog search <query>\n' +
-        'Operators: tool: kind: is:error project: model: before: after: (combinable with text)',
+        'Operators: tool: kind: is:error is:pinned has:note has:bookmark project: model: before: after: (combinable with text)',
     );
   }
   let limit: number | undefined;

@@ -4,6 +4,55 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] — 2026-07-27
+
+### Added
+
+- Sessions now wear Claude Code's own title for the conversation: the name CC
+  generates (or the one you set in CC) shows in the sidebar, replay header,
+  exports, search results, and MCP listings instead of the bare project name.
+  A Turnlog custom name still wins. Titles are searchable.
+- The biggest unknown-record types are now understood (adapter v4, full
+  reindex on first run): file and directory attachments render as chips with
+  their path — and the paths are searchable — permission-mode switches show
+  as quiet markers in the replay, and plan-mode entry/exit is visible. The
+  health panel's unrecognized count now means actual format drift (~12% of
+  events on a real corpus, down from ~35%; what remains is deliberate
+  bookkeeping).
+- Share panel: the replay header's three loose export buttons became one
+  popover — pick markdown or web page, flip redaction on with the scrub list
+  spelled out (nothing is scrubbed or kept silently), and export a turn
+  range instead of the whole session. The API gains `from`/`to` message
+  bounds on `GET …/export`, and the CLI gains `turnlog export --from --to`;
+  partial exports are labeled "excerpt".
+- Continue a session from Turnlog: a play button in the replay header copies
+  the ready-to-paste `cd <project> && claude --resume <id>` command. For a
+  resumed conversation it targets the latest part — the one that carries the
+  whole history.
+- Index maintenance on the home screen's health card: "forget deleted files"
+  drops index rows for session logs that no longer exist (the watcher sees
+  writes, not deletions), and "repack index" reclaims the space afterwards.
+  Your pins, names, and notes survive both — if a file comes back, so do
+  they. Turnlog still only ever writes to its own index.
+- Your annotations joined the search language: `is:pinned` and `has:note`
+  narrow to sessions you flagged, `has:bookmark` matches the exact moments
+  you bookmarked — combinable with text and every other operator, in the UI,
+  the CLI, and MCP. Saved searches over them make living collections.
+
+### Fixed
+
+- Interrupting Claude and retyping no longer leaves a ghost turn. The first,
+  abandoned attempt used to replay as a normal turn and count in the spine;
+  it now folds into an "abandoned attempt" marker you can open — the
+  conversation reads as what actually happened, with the road not taken still
+  one click away.
+- Spend no longer double-bills resumed conversations. Resuming a session
+  copies its whole history into the new file, so a 3-part chain's shared
+  prefix used to count 3× in every spend number. Money and tokens now count
+  each message once per conversation — on the day it actually ran; session
+  counts are unchanged. Estimates you can trust, slightly smaller and
+  honest.
+
 ## [0.6.0] — 2026-07-26
 
 ### Added

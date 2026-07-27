@@ -296,6 +296,10 @@
 .chip-kind {
   flex: none;
 }
+.chip-attach {
+  background: var(--bg2);
+  color: var(--tx1);
+}
 
 .tile {
   width: 44px;
@@ -389,6 +393,131 @@
   text-transform: uppercase;
   color: var(--tx2);
   margin-top: 2px;
+}
+
+/* ── share panel ───────────────────────────────────────────────────── */
+
+.share-wrap {
+  position: relative;
+}
+.share-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  /* Wide enough that the segment labels ("web page") never wrap. */
+  width: 340px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+.share-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.share-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--tx2);
+  /* Fixed, not min-width: every row's control starts on the same column. */
+  width: 62px;
+  flex: none;
+}
+/* The range row wears the same pill track as the segmented rows above it, so
+   every control in the panel starts and ends on the same two columns. */
+.share-range {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  background: var(--bg2);
+  border-radius: 999px;
+}
+.share-range-sep {
+  font-size: 11.5px;
+  color: var(--tx2);
+  flex: none;
+}
+/* Two classes: .view-toggle sets a header margin and is declared later in this
+   file, so a single-class override would lose and the row would sit 12px right
+   of the range track. */
+.share-row .share-seg {
+  flex: 1;
+  margin-left: 0;
+}
+.share-seg button {
+  flex: 1;
+  justify-content: center;
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+.share-num {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--tx0);
+  background: var(--bg1);
+  border: none;
+  border-radius: 999px;
+  text-align: center;
+  /* Native spinners are a different design language — the value is typed or
+     clamped, and the arrows would be the only chrome in the whole panel. */
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.share-num::-webkit-outer-spin-button,
+.share-num::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.share-num:focus-visible {
+  outline: 2px solid var(--accent-dim);
+  outline-offset: -1px;
+}
+.share-hint {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--tx2);
+}
+.share-actions {
+  display: flex;
+  gap: 8px;
+}
+.share-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--tx0);
+  background: var(--bg2);
+  border-radius: 10px;
+  transition: background 150ms;
+}
+.share-btn:hover {
+  background: var(--bg3);
+}
+.share-btn.primary {
+  background: var(--contrast-solid);
+  color: var(--contrast-on);
+}
+.share-btn.primary:hover {
+  opacity: 0.9;
 }
 
 /* ── custom dropdown ───────────────────────────────────────────────── */
@@ -917,6 +1046,32 @@
   color: var(--c-error);
   flex: none;
 }
+.health-maintain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+.health-maintain-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--tx2);
+}
+.health-action {
+  font-size: 12.5px;
+  padding: 6px 12px;
+}
+.health-action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.health-maintain-note {
+  font-size: 12px;
+  color: var(--tx2);
+}
 
 .see-all {
   font-size: 13px;
@@ -1374,6 +1529,32 @@
   color: var(--tx1);
   font-size: 13px;
   font-style: italic;
+}
+.block-attachment {
+  border-left-color: var(--c-dim);
+}
+.attach-detail {
+  color: var(--tx1);
+  font-size: 12.5px;
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+.block-mode {
+  border-left-color: var(--c-dim);
+  padding-top: 2px;
+  padding-bottom: 2px;
+  margin: 2px 0;
+}
+/* A road not taken reads quieter than a subagent run: it never happened. */
+.abandoned-run .sidechain-label {
+  color: var(--tx2);
+  font-style: italic;
+}
+.mode-text {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--tx2);
 }
 
 .block-head {

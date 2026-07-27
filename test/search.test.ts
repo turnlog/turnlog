@@ -94,6 +94,37 @@ describe('parseSearchQuery (operators)', () => {
     expect(p.filters).toEqual({ before: '2026-07', after: '2025' });
     expect(p.terms).toBe('');
   });
+
+  it('parses annotation operators; unknown has: values stay terms', () => {
+    const p = parseSearchQuery('is:pinned has:note has:bookmark auth');
+    expect(p.filters).toEqual({ pinned: true, hasNote: true, hasBookmark: true });
+    expect(p.terms).toBe('auth');
+    expect(parseSearchQuery('has:banana').hasFilters).toBe(false);
+  });
+});
+
+describe('annotation operators against user data', () => {
+  it('is:pinned and has:note narrow to annotated sessions', async () => {
+    const { setSessionMeta } = await import('../src/server/api.js');
+    setSessionMeta(db, SESSION_A, { pinned: true, note: 'the reconnect saga' });
+    const pinned = searchMessages(db, { query: 'is:pinned' });
+    expect(pinned.groups.map((g) => g.session.id)).toEqual([SESSION_A]);
+    const noted = searchMessages(db, { query: 'has:note useWebSocket' });
+    expect(noted.groups.map((g) => g.session.id)).toEqual([SESSION_A]);
+    // No session in the corpus DB is pinned AND in project "api".
+    expect(searchMessages(db, { query: 'is:pinned quantum_flux_capacitor' }).totalHits).toBe(0);
+    setSessionMeta(db, SESSION_A, { pinned: false, note: null });
+  });
+
+  it('has:bookmark matches the bookmarked moments themselves', async () => {
+    const { setBookmark } = await import('../src/server/api.js');
+    setBookmark(db, SESSION_C, 2, true);
+    const res = searchMessages(db, { query: 'has:bookmark' });
+    expect(res.totalHits).toBe(1);
+    expect(res.groups[0]!.session.id).toBe(SESSION_C);
+    expect(res.groups[0]!.hits[0]!.idx).toBe(2);
+    setBookmark(db, SESSION_C, 2, false);
+  });
 });
 
 describe('search operators', () => {

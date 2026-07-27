@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { flattenSessions, useHealth, useSessions, useStats, useStatus } from '../api';
+import {
+  flattenSessions,
+  useHealth,
+  useMaintenance,
+  useSessions,
+  useStats,
+  useStatus,
+} from '../api';
 import { setProjectFilter } from '../filterStore';
 import {
   fmtBytes,
@@ -64,9 +71,29 @@ function RecentRow({ s }: { s: SessionMeta }) {
  */
 function HealthCard() {
   const health = useHealth();
+  const maintain = useMaintenance();
+  const [done, setDone] = useState<string | null>(null);
   const h = health.data;
   if (!h) return null;
   const skipped = h.skipped.length;
+
+  const run = (action: 'prune' | 'vacuum') => {
+    setDone(null);
+    maintain.mutate(action, {
+      onSuccess: (r) => {
+        setDone(
+          r.action === 'prune'
+            ? r.pruned === 0
+              ? 'Nothing to forget — every indexed file is still on disk.'
+              : `Forgot ${fmtCount(r.pruned ?? 0)} session${r.pruned === 1 ? '' : 's'} whose files are gone.`
+            : (r.freedBytes ?? 0) > 0
+              ? `Repacked the index — ${fmtBytes(r.freedBytes ?? 0)} freed.`
+              : 'Repacked the index; it was already compact.',
+        );
+      },
+      onError: () => setDone('That did not work — the index is unchanged.'),
+    });
+  };
   return (
     <section className="card health-card">
       <div className="list-card-head">
@@ -105,6 +132,27 @@ function HealthCard() {
           ))}
         </ul>
       )}
+      {/* Housekeeping on our own index only — ~/.claude is never written to. */}
+      <div className="health-maintain">
+        <span className="health-maintain-label">Maintain</span>
+        <button
+          className="pill health-action"
+          onClick={() => run('prune')}
+          disabled={maintain.isPending}
+        >
+          forget deleted files
+        </button>
+        <button
+          className="pill health-action"
+          onClick={() => run('vacuum')}
+          disabled={maintain.isPending}
+        >
+          repack index
+        </button>
+        <span className="health-maintain-note">
+          {maintain.isPending ? 'working…' : (done ?? 'Turnlog only ever writes to its own index.')}
+        </span>
+      </div>
     </section>
   );
 }

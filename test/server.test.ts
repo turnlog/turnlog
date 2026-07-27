@@ -365,6 +365,15 @@ describe('html export route', () => {
     expect(md.headers['content-type']).toContain('text/markdown');
     expect(md.body).toContain('# api — Claude Code session');
   });
+
+  it('bounds the export with from/to and 400s garbage bounds', async () => {
+    const part = await request(withToken(`/api/sessions/${SESSION_C}/export?from=0&to=1`));
+    expect(part.status).toBe(200);
+    expect(part.body).toContain('(excerpt)');
+    expect(part.body).not.toContain('<details><summary>Bash');
+    const bad = await request(withToken(`/api/sessions/${SESSION_C}/export?from=abc`));
+    expect(bad.status).toBe(400);
+  });
 });
 
 describe('index health route', () => {
@@ -378,10 +387,51 @@ describe('index health route', () => {
     // The corpus carries records no adapter understands — kept, counted, named.
     expect(h.unknownEvents).toBeGreaterThanOrEqual(2);
     const types = Object.fromEntries(h.unknownTypes.map((t: any) => [t.type, t.count]));
-    expect(types['ai-title']).toBe(1);
     expect(types['queue-operation']).toBe(1);
+    // Adapted since v4 — must no longer read as format drift.
+    expect(types['ai-title']).toBeUndefined();
     // Skipped files come from the driver's last scan summary.
     expect(h.skipped).toEqual([{ file: '/projects/broken.jsonl', message: 'EACCES' }]);
+  });
+});
+
+describe('maintenance route', () => {
+  it('requires the token and rejects unknown actions', async () => {
+    expect((await request('/api/maintenance', {}, 'POST', port, '{}')).status).toBe(401);
+    const bad = await request(
+      withToken('/api/maintenance'),
+      {},
+      'POST',
+      port,
+      JSON.stringify({ action: 'drop-everything' }),
+    );
+    expect(bad.status).toBe(400);
+    // GET is not a maintenance verb.
+    expect((await request(withToken('/api/maintenance'))).status).toBe(404);
+  });
+
+  it('prunes nothing while every indexed file is present, and repacks on request', async () => {
+    const prune = await request(
+      withToken('/api/maintenance'),
+      {},
+      'POST',
+      port,
+      JSON.stringify({ action: 'prune' }),
+    );
+    expect(prune.status).toBe(200);
+    expect(prune.json().pruned).toBe(0);
+    expect(prune.json().indexedFiles).toBeGreaterThan(0);
+
+    const vacuum = await request(
+      withToken('/api/maintenance'),
+      {},
+      'POST',
+      port,
+      JSON.stringify({ action: 'vacuum' }),
+    );
+    expect(vacuum.status).toBe(200);
+    expect(vacuum.json().freedBytes).toBeGreaterThanOrEqual(0);
+    expect(vacuum.json().dbBytes).toBeGreaterThan(0);
   });
 });
 
@@ -535,14 +585,19 @@ describe('API', () => {
   it('returns one session with metadata', async () => {
     const res = await request(withToken(`/api/sessions/${SESSION_A}`));
     const data = res.json();
-    expect(data.turnCount).toBe(16);
+    expect(data.turnCount).toBe(22);
     expect(data.filesTouchedCount).toBe(2);
+    // CC's own titles ride the session row; custom-title outranks ai-title.
+    expect(data.aiTitle).toBe('Reconnect surgery');
   });
 
   it('pages messages with raw JSON included', async () => {
     const res = await request(withToken(`/api/sessions/${SESSION_A}/messages?limit=5`));
     const data = res.json();
-    expect(data.total).toBe(16);
+    expect(data.total).toBe(22);
+    // messageId rides every row — the replay needs it to tell a response's
+    // continuation lines apart from a real branch.
+    expect(data.messages.some((m: any) => m.messageId !== null)).toBe(true);
     expect(data.messages).toHaveLength(5);
     expect(JSON.parse(data.messages[1].raw).uuid).toBe('u1');
 

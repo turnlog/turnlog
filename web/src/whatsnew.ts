@@ -18,6 +18,44 @@ export interface ReleaseNotes {
 
 export const RELEASES: ReleaseNotes[] = [
   {
+    version: '0.7.0',
+    date: '2026-07-27',
+    notes: [
+      {
+        kind: 'added',
+        text: 'Sessions now show Claude Code’s own name for the conversation instead of the project name — in the sidebar, the replay, search results and exports. A name you set yourself still wins.',
+      },
+      {
+        kind: 'added',
+        text: 'A share button gathers every way a session leaves Turnlog into one panel: markdown or web page, redaction on or off, and the option to export just a range of turns instead of the whole session.',
+      },
+      {
+        kind: 'added',
+        text: 'Continue where you left off: a play button in the replay header copies the claude --resume command for that session, ready to paste in your terminal.',
+      },
+      {
+        kind: 'added',
+        text: 'Search your own marks: is:pinned, has:note and has:bookmark narrow to the sessions and moments you flagged — on their own or combined with anything else.',
+      },
+      {
+        kind: 'added',
+        text: 'Housekeeping on the home screen: forget sessions whose log files are gone, and repack the index to reclaim the space. Your pins and notes survive both.',
+      },
+      {
+        kind: 'improved',
+        text: 'Attached files, plan mode and permission changes are now shown properly in the replay instead of counting as unrecognized events — about a third of everything Turnlog stored became readable.',
+      },
+      {
+        kind: 'fixed',
+        text: 'Spend no longer counts a resumed conversation’s history twice. Estimates get a little smaller and a lot more honest, and the Spend screen is faster.',
+      },
+      {
+        kind: 'fixed',
+        text: 'Interrupting Claude and retyping no longer leaves a ghost turn — the abandoned attempt folds away, one click from view.',
+      },
+    ],
+  },
+  {
     version: '0.6.0',
     date: '2026-07-26',
     notes: [

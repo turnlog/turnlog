@@ -66,7 +66,7 @@ function compactSession(s: SessionMeta) {
   return {
     id: s.id,
     project: s.projectPath ?? s.projectKey,
-    name: s.customName ?? undefined,
+    name: s.customName ?? s.aiTitle ?? undefined,
     note: s.note ?? undefined,
     startedAt: s.startedAt,
     endedAt: s.endedAt,
@@ -96,7 +96,9 @@ const TOOLS: McpTool[] = [
       'Full-text search across every indexed Claude Code session on this machine. ' +
       'Call this when you need to recall how something was done, discussed, or fixed in a past session. ' +
       'Supports operators combinable with text (or usable alone): tool:Bash, kind:prompt, is:error, ' +
-      'project:<name>, model:<name>, before:<ISO date prefix>, after:<ISO date prefix>. ' +
+      'project:<name>, model:<name>, before:<ISO date prefix>, after:<ISO date prefix>, ' +
+      'is:pinned (user-pinned sessions), has:note (sessions the user annotated), ' +
+      'has:bookmark (moments the user bookmarked). ' +
       'Returns hits grouped by session; use each hit’s sessionId + idx with get_messages to read the surrounding context.',
     inputSchema: {
       type: 'object',
@@ -116,7 +118,7 @@ const TOOLS: McpTool[] = [
         sessions: res.groups.map((g) => ({
           sessionId: g.session.id,
           project: g.session.projectPath ?? g.session.projectKey,
-          name: g.session.customName ?? undefined,
+          name: g.session.customName ?? g.session.aiTitle ?? undefined,
           startedAt: g.session.startedAt,
           hits: g.hits.map((h) => ({
             idx: h.idx,
