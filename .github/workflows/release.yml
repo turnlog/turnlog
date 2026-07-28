@@ -1,36 +1,70 @@
 name: Release
 
-# Tag a version (git tag v0.2.0 && git push --tags) → build, gate, publish.
-# npm is the entire distribution and update channel.
-# Publishing uses npm trusted publishing (OIDC): no token secret — the
-# trusted publisher (this repo + workflow) is configured on npmjs.com.
+# Two ways to release, one workflow (the npm trusted publisher is bound to
+# this file — keep the filename):
+#
+#   1. Merge a version bump to main. The gate asks the registry whether
+#      package.json's version is already published; if not, this run gates,
+#      publishes, and pushes the matching v* tag itself. Merges that don't
+#      bump the version are no-ops.
+#   2. Push a v* tag by hand (git tag v0.2.0 && git push --tags) — the
+#      original flow, still supported. The tag must match package.json.
+#
+# npm is the entire distribution and update channel. Publishing uses npm
+# trusted publishing (OIDC): no token secret — the trusted publisher (this
+# repo + workflow) is configured on npmjs.com.
 on:
   push:
+    branches: [main]
     tags: ['v*']
 
-permissions:
-  contents: read
-  id-token: write # required for npm trusted publishing (OIDC)
-
 jobs:
-  publish:
+  gate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      release: ${{ steps.decide.outputs.release }}
+      version: ${{ steps.decide.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Decide whether this push releases
+        id: decide
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            # The tag triggers the release, but package.json is what npm
+            # publishes — refuse a mismatch (e.g. tagging before the bump).
+            if [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
+              echo "Tag $GITHUB_REF_NAME does not match package.json (v$VERSION)" >&2
+              exit 1
+            fi
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          elif npm view "turnlog@$VERSION" version > /dev/null 2>&1; then
+            echo "turnlog@$VERSION is already on npm — nothing to release"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "turnlog@$VERSION is unpublished — releasing"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    needs: gate
+    if: needs.gate.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # pushes the release tag on merge-triggered runs
+      id-token: write # required for npm trusted publishing (OIDC)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      # The tag triggers the release, but package.json is what npm publishes —
-      # refuse a mismatch (e.g. tagging before the version bump landed) instead
-      # of failing later at the registry, or worse, publishing the wrong thing.
-      - name: Verify tag matches package.json version
-        run: |
-          PKG="v$(node -p "require('./package.json').version")"
-          if [ "$PKG" != "$GITHUB_REF_NAME" ]; then
-            echo "Tag $GITHUB_REF_NAME does not match package.json ($PKG)" >&2
-            exit 1
-          fi
       # Install + gates run on the runner's bundled npm 10 — npm 12 skips the
       # install scripts that build better-sqlite3's native binding.
       - run: npm ci
@@ -43,3 +77,13 @@ jobs:
       # the registry rejects provenance publishes from private repos).
       - run: npm install -g npm@latest
       - run: npm publish
+      # Merge-triggered releases mint their own tag, after the publish has
+      # succeeded — a failed publish must not leave a tag behind. (Pushing
+      # with GITHUB_TOKEN does not re-trigger this workflow.)
+      - name: Tag the release
+        if: github.ref_type == 'branch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v${{ needs.gate.outputs.version }}"
+          git push origin "v${{ needs.gate.outputs.version }}"
