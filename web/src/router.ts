@@ -26,7 +26,7 @@ export type Route =
       lens: Lens | null;
       view: ViewParam | null;
     }
-  | { name: 'search'; query: string }
+  | { name: 'search'; query: string; view: 'list' | 'timeline' }
   | { name: 'spend'; view: 'overview' | 'calendar' | 'disk' }
   | { name: 'whatsnew' }
   | { name: 'files'; query: string; path: string | null };
@@ -52,7 +52,11 @@ export function parseRoute(hash: string): Route {
     };
   }
   if (path === '/search') {
-    return { name: 'search', query: params.get('q') ?? '' };
+    return {
+      name: 'search',
+      query: params.get('q') ?? '',
+      view: params.get('v') === 'timeline' ? 'timeline' : 'list',
+    };
   }
   if (path === '/spend') {
     const v = params.get('v');
@@ -93,8 +97,8 @@ export function sessionHash(
   return `#/session/${encodeURIComponent(id)}${qs ? `?${qs}` : ''}`;
 }
 
-export function searchHash(q: string): string {
-  return `#/search?q=${encodeURIComponent(q)}`;
+export function searchHash(q: string, view: 'list' | 'timeline' = 'list'): string {
+  return `#/search?q=${encodeURIComponent(q)}${view === 'timeline' ? '&v=timeline' : ''}`;
 }
 
 export function filesHash(opts: { q?: string; path?: string } = {}): string {

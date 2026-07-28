@@ -38,7 +38,6 @@ function SessionEdits({ session, path }: { session: SessionMeta; path: string })
             <button
               className="file-entry-jump"
               onClick={() => navigate(sessionHash(session.id, { m: edit.idx }))}
-              title="Open at this point in the session"
             >
               view in session ↗
             </button>

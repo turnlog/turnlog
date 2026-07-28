@@ -284,6 +284,15 @@ export function ChevronDownIcon(props: IconProps) {
   return <SolarIcon body={CHEVRON_DOWN} {...props} />;
 }
 
+// Close cross, stroke-drawn to match the Solar outline weight — replaces the
+// text ✕ so icon buttons stay one visual family.
+const CLOSE =
+  '<path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M6.7 6.7l10.6 10.6M17.3 6.7L6.7 17.3"/>';
+
+export function CloseIcon(props: IconProps) {
+  return <SolarIcon body={CLOSE} {...props} />;
+}
+
 /** The Turnlog brandmark (hand-authored, not Solar). Lives here so both the
  *  header and the open sidebar can render it without an import cycle. */
 export function Brandmark({ size = 40 }: { size?: number }) {

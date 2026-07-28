@@ -45,7 +45,7 @@ describe('Indexer', () => {
     expect(count.n).toBe(6);
 
     const a = sessionRow(SESSION_A);
-    expect(a.turn_count).toBe(22);
+    expect(a.turn_count).toBe(23);
     expect(a.files_touched_count).toBe(2);
     expect(a.model).toBe('claude-opus-4-8');
     expect(a.project_path).toBe('/Users/dev/projects/webapp');

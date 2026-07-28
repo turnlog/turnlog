@@ -54,7 +54,7 @@ describe('adapter behavior', () => {
 
   it('never crashes, never drops: every non-blank line becomes a record', async () => {
     const records = await normalizeFile(sessionAFile);
-    expect(records).toHaveLength(22); // 23 lines, one blank
+    expect(records).toHaveLength(23); // 24 lines, one blank
   });
 
   it('classifies record kinds', async () => {

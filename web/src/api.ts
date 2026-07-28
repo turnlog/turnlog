@@ -22,6 +22,8 @@ import type {
   SpendResponse,
   ProjectInfo,
   SearchResponse,
+  SearchTimelineResponse,
+  SessionContextResponse,
   SessionChainResponse,
   SessionChildrenResponse,
   SessionListResponse,
@@ -173,9 +175,11 @@ function invalidateIndexDerived(queryClient: AppQueryClient, sessionId: string |
   if (sessionId !== null) {
     void queryClient.invalidateQueries({ queryKey: ['session', sessionId] });
     void queryClient.invalidateQueries({ queryKey: ['turns', sessionId] });
+    void queryClient.invalidateQueries({ queryKey: ['context', sessionId] });
   } else {
     void queryClient.invalidateQueries({ queryKey: ['session'] });
     void queryClient.invalidateQueries({ queryKey: ['turns'] });
+    void queryClient.invalidateQueries({ queryKey: ['context'] });
   }
 }
 
@@ -343,6 +347,49 @@ export function useSearch(q: string, sessionId?: string) {
   });
 }
 
+/** The full match set placed on the time axis — "when did this keep coming up?". */
+export function useSearchTimeline(q: string, enabled = true) {
+  return useQuery({
+    queryKey: ['search-timeline', q],
+    queryFn: () =>
+      apiFetch<SearchTimelineResponse>(`/api/search/timeline?q=${encodeURIComponent(q)}`),
+    enabled: enabled && q.trim().length > 0,
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+}
+
+/** Context-window curve + compaction marks for one session's replay. */
+export function useSessionContext(sessionId: string) {
+  return useQuery({
+    queryKey: ['context', sessionId],
+    queryFn: () =>
+      apiFetch<SessionContextResponse>(
+        `/api/sessions/${encodeURIComponent(sessionId)}/context`,
+      ),
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * The command palette's session pool: recent first, chains collapsed to their
+ * tip, empties hidden. One page of 500 is plenty to fuzzy over — the palette
+ * is a switcher, not a browser.
+ */
+export function usePaletteSessions(enabled: boolean) {
+  return useQuery({
+    queryKey: ['palette-sessions'],
+    queryFn: async () =>
+      (
+        await apiFetch<SessionListResponse>(
+          '/api/sessions?sort=ended_at&dir=desc&limit=500&hideEmpty=1&chains=collapse',
+        )
+      ).sessions,
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
 /** Every part of a session's resume chain, oldest first (chainLen > 1 only). */
 export function useSessionChain(sessionId: string, enabled = true) {
   return useQuery({
@@ -368,21 +415,24 @@ export function useSessionChildren(sessionId: string) {
   });
 }
 
+/** Page a session (optionally one lens) to completion, 2000 rows at a time. */
+async function fetchAllMessages(sessionId: string, lens?: string): Promise<MessageRow[]> {
+  const out: MessageRow[] = [];
+  let after = -1;
+  for (let i = 0; i < 10; i++) {
+    const res = await fetchMessages(sessionId, after, 2000, lens);
+    out.push(...res.messages);
+    if (out.length >= res.total || res.messages.length === 0) break;
+    after = res.messages[res.messages.length - 1]!.idx;
+  }
+  return out;
+}
+
 /** Every row of a subagent transcript, fetched when its fold first opens. */
 export function useChildRows(childId: string, enabled: boolean) {
   return useQuery({
     queryKey: ['child-rows', childId],
-    queryFn: async (): Promise<MessageRow[]> => {
-      const out: MessageRow[] = [];
-      let after = -1;
-      for (let i = 0; i < 10; i++) {
-        const res = await fetchMessages(childId, after, 2000);
-        out.push(...res.messages);
-        if (out.length >= res.total || res.messages.length === 0) break;
-        after = res.messages[res.messages.length - 1]!.idx;
-      }
-      return out;
-    },
+    queryFn: () => fetchAllMessages(childId),
     enabled,
     staleTime: 60_000,
   });
@@ -392,17 +442,7 @@ export function useChildRows(childId: string, enabled: boolean) {
 export function useLensRows(sessionId: string, lens: string) {
   return useQuery({
     queryKey: ['lens-rows', sessionId, lens],
-    queryFn: async (): Promise<MessageRow[]> => {
-      const out: MessageRow[] = [];
-      let after = -1;
-      for (let i = 0; i < 10; i++) {
-        const res = await fetchMessages(sessionId, after, 2000, lens);
-        out.push(...res.messages);
-        if (out.length >= res.total || res.messages.length === 0) break;
-        after = res.messages[res.messages.length - 1]!.idx;
-      }
-      return out;
-    },
+    queryFn: () => fetchAllMessages(sessionId, lens),
     staleTime: 60_000,
   });
 }

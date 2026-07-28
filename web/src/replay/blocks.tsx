@@ -3,6 +3,7 @@ import { useChildRows } from '../api';
 import CodeBlock from '../code/CodeBlock';
 import { langFromPath } from '../code/highlighter';
 import { SkeletonLines } from '../components/Skeleton';
+import Tooltip from '../components/Tooltip';
 import { fmtCount, fmtTime } from '../format';
 import { BookmarkFilledIcon, BookmarkIcon } from '../icons';
 import Markdown from '../md/Markdown';
@@ -610,15 +611,16 @@ export function BlockView({
       className={`block-slot ${isCurrent ? 'match-current' : ''} ${marked ? 'bookmarked' : ''}`}
     >
       {bookmarks.toggle && (
-        <button
-          className={`block-bookmark ${marked ? 'on' : ''}`}
-          onClick={() => bookmarks.toggle!(block.repIdx)}
-          aria-label={marked ? 'Remove bookmark' : 'Bookmark this moment'}
-          aria-pressed={marked}
-          title={marked ? 'Remove bookmark' : 'Bookmark this moment'}
-        >
-          {marked ? <BookmarkFilledIcon size={14} /> : <BookmarkIcon size={14} />}
-        </button>
+        <Tooltip content={marked ? 'Remove bookmark' : 'Bookmark this moment'}>
+          <button
+            className={`block-bookmark ${marked ? 'on' : ''}`}
+            onClick={() => bookmarks.toggle!(block.repIdx)}
+            aria-label={marked ? 'Remove bookmark' : 'Bookmark this moment'}
+            aria-pressed={marked}
+          >
+            {marked ? <BookmarkFilledIcon size={14} /> : <BookmarkIcon size={14} />}
+          </button>
+        </Tooltip>
       )}
       {inner}
     </div>

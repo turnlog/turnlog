@@ -4,6 +4,56 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Search-anchored timeline: the search screen gains a hits | timeline toggle
+  (`#/search?q=…&v=timeline`). Every matching session becomes a dot on a
+  time axis — project-colored, sized by hit count, spanning first match to
+  last with the gaps kept visible — and clicking one lands in that session
+  at its first hit. Answers "when did this keep coming up?" over the FULL
+  match set, not the truncated hit page (`GET /api/search/timeline`). Long
+  ranges bucket by week.
+- Context-window timeline: the replay's stats panel now draws how full the
+  context window was at every response (input + cache tokens the index
+  already holds), with the peak called out. Compaction boundaries are marked
+  on the curve, listed as clickable jump chips, and flagged with a
+  "compacted" chip on the spine turn where they happened — so "did it lose
+  the plot after the compaction?" is one glance (`GET
+  /api/sessions/:id/context`).
+- Command palette: ⌘K / Ctrl-K anywhere opens a fuzzy switcher over your
+  sessions — CC's own titles make them findable by name — plus screens and
+  saved searches; anything typed is also one Enter away from a full-text
+  search. `/` still focuses search.
+- Keyboard shortcuts got a real home: press `?` anywhere for a cheat sheet
+  (also reachable from the palette), and every shortcut hint in the app —
+  tooltips included — now renders as proper keycaps next to the label
+  instead of text like "(⌘F)". Modifier labels follow your platform (⌘ on
+  macOS, Ctrl elsewhere). New chrome shortcuts: `B` toggles the sidebar,
+  `T` switches the theme, and `⇧Q` stops Turnlog — pressed twice, the same
+  arm-then-confirm two-step as the button.
+
+### Improved
+
+- Find in session is fully keyboard-driven: Enter jumps to the next match
+  and ⇧Enter to the previous one, cycling from wherever you are.
+- Counts and dates inside tooltips (lens counts, resume-chain part dates)
+  now read as data — set off from the label in the monospace metadata
+  style instead of run into the sentence.
+- List rows everywhere (sidebar, home lists, spend splits, file history,
+  and the replay's turn spine) dropped their hairline rules for rounded
+  hover pills — the edge-to-edge lines that read as a table grid are gone
+  and hovers are clean rounded washes. The home, search, spine, and log
+  views also stopped centering at a fixed measure: content now uses the
+  full window width.
+- The home card's "See all" link is gone — the sidebar already is the
+  see-all.
+- Icon buttons speak one language: the last text "✕" buttons became real
+  icons, the error/bookmark jump rails no longer stack a browser tooltip on
+  top of the app's own, and the bookmark toggle uses the same tooltip pill
+  as every other icon button.
+
 ## [0.7.0] — 2026-07-27
 
 ### Added

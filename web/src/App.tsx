@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { hasToken, shutdownServer, useLiveEvents, useStatus } from './api';
 import {
   Brandmark,
+  CloseIcon,
   FolderIcon,
   MagniferIcon,
   MoonIcon,
@@ -11,6 +12,8 @@ import {
   WalletIcon,
 } from './icons';
 import { navigate, useRoute } from './router';
+import { SHORTCUTS, isTyping } from './keys';
+import { APP_EVENT, emitAppEvent, onAppEvent } from './events';
 import { getPref, setPref, usePref } from './prefs';
 import Home from './screens/Home';
 import Replay from './screens/Replay';
@@ -19,6 +22,8 @@ import Search from './screens/Search';
 import Spend from './screens/Spend';
 import WhatsNew from './screens/WhatsNew';
 import Sidebar from './Sidebar';
+import Palette from './components/Palette';
+import Shortcuts from './components/Shortcuts';
 import Tooltip from './components/Tooltip';
 import { setTheme, useTheme } from './theme';
 
@@ -30,8 +35,7 @@ function SearchButton() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
-      const t = e.target as HTMLElement;
-      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return;
+      if (isTyping(e.target)) return;
       e.preventDefault();
       navigate('#/search');
     };
@@ -40,7 +44,7 @@ function SearchButton() {
   }, []);
 
   return (
-    <Tooltip content="Search all sessions (/)">
+    <Tooltip content="Search all sessions" shortcut={SHORTCUTS.search}>
       <a
         href="#/search"
         className={`circle ${route.name === 'search' ? 'active' : ''}`}
@@ -117,7 +121,7 @@ function UpdateBanner() {
       <span className="update-banner-text">
         Turnlog <strong>{latest}</strong> is available — you&rsquo;re on {data?.appVersion}.
       </span>
-      <button className="update-banner-cmd" onClick={copy} title="Copy install command">
+      <button className="update-banner-cmd" onClick={copy}>
         <code>{cmd}</code>
         <span className="update-banner-copy">{copied ? 'copied' : 'copy'}</span>
       </button>
@@ -126,7 +130,7 @@ function UpdateBanner() {
         onClick={dismiss}
         aria-label="Dismiss update notice"
       >
-        &times;
+        <CloseIcon size={13} />
       </button>
     </div>
   );
@@ -155,8 +159,22 @@ function StopButton({ onStopped }: { onStopped: () => void }) {
     onStopped();
   };
 
+  // ⇧Q (global keys below) walks the same arm-then-confirm two-step as the
+  // mouse — a shortcut must not be a faster way to kill the server by accident.
+  useEffect(() => {
+    const onStopKey = () => {
+      if (armed) void stop();
+      else setArmed(true);
+    };
+    return onAppEvent(APP_EVENT.stopKey, onStopKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [armed]);
+
   return (
-    <Tooltip content={armed ? 'Click again to stop' : 'Stop Turnlog'}>
+    <Tooltip
+      content={armed ? 'Press again to stop' : 'Stop Turnlog'}
+      shortcut={SHORTCUTS.stop}
+    >
       <button
         className={`circle stop-btn ${armed ? 'armed' : ''}`}
         onClick={() => (armed ? void stop() : setArmed(true))}
@@ -198,7 +216,7 @@ function Stopped() {
           The local server has shut down — nothing is running on your machine.
           It&rsquo;s safe to close this tab, or start again with:
         </p>
-        <button className="stopped-cmd" onClick={copy} title="Copy command">
+        <button className="stopped-cmd" onClick={copy}>
           <code>{cmd}</code>
           <span>{copied ? 'copied' : 'copy'}</span>
         </button>
@@ -240,16 +258,45 @@ export default function App() {
   };
 
   useEffect(() => {
-    const onOpenSidebar = () => setSidebarOpen(true);
-    window.addEventListener('turnlog:open-sidebar', onOpenSidebar);
-    return () => window.removeEventListener('turnlog:open-sidebar', onOpenSidebar);
+    const offOpen = onAppEvent(APP_EVENT.openSidebar, () => setSidebarOpen(true));
+    const offToggle = onAppEvent(APP_EVENT.toggleSidebar, () => toggleSidebar());
+    return () => {
+      offOpen();
+      offToggle();
+    };
+    // toggleSidebar uses a functional setState — any render's instance works.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Chrome shortcuts: B sidebar, T theme, ⇧Q stop (two-step). Guarded like
+  // `/` — never while typing, never with a held modifier.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return;
+      if (e.key === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+      } else if (e.key === 't') {
+        e.preventDefault();
+        setTheme(theme === 'dark' ? 'light' : 'dark');
+      } else if (e.key === 'Q' && e.shiftKey) {
+        e.preventDefault();
+        emitAppEvent(APP_EVENT.stopKey);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // toggleSidebar uses a functional setState — any render's instance works.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme]);
 
   if (!hasToken()) return <NoToken />;
   if (stopped) return <Stopped />;
 
   return (
     <div className="app">
+      <Palette />
+      <Shortcuts />
       {/* Always mounted so open/close can animate; the rail clips at width 0. */}
       <div className={`sidebar-rail ${sidebarOpen ? 'open' : ''}`} aria-hidden={!sidebarOpen}>
         <Sidebar
@@ -262,7 +309,7 @@ export default function App() {
           {/* While the sidebar is open, its own top row carries these. */}
           {!sidebarOpen && (
             <>
-              <Tooltip content="Show sessions">
+              <Tooltip content="Show sessions" shortcut={SHORTCUTS.sidebar}>
                 <button className="circle" onClick={toggleSidebar} aria-label="Show sessions">
                   <SidebarIcon size={17} />
                 </button>
@@ -292,7 +339,7 @@ export default function App() {
               Spend
             </a>
             <SearchButton />
-            <Tooltip content={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
+            <Tooltip content={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} shortcut={SHORTCUTS.theme}>
               <button
                 className="circle"
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -308,7 +355,7 @@ export default function App() {
         <UpdateBanner />
         <main className="screen">
           {route.name === 'library' && <Home />}
-          {route.name === 'search' && <Search query={route.query} />}
+          {route.name === 'search' && <Search query={route.query} view={route.view} />}
           {route.name === 'spend' && <Spend view={route.view} />}
           {route.name === 'whatsnew' && <WhatsNew />}
           {route.name === 'files' && <FileHistory query={route.query} path={route.path} />}

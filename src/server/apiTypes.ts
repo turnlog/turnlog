@@ -144,6 +144,62 @@ export interface SearchResponse {
   aggregates: SearchAggregates | null;
 }
 
+/**
+ * One matched session placed on the time axis (`GET /api/search/timeline`).
+ * The timeline answers "when did this keep coming up?" — sessions are the
+ * markers because a session is one work episode; 50 hits inside it are still
+ * one moment on the axis.
+ */
+export interface TimelineSession {
+  session: SessionMeta;
+  /** Matching messages in this session family (subagent transcripts included). */
+  hits: number;
+  /**
+   * First hit's message idx in the root session itself — the jump target.
+   * Null when every hit sits inside a subagent transcript.
+   */
+  firstIdx: number | null;
+}
+
+/** Computed over the FULL match set, not the truncated hit page. */
+export interface SearchTimelineResponse {
+  query: string;
+  /** Matched root sessions, oldest first. */
+  sessions: TimelineSession[];
+}
+
+/**
+ * One API response's context footprint (`GET /api/sessions/:id/context`).
+ * `context` is the prompt side of the request — input + cache read + cache
+ * write tokens — i.e. how full the window was when this response started.
+ */
+export interface ContextPoint {
+  idx: number;
+  ts: string | null;
+  context: number;
+  tokensOut: number;
+}
+
+/** A `compact_boundary` system record — CC compacted the conversation here. */
+export interface CompactionMark {
+  idx: number;
+  ts: string | null;
+  /** Context size the moment before compaction (CC's own number), if logged. */
+  preTokens: number | null;
+}
+
+/**
+ * `GET /api/sessions/:id/context` — the context-window timeline: one point
+ * per API response (main chain only; sidechains run their own context), with
+ * compaction boundaries marked. Everything here is mechanical column math
+ * over usage the index already holds.
+ */
+export interface SessionContextResponse {
+  sessionId: string;
+  points: ContextPoint[];
+  compactions: CompactionMark[];
+}
+
 /** A named, persisted search query (schema v5; survives rebuilds). */
 export interface SavedSearch {
   id: number;

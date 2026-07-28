@@ -1,387 +1,57 @@
+import { useEffect, useMemo, useState } from 'react';
 import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
-import {
-  fetchExport,
-  fetchMessages,
   revealSession,
   useBookmarks,
   useErrorIdxs,
   useSearch,
   useSession,
-  useSessionChain,
   useSessionChildren,
+  useSessionContext,
   useSetSessionMeta,
   useToggleBookmark,
   useTurns,
 } from '../api';
-import { BookmarkContext } from '../replay/bookmarkContext';
-import { ChildSessionsContext } from '../replay/childSessions';
-import {
-  fmtCost,
-  fmtCount,
-  fmtDate,
-  fmtDuration,
-  fmtModel,
-  fmtTokens,
-  projectName,
-  sessionName,
-  shortId,
-} from '../format';
-import { navigate, sessionHash } from '../router';
-import { getPref, setPref } from '../prefs';
-import { BlockView } from '../replay/blocks';
-import SpineView from '../replay/Spine';
 import NoteDot from '../components/NoteDot';
+import { SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
-import FilesView from '../replay/Files';
+import { fmtCount, fmtDate, fmtModel, projectName, sessionName, shortId } from '../format';
 import {
   BookmarkFilledIcon,
   ChartIcon,
   ChatIcon,
-  CheckIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronUpIcon,
-  ChevronRightIcon,
+  CloseIcon,
   CmdLensIcon,
-  CopyIcon,
   DiffLensIcon,
-  DownloadIcon,
   ErrorLensIcon,
   FolderIcon,
   MagniferIcon,
   PenIcon,
   PinFilledIcon,
   PinIcon,
-  PlayCircleIcon,
-  ShareIcon,
 } from '../icons';
-import { buildBlocks, idxToBlockMap } from '../replay/thread';
-import { SkeletonRows } from '../components/Skeleton';
-import type { MessageRow, SessionMeta, TurnSummary } from '../types';
+import { SHORTCUTS } from '../keys';
+import { getPref, setPref } from '../prefs';
+import AnnotatePanel from '../replay/AnnotatePanel';
+import { BookmarkContext } from '../replay/bookmarkContext';
+import ChainNav from '../replay/ChainNav';
+import { ChildSessionsContext } from '../replay/childSessions';
+import FilesView from '../replay/Files';
+import FindBar from '../replay/FindBar';
+import LogView from '../replay/LogView';
+import ResumeButton from '../replay/ResumeButton';
+import SharePanel from '../replay/SharePanel';
+import SpineView from '../replay/Spine';
+import StatsPanel from '../replay/Stats';
+import { navigate, sessionHash } from '../router';
 import type { Lens, ViewParam } from '../router';
 
-const PAGE = 300;
-const JUMP_BACKSCROLL = 40;
-const VIRTUOSO_BASE = 10_000_000;
 /** Stable identity for the no-subagents case — most sessions. */
 const EMPTY_CHILDREN: never[] = [];
 
 type ViewMode = 'spine' | 'log';
-
-/**
- * A contiguous window of messages, growable in both directions. The API
- * pages forward-only (`after_idx`), so "earlier" is a bounded fetch of
- * exactly the gap above the window. (Log view only — the spine fetches
- * per-turn ranges instead.)
- */
-function useMessageWindow(sessionId: string, startIdx: number | null, lens: Lens | null = null) {
-  const [rows, setRows] = useState<MessageRow[]>([]);
-  const [total, setTotal] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const busy = useRef(false);
-
-  const merge = useCallback((incoming: MessageRow[], newTotal: number) => {
-    setTotal(newTotal);
-    if (incoming.length === 0) return;
-    setRows((prev) => {
-      const byIdx = new Map(prev.map((r) => [r.idx, r]));
-      for (const r of incoming) byIdx.set(r.idx, r);
-      return [...byIdx.values()].sort((a, b) => a.idx - b.idx);
-    });
-  }, []);
-
-  const run = useCallback(
-    async (afterIdx: number, limit: number) => {
-      if (busy.current) return;
-      busy.current = true;
-      try {
-        const res = await fetchMessages(sessionId, afterIdx, limit, lens);
-        merge(res.messages, res.total);
-        setError(null);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'failed to load messages');
-      } finally {
-        busy.current = false;
-        setLoading(false);
-      }
-    },
-    [sessionId, merge, lens],
-  );
-
-  useEffect(() => {
-    const after = startIdx === null ? -1 : Math.max(-1, startIdx - JUMP_BACKSCROLL - 1);
-    void run(after, PAGE);
-    // One window per mounted view; Replay keys views by session id.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
-
-  const loadOlder = useCallback(async () => {
-    const first = rows[0]?.idx;
-    if (first === undefined || first <= 0) return;
-    const after = Math.max(-1, first - PAGE - 1);
-    await run(after, first - after - 1);
-  }, [rows, run]);
-
-  const loadNewer = useCallback(async () => {
-    const last = rows[rows.length - 1]?.idx;
-    await run(last ?? -1, PAGE);
-  }, [rows, run]);
-
-  const ensureLoaded = useCallback(
-    async (target: number) => {
-      for (let i = 0; i < 60; i++) {
-        const res = await fetchMessages(
-          sessionId,
-          Math.max(-1, target - JUMP_BACKSCROLL - 1),
-          PAGE,
-          lens,
-        ).catch(() => null);
-        if (!res) return;
-        merge(res.messages, res.total);
-        if (res.messages.some((r) => r.idx === target) || res.messages.length === 0) return;
-      }
-    },
-    [sessionId, merge, lens],
-  );
-
-  return { rows, total, error, loading, loadOlder, loadNewer, ensureLoaded };
-}
-
-function LogView({
-  sessionId,
-  jumpIdx,
-  lens = null,
-  turns,
-}: {
-  sessionId: string;
-  jumpIdx: number | null;
-  lens?: Lens | null;
-  turns?: TurnSummary[];
-}) {
-  const win = useMessageWindow(sessionId, jumpIdx, lens);
-  const [topIdx, setTopIdx] = useState<number | null>(null);
-  const blocks = useMemo(() => buildBlocks(win.rows), [win.rows]);
-  const idxMap = useMemo(() => idxToBlockMap(blocks), [blocks]);
-  const idxMapRef = useRef(idxMap);
-  idxMapRef.current = idxMap;
-
-  // Prepends shift list positions; firstItemIndex keeps virtuoso anchored.
-  const [firstItemIndex, setFirstItemIndex] = useState(VIRTUOSO_BASE);
-  const prevFirstRep = useRef<number | null>(null);
-  useEffect(() => {
-    const firstRep = blocks[0]?.repIdx ?? null;
-    const prev = prevFirstRep.current;
-    if (firstRep !== null && prev !== null && firstRep < prev) {
-      const prepended = blocks.filter((b) => b.repIdx < prev).length;
-      setFirstItemIndex((v) => v - prepended);
-    }
-    if (firstRep !== null) prevFirstRep.current = firstRep;
-  }, [blocks]);
-
-  const virtuoso = useRef<VirtuosoHandle>(null);
-  const atBottom = useRef(false);
-
-  const scrollToIdx = useCallback(
-    (target: number, smooth: boolean, attempt = 0) => {
-      const pos = idxMapRef.current.get(target);
-      if (pos !== undefined) {
-        virtuoso.current?.scrollToIndex({
-          index: firstItemIndex + pos,
-          align: 'center',
-          behavior: smooth ? 'smooth' : 'auto',
-        });
-      } else if (attempt < 20) {
-        requestAnimationFrame(() => scrollToIdx(target, smooth, attempt + 1));
-      }
-    },
-    [firstItemIndex],
-  );
-
-  // Jump target changed (initial open or match navigation).
-  const lastJump = useRef<number | null>(null);
-  useEffect(() => {
-    if (jumpIdx === null || lastJump.current === jumpIdx) return;
-    const smooth = lastJump.current !== null; // first landing is instant
-    lastJump.current = jumpIdx;
-    let alive = true;
-    void win.ensureLoaded(jumpIdx).then(() => {
-      if (alive) requestAnimationFrame(() => scrollToIdx(jumpIdx, smooth));
-    });
-    return () => {
-      alive = false;
-    };
-  }, [jumpIdx, win.ensureLoaded, scrollToIdx, win]);
-
-  // Live tail: follow an in-flight session while the user sits at the bottom.
-  useEffect(() => {
-    const t = setInterval(() => {
-      if (document.visibilityState === 'visible' && atBottom.current) void win.loadNewer();
-    }, 3500);
-    return () => clearInterval(t);
-  }, [win.loadNewer, win]);
-
-  if (win.loading && win.rows.length === 0) {
-    return <SkeletonRows n={8} tile={30} />;
-  }
-  if (win.error && win.rows.length === 0) {
-    return (
-      <div className="fullscreen-note">
-        <div>
-          <h1>Could not load session</h1>
-          <p>{win.error}</p>
-        </div>
-      </div>
-    );
-  }
-
-  const firstIdx = win.rows[0]?.idx;
-  // Lens windows start from the session beginning (jump targets override the
-  // lens), so "earlier" only exists in the unfiltered view.
-  const hasEarlier = lens === null && firstIdx !== undefined && firstIdx > 0;
-
-  // Sticky "you are here": the turn containing the topmost visible block.
-  const currentTurn =
-    turns && topIdx !== null
-      ? [...turns].reverse().find((t) => t.idx <= topIdx)
-      : undefined;
-  const turnNumber = currentTurn && turns ? turns.indexOf(currentTurn) + 1 : null;
-
-  return (
-    <div className="log-wrap">
-      {currentTurn && (
-        <div className="you-are-here" title={currentTurn.command ?? currentTurn.text}>
-          <span className="turn-n">{turnNumber}</span>
-          <span className="yah-text">{currentTurn.command ?? currentTurn.text}</span>
-        </div>
-      )}
-    <Virtuoso
-      ref={virtuoso}
-      className="replay-list"
-      data={blocks}
-      firstItemIndex={firstItemIndex}
-      endReached={() => void win.loadNewer()}
-      rangeChanged={(range) => {
-        const block = blocks[range.startIndex - firstItemIndex];
-        if (block) setTopIdx(block.repIdx);
-      }}
-      atBottomStateChange={(v) => {
-        atBottom.current = v;
-      }}
-      components={{
-        Header: () =>
-          hasEarlier ? (
-            <div className="load-earlier">
-              <button onClick={() => void win.loadOlder()}>
-                ↑ load earlier ({fmtCount(firstIdx)} events above)
-              </button>
-            </div>
-          ) : null,
-        Footer: () => <div className="replay-footer" />,
-      }}
-      itemContent={(_i, block) => (
-        <BlockView
-          block={block}
-          currentIdx={jumpIdx}
-          defaultOpen={lens !== null && lens !== 'prompts'}
-        />
-      )}
-    />
-    </div>
-  );
-}
-
-function Tile({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="stat-tile">
-      <div>
-        <div className="stat-value">{value}</div>
-        <div className="stat-label">{label}</div>
-      </div>
-    </div>
-  );
-}
-
-function StatsPanel({ s }: { s: SessionMeta }) {
-  return (
-    <div className="stat-strip replay-stats">
-      <Tile label="turns" value={fmtCount(s.turnCount)} />
-      <Tile label="duration" value={fmtDuration(s.startedAt, s.endedAt)} />
-      <Tile label="tokens in / out" value={`${fmtTokens(s.inputTokens)} / ${fmtTokens(s.outputTokens)}`} />
-      <Tile label="cache read / write" value={`${fmtTokens(s.cacheReadTokens)} / ${fmtTokens(s.cacheWriteTokens)}`} />
-      <Tile label="files touched" value={fmtCount(s.filesTouchedCount)} />
-      <Tile label="est. cost" value={fmtCost(s.costUsd)} />
-    </div>
-  );
-}
-
-/** In-session find: drives the same ?q= the global search uses. */
-function FindBar({
-  sessionId,
-  query,
-  hitIdxs,
-  onClose,
-}: {
-  sessionId: string;
-  query: string;
-  hitIdxs: number[];
-  onClose: () => void;
-}) {
-  const [value, setValue] = useState(query);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, []);
-
-  // Debounce into the URL — q is the single source of find state.
-  useEffect(() => {
-    if (value.trim() === query) return;
-    const t = setTimeout(() => {
-      navigate(
-        value.trim()
-          ? sessionHash(sessionId, { q: value.trim() })
-          : sessionHash(sessionId),
-      );
-    }, 250);
-    return () => clearTimeout(t);
-  }, [value, query, sessionId]);
-
-  return (
-    <div className="find-bar">
-      <input
-        ref={inputRef}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') {
-            e.preventDefault();
-            onClose();
-          } else if (e.key === 'Enter' && hitIdxs.length > 0) {
-            e.preventDefault();
-            navigate(sessionHash(sessionId, { m: hitIdxs[0]!, q: value.trim() }));
-          }
-        }}
-        placeholder="Find in this session…"
-        aria-label="Find in session"
-      />
-      <span className="find-count">
-        {query ? `${fmtCount(hitIdxs.length)} hit${hitIdxs.length === 1 ? '' : 's'}` : ''}
-      </span>
-      <button onClick={onClose} aria-label="Close find">
-        ✕
-      </button>
-    </div>
-  );
-}
 
 /** Lens legend: each dimension owns a color and an icon, everywhere it appears. */
 const LENS_LABELS: { value: Lens; label: string; Icon: typeof DiffLensIcon }[] = [
@@ -390,321 +60,6 @@ const LENS_LABELS: { value: Lens; label: string; Icon: typeof DiffLensIcon }[] =
   { value: 'errors', label: 'errors', Icon: ErrorLensIcon },
   { value: 'prompts', label: 'prompts', Icon: ChatIcon },
 ];
-
-/** Quote a path for pasting into a shell; plain paths stay readable. */
-function shellQuote(p: string): string {
-  return /^[\w/.~-]+$/.test(p) ? p : `'${p.replaceAll("'", `'\\''`)}'`;
-}
-
-/**
- * Close the find→act loop: copy the command that reopens this conversation in
- * Claude Code. A resumed chain continues from its latest part — that file
- * carries the whole copied history — so the tip's id is what gets copied.
- */
-function ResumeButton({ session }: { session: SessionMeta }) {
-  const [copied, setCopied] = useState(false);
-  const chain = useSessionChain(session.id, session.chainLen > 1);
-  const parts = chain.data?.chain;
-  const tip = parts && parts.length > 0 ? parts[parts.length - 1]! : session;
-  const isElsewhere = tip.id !== session.id;
-
-  const copy = async () => {
-    const cd = tip.projectPath ? `cd ${shellQuote(tip.projectPath)} && ` : '';
-    try {
-      await navigator.clipboard.writeText(`${cd}claude --resume ${tip.id}`);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
-    } catch {
-      /* clipboard denied — ignore */
-    }
-  };
-
-  return (
-    <Tooltip
-      content={
-        copied
-          ? 'Command copied — paste it in your terminal'
-          : isElsewhere
-            ? 'Continue this conversation (resumes the latest part)'
-            : 'Continue this session in Claude Code'
-      }
-    >
-      <button
-        className={`replay-action ${copied ? 'ok' : ''}`}
-        onClick={copy}
-        aria-label="Copy the claude --resume command for this session"
-      >
-        {copied ? <CheckIcon size={16} /> : <PlayCircleIcon size={16} />}
-      </button>
-    </Tooltip>
-  );
-}
-
-/**
- * Share panel: one popover for every way a session leaves the app — format,
- * an optional turn range (share the fix, not the 1,800-turn session), and a
- * redact toggle with its scrub list spelled out so nothing is scrubbed (or
- * kept) silently.
- */
-function SharePanel({ sessionId }: { sessionId: string }) {
-  const [open, setOpen] = useState(false);
-  const [format, setFormat] = useState<'markdown' | 'html'>('markdown');
-  const [redact, setRedact] = useState(false);
-  const [whole, setWhole] = useState(true);
-  const [fromTurn, setFromTurn] = useState(1);
-  const [toTurn, setToTurn] = useState(1);
-  const [copied, setCopied] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const turns = useTurns(sessionId);
-  const turnList = turns.data?.turns ?? [];
-  const turnCount = turnList.length;
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
-  const openPanel = () => {
-    setFromTurn(1);
-    setToTurn(Math.max(1, turnCount));
-    setWhole(true);
-    setOpen(true);
-  };
-
-  const clampTurn = (n: number) => Math.min(Math.max(1, n), Math.max(1, turnCount));
-  const idxRange = (): { fromIdx?: number; toIdx?: number } => {
-    if (whole || turnCount === 0) return {};
-    const a = clampTurn(Math.min(fromTurn, toTurn)) - 1;
-    const b = clampTurn(Math.max(fromTurn, toTurn)) - 1;
-    // endIdx is exclusive (the next turn's start); the export bound is inclusive.
-    return { fromIdx: turnList[a]!.idx, toIdx: turnList[b]!.endIdx - 1 };
-  };
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(
-        await fetchExport(sessionId, { format, redact, ...idxRange() }),
-      );
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
-    } catch {
-      /* clipboard denied — ignore */
-    }
-  };
-  const download = async () => {
-    const body = await fetchExport(sessionId, { format, redact, ...idxRange() }).catch(() => null);
-    if (body === null) return;
-    const [type, ext] = format === 'html' ? ['text/html', 'html'] : ['text/markdown', 'md'];
-    const rangeTag = whole || turnCount === 0 ? '' : `-t${clampTurn(fromTurn)}-${clampTurn(toTurn)}`;
-    const url = URL.createObjectURL(new Blob([body], { type }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${sessionId.slice(0, 8)}${rangeTag}.${ext}`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const turnInput = (value: number, set: (n: number) => void, label: string) => (
-    <input
-      type="number"
-      className="share-num"
-      min={1}
-      max={Math.max(1, turnCount)}
-      value={value}
-      aria-label={label}
-      onChange={(e) => set(clampTurn(Number(e.target.value) || 1))}
-      onFocus={(e) => e.currentTarget.select()}
-    />
-  );
-
-  return (
-    <div className="share-wrap" ref={rootRef}>
-      <Tooltip content="Share / export">
-        <button
-          className={`replay-action ${open ? 'active' : ''}`}
-          onClick={() => (open ? setOpen(false) : openPanel())}
-          aria-label="Share or export this session"
-          aria-expanded={open}
-        >
-          <ShareIcon size={16} />
-        </button>
-      </Tooltip>
-      {open && (
-        <div className="share-pop" role="dialog" aria-label="Share this session">
-          <div className="share-row">
-            <span className="share-label">format</span>
-            <div className="view-toggle share-seg">
-              <button
-                className={format === 'markdown' ? 'active' : ''}
-                onClick={() => setFormat('markdown')}
-              >
-                markdown
-              </button>
-              <button className={format === 'html' ? 'active' : ''} onClick={() => setFormat('html')}>
-                web page
-              </button>
-            </div>
-          </div>
-          {turnCount > 1 && (
-            <div className="share-row">
-              <span className="share-label">turns</span>
-              <div className="view-toggle share-seg">
-                <button className={whole ? 'active' : ''} onClick={() => setWhole(true)}>
-                  all {turnCount}
-                </button>
-                <button className={!whole ? 'active' : ''} onClick={() => setWhole(false)}>
-                  range
-                </button>
-              </div>
-            </div>
-          )}
-          {!whole && turnCount > 1 && (
-            <div className="share-row">
-              <span className="share-label">range</span>
-              <div className="share-range">
-                {turnInput(fromTurn, setFromTurn, 'First turn to export')}
-                <span className="share-range-sep">to</span>
-                {turnInput(toTurn, setToTurn, 'Last turn to export')}
-              </div>
-            </div>
-          )}
-          <div className="share-row">
-            <span className="share-label">redact</span>
-            <div className="view-toggle share-seg">
-              <button className={!redact ? 'active' : ''} onClick={() => setRedact(false)}>
-                off
-              </button>
-              <button className={redact ? 'active' : ''} onClick={() => setRedact(true)}>
-                on
-              </button>
-            </div>
-          </div>
-          <p className="share-hint">
-            {redact
-              ? 'Scrubs API keys and tokens, key=value secrets, emails, and home paths.'
-              : 'Exports verbatim — switch redact on before sharing outside your machine.'}
-          </p>
-          <div className="share-actions">
-            <button className="share-btn" onClick={copy}>
-              {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
-              {copied ? 'copied' : 'copy'}
-            </button>
-            <button className="share-btn primary" onClick={() => void download()}>
-              <DownloadIcon size={14} />
-              download
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * Resume-chain navigation: this conversation continued across session files
- * (chainLen > 1 — the component only mounts then). Oldest part is 1.
- */
-function ChainNav({ sessionId }: { sessionId: string }) {
-  const chain = useSessionChain(sessionId);
-  const parts = chain.data?.chain ?? [];
-  const pos = parts.findIndex((p) => p.id === sessionId);
-  if (parts.length < 2 || pos === -1) return null;
-  const prev = pos > 0 ? parts[pos - 1] : null;
-  const next = pos < parts.length - 1 ? parts[pos + 1] : null;
-  return (
-    <span className="chain-nav">
-      {prev && (
-        <Tooltip content={`Earlier part · ${fmtDate(prev.startedAt)}`}>
-          <a
-            href={sessionHash(prev.id)}
-            className="chain-nav-btn"
-            aria-label="Earlier part of this conversation"
-          >
-            <ChevronLeftIcon size={14} />
-          </a>
-        </Tooltip>
-      )}
-      <Tooltip content="Resumed conversation — one thread across session files">
-        <span className="chain-nav-label">
-          part {pos + 1}/{parts.length}
-        </span>
-      </Tooltip>
-      {next && (
-        <Tooltip content={`Later part · ${fmtDate(next.startedAt)}`}>
-          <a
-            href={sessionHash(next.id)}
-            className="chain-nav-btn"
-            aria-label="Later part of this conversation"
-          >
-            <ChevronRightIcon size={14} />
-          </a>
-        </Tooltip>
-      )}
-    </span>
-  );
-}
-
-/** Name + note editor for a session's user annotations. */
-function AnnotatePanel({ s, onClose }: { s: SessionMeta; onClose: () => void }) {
-  const [name, setName] = useState(s.customName ?? '');
-  const [note, setNote] = useState(s.note ?? '');
-  const setMeta = useSetSessionMeta();
-  const save = () => {
-    setMeta.mutate(
-      { id: s.id, patch: { customName: name || null, note: note || null } },
-      { onSuccess: onClose },
-    );
-  };
-  return (
-    <div className="annotate-panel">
-      <label className="annotate-field">
-        <span className="annotate-label">Name</span>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={projectName(s)}
-          maxLength={200}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') save();
-            if (e.key === 'Escape') onClose();
-          }}
-        />
-      </label>
-      <label className="annotate-field">
-        <span className="annotate-label">Note</span>
-        <textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Anything future-you should know about this session…"
-          rows={3}
-          maxLength={4000}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') onClose();
-          }}
-        />
-      </label>
-      <div className="annotate-actions">
-        <button className="pill" onClick={onClose}>
-          Cancel
-        </button>
-        <button className="btn-accent annotate-save" onClick={save} disabled={setMeta.isPending}>
-          Save
-        </button>
-      </div>
-    </div>
-  );
-}
 
 export default function Replay({
   sessionId,
@@ -814,6 +169,14 @@ export default function Replay({
   const childrenQuery = useSessionChildren(sessionId);
   const childSessions = childrenQuery.data?.children ?? EMPTY_CHILDREN;
 
+  // Context-window data: the stats panel draws the curve; the spine marks
+  // turns where a compaction happened.
+  const context = useSessionContext(sessionId);
+  const compactionIdxs = useMemo(
+    () => context.data?.compactions.map((c) => c.idx) ?? [],
+    [context.data],
+  );
+
   const s = session.data;
 
   return (
@@ -877,7 +240,16 @@ export default function Replay({
                 return (
                   <Tooltip
                     key={value}
-                    content={`${label}${count ? ` · ${count}` : ''}`}
+                    content={
+                      count ? (
+                        <div className="tooltip-row">
+                          {label}
+                          <span className="tooltip-num">{fmtCount(count)}</span>
+                        </div>
+                      ) : (
+                        label
+                      )
+                    }
                   >
                     <button
                       role="tab"
@@ -903,7 +275,7 @@ export default function Replay({
             </div>
             </div>
             <div className="replay-actions">
-            <Tooltip content="Find in session (⌘F)">
+            <Tooltip content="Find in session" shortcut={SHORTCUTS.find}>
               <button
                 className={`replay-action ${findOpen || searchQuery ? 'active' : ''}`}
                 onClick={() => (findOpen || searchQuery ? closeFind() : setFindOpen(true))}
@@ -958,7 +330,7 @@ export default function Replay({
           </div>
         </div>
         {editOpen && s && <AnnotatePanel s={s} onClose={() => setEditOpen(false)} />}
-        {statsOpen && s && <StatsPanel s={s} />}
+        {statsOpen && s && <StatsPanel s={s} sessionId={sessionId} />}
         {(findOpen || searchQuery) && (
           <FindBar
             key={searchQuery ?? ''}
@@ -966,6 +338,7 @@ export default function Replay({
             query={searchQuery ?? ''}
             hitIdxs={hitIdxs}
             onClose={closeFind}
+            onCycle={(dir) => jumpIn(hitIdxs, dir)}
           />
         )}
       </div>
@@ -978,7 +351,12 @@ export default function Replay({
         <LogView key={activeLens} sessionId={sessionId} jumpIdx={null} lens={activeLens} />
       ) : effectiveMode === 'spine' ? (
         turns.data ? (
-          <SpineView sessionId={sessionId} data={turns.data} currentIdx={jumpIdx} />
+          <SpineView
+            sessionId={sessionId}
+            data={turns.data}
+            currentIdx={jumpIdx}
+            compactionIdxs={compactionIdxs}
+          />
         ) : turns.isError ? (
           <div className="fullscreen-note">
             <div>
@@ -995,7 +373,7 @@ export default function Replay({
 
       <div className="nav-rails">
         {bookmarkIdxs.length > 0 && (
-          <div className="error-nav bookmark-nav" title="Jump between bookmarks">
+          <div className="error-nav bookmark-nav">
             <BookmarkFilledIcon size={13} className="bookmark-nav-ico" />
             <span className="error-nav-count bookmark-nav-count">{bookmarkIdxs.length}</span>
             <Tooltip content="Previous bookmark">
@@ -1011,7 +389,7 @@ export default function Replay({
           </div>
         )}
         {(errorIdxs.data?.length ?? 0) > 0 && (
-          <div className="error-nav" title="Jump between failing tool results">
+          <div className="error-nav">
             <span className="dot dot-accent" />
             <span className="error-nav-count">{errorIdxs.data!.length}</span>
             <Tooltip content="Previous error">
@@ -1055,7 +433,7 @@ export default function Replay({
               aria-label="Clear match navigation"
               onClick={() => navigate(sessionHash(sessionId))}
             >
-              ✕
+              <CloseIcon size={14} />
             </button>
           </Tooltip>
         </div>

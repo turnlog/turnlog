@@ -52,7 +52,28 @@ export function fmtCount(n: number): string {
   return n.toLocaleString('en-US');
 }
 
-const DAY_MS = 86_400_000;
+export const DAY_MS = 86_400_000;
+
+/**
+ * Machine-local calendar-day helpers, matching the server's spend-day
+ * semantics. All math stays in local components — `new Date('YYYY-MM-DD')`
+ * would parse as UTC midnight and shift days for negative-offset zones.
+ */
+export function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+/** Monday-start week (getDay: Sun=0); setDate keeps it DST-safe. */
+export function startOfWeek(d: Date): Date {
+  const day = startOfDay(d);
+  day.setDate(day.getDate() - ((day.getDay() + 6) % 7));
+  return day;
+}
+
+export function dayKey(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
 export function fmtDate(iso: string | null): string {
   if (!iso) return '—';

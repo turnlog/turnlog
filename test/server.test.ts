@@ -585,7 +585,7 @@ describe('API', () => {
   it('returns one session with metadata', async () => {
     const res = await request(withToken(`/api/sessions/${SESSION_A}`));
     const data = res.json();
-    expect(data.turnCount).toBe(22);
+    expect(data.turnCount).toBe(23);
     expect(data.filesTouchedCount).toBe(2);
     // CC's own titles ride the session row; custom-title outranks ai-title.
     expect(data.aiTitle).toBe('Reconnect surgery');
@@ -594,7 +594,7 @@ describe('API', () => {
   it('pages messages with raw JSON included', async () => {
     const res = await request(withToken(`/api/sessions/${SESSION_A}/messages?limit=5`));
     const data = res.json();
-    expect(data.total).toBe(22);
+    expect(data.total).toBe(23);
     // messageId rides every row — the replay needs it to tell a response's
     // continuation lines apart from a real branch.
     expect(data.messages.some((m: any) => m.messageId !== null)).toBe(true);

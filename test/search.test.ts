@@ -6,10 +6,11 @@ import {
   parseSearchQuery,
   searchFiles,
   searchMessages,
+  searchTimeline,
   toFtsQuery,
 } from '../src/server/api.js';
 import { SNIPPET_CLOSE, SNIPPET_OPEN } from '../src/server/apiTypes.js';
-import { SESSION_A, SESSION_C, copyCorpus, testDb, tmpDir } from './helpers.js';
+import { SESSION_A, SESSION_C, SESSION_D, copyCorpus, testDb, tmpDir } from './helpers.js';
 
 let db: Database.Database;
 
@@ -198,5 +199,54 @@ describe('session-scoped search (in-session find)', () => {
   it('returns nothing for a session without the term', () => {
     const res = searchMessages(db, { query: 'useWebSocket', sessionId: SESSION_C });
     expect(res.totalHits).toBe(0);
+  });
+});
+
+describe('searchTimeline (search-anchored timeline)', () => {
+  it('groups the full match set per root session, oldest first', () => {
+    const res = searchTimeline(db, { query: 'useWebSocket' });
+    expect(res.sessions.length).toBeGreaterThan(0);
+    const starts = res.sessions.map((t) => t.session.startedAt ?? '');
+    expect([...starts].sort()).toEqual(starts);
+    for (const t of res.sessions) {
+      expect(t.session.parentSessionId).toBeNull();
+      expect(t.hits).toBeGreaterThan(0);
+    }
+    expect(res.sessions.some((t) => t.session.id === SESSION_A)).toBe(true);
+  });
+
+  it("firstIdx is the session's earliest in-root hit — the jump target", () => {
+    const timeline = searchTimeline(db, { query: 'useWebSocket' });
+    const entry = timeline.sessions.find((t) => t.session.id === SESSION_A)!;
+    const scoped = searchMessages(db, { query: 'useWebSocket', sessionId: SESSION_A });
+    const minIdx = Math.min(...scoped.groups[0]!.hits.map((h) => h.idx));
+    expect(entry.firstIdx).toBe(minIdx);
+  });
+
+  it('resolves subagent hits to the root, with firstIdx null for child-only matches', () => {
+    // todo_sweep_gamma exists only inside the subagent transcript.
+    const res = searchTimeline(db, { query: 'todo_sweep_gamma' });
+    expect(res.sessions).toHaveLength(1);
+    expect(res.sessions[0]!.session.id).toBe(SESSION_D);
+    expect(res.sessions[0]!.firstIdx).toBeNull();
+  });
+
+  it('counts parent and child hits as one session', () => {
+    // FIXME appears in both the parent session and its subagent transcript.
+    const res = searchTimeline(db, { query: 'FIXME' });
+    const ids = res.sessions.map((t) => t.session.id);
+    expect(ids).toContain(SESSION_D);
+    expect(new Set(ids).size).toBe(ids.length);
+    const d = res.sessions.find((t) => t.session.id === SESSION_D)!;
+    expect(d.firstIdx).not.toBeNull();
+    const scoped = searchMessages(db, { query: 'FIXME', sessionId: SESSION_D });
+    expect(d.hits).toBeGreaterThan(scoped.groups[0]!.hits.length);
+  });
+
+  it('supports operator-only queries and returns empty for empty input', () => {
+    const res = searchTimeline(db, { query: 'kind:prompt' });
+    expect(res.sessions.length).toBeGreaterThan(0);
+    expect(searchTimeline(db, { query: '' }).sessions).toHaveLength(0);
+    expect(searchTimeline(db, { query: '   ' }).sessions).toHaveLength(0);
   });
 });

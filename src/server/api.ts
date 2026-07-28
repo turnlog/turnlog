@@ -14,6 +14,8 @@ import type {
   SavedSearch,
   SearchAggregates,
   SearchResponse,
+  SearchTimelineResponse,
+  SessionContextResponse,
   SessionListResponse,
   SessionMeta,
   SessionMetaPatch,
@@ -917,14 +919,27 @@ const SESSION_JOIN_COLUMNS = `s.id, s.project_path, s.project_key, s.parent_sess
                  WHERE c.root_uuid = s.root_uuid AND c.project_key IS s.project_key
                    AND c.parent_session_id IS NULL) AS chain_len`;
 
+/**
+ * Shared front half of every search entry point: operators parsed out, the
+ * remainder sanitized for FTS. `empty` = nothing searchable at all.
+ */
+function parseForSearch(query: string): {
+  parsed: ParsedQuery;
+  match: string | null;
+  empty: boolean;
+} {
+  const parsed = parseSearchQuery(query);
+  const match = parsed.terms !== '' ? toFtsQuery(parsed.terms) : null;
+  return { parsed, match, empty: match === null && !parsed.hasFilters };
+}
+
 export function searchMessages(
   db: Database.Database,
   q: { query: string; limit?: number; sessionId?: string },
 ): SearchResponse {
-  const parsed = parseSearchQuery(q.query);
-  const match = parsed.terms !== '' ? toFtsQuery(parsed.terms) : null;
+  const { parsed, match, empty: nothing } = parseForSearch(q.query);
   const empty: SearchResponse = { query: q.query, groups: [], totalHits: 0, aggregates: null };
-  if (match === null && !parsed.hasFilters) return empty;
+  if (nothing) return empty;
   const limit = Math.min(Math.max(q.limit ?? 100, 1), 500);
   const f = filterSql(parsed.filters, 's');
 
@@ -1000,6 +1015,113 @@ export function searchMessages(
     // Session-scoped find doesn't need money attached to it.
     aggregates:
       q.sessionId === undefined ? searchAggregates(db, match, parsed.filters) : null,
+  };
+}
+
+/**
+ * Sessions on a personal index rarely reach four digits; the cap only guards
+ * against a degenerate operator-only query matching everything.
+ */
+const TIMELINE_MAX_SESSIONS = 1000;
+
+/**
+ * The search-anchored timeline: the FULL match set (never the truncated hit
+ * page) grouped per root session, oldest first — "when did this keep coming
+ * up?". Each session carries its first in-root hit idx as the jump target.
+ */
+export function searchTimeline(
+  db: Database.Database,
+  q: { query: string },
+): SearchTimelineResponse {
+  const { parsed, match, empty: nothing } = parseForSearch(q.query);
+  const empty: SearchTimelineResponse = { query: q.query, sessions: [] };
+  if (nothing) return empty;
+  const f = filterSql(parsed.filters, 'ms');
+
+  // Hits resolve to the ROOT session (same rule as aggregates); the first-hit
+  // idx only counts hits in the root itself — an idx inside a subagent
+  // transcript is meaningless as a jump target in the parent's replay.
+  const hitsFrom =
+    match !== null
+      ? `FROM messages_fts
+         JOIN messages m ON m.rowid = messages_fts.rowid
+         JOIN sessions ms ON ms.id = m.session_id
+         WHERE messages_fts MATCH ? ${f.sql}`
+      : `FROM messages m
+         JOIN sessions ms ON ms.id = m.session_id
+         WHERE 1=1 ${f.sql}`;
+  const params: unknown[] = match !== null ? [match, ...f.params] : [...f.params];
+
+  try {
+    const rows = db
+      .prepare(
+        `SELECT ${SESSION_COLUMNS}, h.n AS hit_count, h.first_idx AS first_idx
+         FROM ${SESSIONS_JOINED}
+         JOIN (SELECT COALESCE(ms.parent_session_id, ms.id) AS root_id,
+                      COUNT(*) AS n,
+                      MIN(CASE WHEN ms.parent_session_id IS NULL THEN m.idx END) AS first_idx
+               ${hitsFrom}
+               GROUP BY root_id) h ON h.root_id = sessions.id
+         ORDER BY started_at, sessions.id
+         LIMIT ?`,
+      )
+      .all(...params, TIMELINE_MAX_SESSIONS);
+    return {
+      query: q.query,
+      sessions: rows.map((r: any) => ({
+        session: rowToSession(r),
+        hits: r.hit_count as number,
+        firstIdx: (r.first_idx as number | null) ?? null,
+      })),
+    };
+  } catch {
+    return empty; // same belt-and-suspenders as searchMessages: MATCH never 500s
+  }
+}
+
+/**
+ * The context-window timeline. Usage is zeroed on duplicate content-block
+ * lines at index time, so every surviving usage row IS one API response;
+ * its prompt side (input + cache read + cache write) is the window fill at
+ * that moment. Sidechains are excluded — subagents run their own context.
+ * Null = unknown session.
+ */
+export function getSessionContext(
+  db: Database.Database,
+  sessionId: string,
+): SessionContextResponse | null {
+  const exists = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(sessionId);
+  if (!exists) return null;
+  const points = db
+    .prepare(
+      `SELECT idx, ts,
+              tokens_in + cache_read_tokens + cache_write_tokens AS ctx,
+              tokens_out AS tout
+       FROM messages
+       WHERE session_id = ? AND is_sidechain = 0
+         AND tokens_in + cache_read_tokens + cache_write_tokens > 0
+       ORDER BY idx`,
+    )
+    .all(sessionId) as { idx: number; ts: string | null; ctx: number; tout: number }[];
+  // compact_boundary rides a plain system record; the metadata stays in raw
+  // JSON (json_valid guards garbage lines, per the cardinal rule).
+  const compactions = db
+    .prepare(
+      `SELECT idx, ts, json_extract(raw_json, '$.compactMetadata.preTokens') AS pre
+       FROM messages
+       WHERE session_id = ? AND kind = 'system' AND json_valid(raw_json)
+         AND json_extract(raw_json, '$.subtype') = 'compact_boundary'
+       ORDER BY idx`,
+    )
+    .all(sessionId) as { idx: number; ts: string | null; pre: unknown }[];
+  return {
+    sessionId,
+    points: points.map((p) => ({ idx: p.idx, ts: p.ts, context: p.ctx, tokensOut: p.tout })),
+    compactions: compactions.map((c) => ({
+      idx: c.idx,
+      ts: c.ts,
+      preTokens: typeof c.pre === 'number' ? c.pre : null,
+    })),
   };
 }
 

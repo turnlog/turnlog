@@ -3,7 +3,19 @@ import { useSessionsRange } from '../api';
 import { useHideEmpty } from '../filterStore';
 import { SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
-import { fmtCost, fmtCount, fmtTime, fmtTokens, projectName, sessionName, tileClass } from '../format';
+import {
+  DAY_MS,
+  dayKey,
+  fmtCost,
+  fmtCount,
+  fmtTime,
+  fmtTokens,
+  projectName,
+  sessionName,
+  startOfDay,
+  startOfWeek,
+  tileClass,
+} from '../format';
 import { ChevronLeftIcon, ChevronRightIcon } from '../icons';
 import { navigate, sessionHash } from '../router';
 import type { SessionMeta } from '../types';
@@ -15,26 +27,12 @@ import type { SessionMeta } from '../types';
  * heat of cost/count. "When did I work / what was I doing Tuesday afternoon".
  */
 
-const DAY_MS = 86_400_000;
 const MIN_SPAN_H = 8;
 const ROW_H = 56; // px per day row; lanes divide it when sessions overlap
 const HEAD_W = 64; // day-label gutter (row head width + gap), px
 
 type Mode = 'week' | 'month';
 
-function startOfDay(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-function startOfWeek(d: Date): Date {
-  const date = startOfDay(d);
-  const dow = (date.getDay() + 6) % 7; // Monday = 0
-  return new Date(date.getTime() - dow * DAY_MS);
-}
-function dayKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-    d.getDate(),
-  ).padStart(2, '0')}`;
-}
 function sameDay(a: Date, b: Date): boolean {
   return a.toDateString() === b.toDateString();
 }

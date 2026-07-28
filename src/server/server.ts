@@ -14,6 +14,7 @@ import {
   getPrefs,
   getSession,
   getSessionChain,
+  getSessionContext,
   getSessionExport,
   getSessionFilePath,
   getSessionHtmlExport,
@@ -30,6 +31,7 @@ import {
   pruneMissingSessions,
   searchFiles,
   searchMessages,
+  searchTimeline,
   setBookmark,
   setPrefs,
   setSessionMeta,
@@ -533,6 +535,9 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
       }),
     );
   }
+  if (p === '/api/search/timeline') {
+    return sendJson(res, 200, searchTimeline(db, { query: q.get('q') ?? '' }));
+  }
   if (p === '/api/search') {
     return sendJson(
       res,
@@ -599,6 +604,13 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
     const children = listSessionChildren(db, sessionId);
     if (children === null) return sendJson(res, 404, { error: 'session not found' });
     return sendJson(res, 200, { sessionId, children });
+  }
+
+  const contextMatch = /^\/api\/sessions\/([^/]+)\/context$/.exec(p);
+  if (contextMatch) {
+    const result = getSessionContext(db, decodeURIComponent(contextMatch[1]!));
+    if (!result) return sendJson(res, 404, { error: 'session not found' });
+    return sendJson(res, 200, result);
   }
 
   const turnsMatch = /^\/api\/sessions\/([^/]+)\/turns$/.exec(p);

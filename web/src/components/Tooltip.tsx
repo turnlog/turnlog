@@ -26,12 +26,15 @@ export default function Tooltip({
   content,
   children,
   className,
+  shortcut,
 }: {
   content: ReactNode;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   children: ReactElement<any>;
   /** Extra class on the pill — variants like the sticky-note note popover. */
   className?: string;
+  /** Keyboard shortcut rendered as keycaps under the label (e.g. ['⌘', 'F']). */
+  shortcut?: string[];
 }) {
   const [pos, setPos] = useState<Pos | null>(null);
   const [left, setLeft] = useState<number | null>(null);
@@ -95,7 +98,19 @@ export default function Tooltip({
             }}
             role="tooltip"
           >
-            {content}
+            {shortcut ? (
+              // One line, keys to the right of the label — the way menus do it.
+              <div className="tooltip-row">
+                {content}
+                <span className="tooltip-keys" aria-hidden>
+                  {shortcut.map((k, i) => (
+                    <kbd key={i}>{k}</kbd>
+                  ))}
+                </span>
+              </div>
+            ) : (
+              content
+            )}
           </div>,
           document.body,
         )}
