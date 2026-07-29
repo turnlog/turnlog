@@ -18,6 +18,64 @@ export interface ReleaseNotes {
 
 export const RELEASES: ReleaseNotes[] = [
   {
+    version: '0.8.0',
+    date: '2026-07-29',
+    notes: [
+      {
+        kind: 'added',
+        text: 'Search results on a timeline: flip the new hits | timeline toggle and every matching session becomes a dot on a time axis — when did this keep coming up? Click a dot to land right at the match.',
+      },
+      {
+        kind: 'added',
+        text: 'See the context window fill up: the replay’s stats panel draws how full Claude’s context was at every response, with compaction points marked on the curve, listed as jump chips, and flagged on the turn where they happened.',
+      },
+      {
+        kind: 'added',
+        text: 'A command palette: press ⌘K (Ctrl+K) anywhere to jump to any session by name, switch screens, run saved searches, or fire an action — anything you type is also one Enter from a full search.',
+      },
+      {
+        kind: 'added',
+        text: 'Keyboard shortcuts grew up: press ? for a cheat sheet, and every hint in the app shows real keycaps. B toggles the sidebar, T switches the theme, Enter/⇧Enter cycle find matches, and ⇧Q (pressed twice) stops Turnlog.',
+      },
+      {
+        kind: 'added',
+        text: 'Files joined the search language: path:api.ts narrows any query to sessions that touched that file, and the Files screen can filter to files touched by sessions matching a search.',
+      },
+      {
+        kind: 'added',
+        text: 'Dates in plain words: after:7d, after:yesterday and before:today work anywhere the date operators do.',
+      },
+      {
+        kind: 'added',
+        text: 'Open a file in your editor straight from the diffs view — set "editorCommand" once in settings.json and the button appears.',
+      },
+      {
+        kind: 'added',
+        text: 'Your pins, names, notes, bookmarks and saved searches can move with you: turnlog annotations export | import carries them to a new machine as one JSON file.',
+      },
+      {
+        kind: 'added',
+        text: 'A third export format for scripts: turnlog export --format json emits the full message stream for jq, with the same range and redaction options.',
+      },
+      {
+        kind: 'improved',
+        text: 'Turns spent in plan mode wear a quiet "plan" chip on the spine.',
+      },
+      {
+        kind: 'improved',
+        text: 'Deleted session files show up honestly the moment they vanish: counted on the health card, marked "file gone" in disk usage — and pruning is the one way to forget them.',
+      },
+      {
+        kind: 'improved',
+        text: 'A cleaner look everywhere: list rows are rounded and full-width with no ruled lines, screens use your whole window instead of centering in a column, and every icon button speaks the same visual language.',
+      },
+      {
+        kind: 'fixed',
+        text: 'Search group headers no longer let rows peek through while scrolling, and long session names no longer overflow their tooltips.',
+      },
+    ],
+  },
+  {
     version: '0.7.0',
     date: '2026-07-27',
     notes: [

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import type Database from 'better-sqlite3';
 import { pricingForModel, type ModelPricing } from '../cost/pricing.js';
 import { sessionToHtml } from '../export/html.js';
+import { sessionToJson } from '../export/json.js';
 import { sessionToMarkdown, type ExportOptions } from '../export/markdown.js';
 import type {
   ChildSessionSummary,
@@ -14,6 +15,8 @@ import type {
   SavedSearch,
   SearchAggregates,
   SearchResponse,
+  SearchTimelineResponse,
+  SessionContextResponse,
   SessionListResponse,
   SessionMeta,
   SessionMetaPatch,
@@ -375,7 +378,7 @@ export function getDiskUsage(db: Database.Database, limit = 200): DiskUsageRespo
     .get() as { bytes: number; files: number };
   const rows = db
     .prepare(
-      `SELECT ${SESSION_COLUMNS},
+      `SELECT ${SESSION_COLUMNS}, sessions.file_path,
               (SELECT COALESCE(SUM(f.file_size), 0) FROM sessions f
                WHERE f.id = sessions.id OR f.parent_session_id = sessions.id) AS bytes
        FROM ${SESSIONS_JOINED}
@@ -387,7 +390,11 @@ export function getDiskUsage(db: Database.Database, limit = 200): DiskUsageRespo
   return {
     totalBytes: totals.bytes,
     fileCount: totals.files,
-    sessions: rows.map((r) => ({ ...rowToSession(r), bytes: (r as { bytes: number }).bytes })),
+    sessions: rows.map((r) => ({
+      ...rowToSession(r),
+      bytes: (r as { bytes: number }).bytes,
+      missing: !fs.existsSync((r as { file_path: string }).file_path),
+    })),
   };
 }
 
@@ -543,6 +550,18 @@ export function getSessionHtmlExport(
   return sessionToHtml(session, exportRows(db, id, range), withExcerpt(opts, range));
 }
 
+/** The normalized message stream as JSON — for jq and scripts, not humans. */
+export function getSessionJsonExport(
+  db: Database.Database,
+  id: string,
+  opts: ExportOptions = {},
+  range?: ExportRange,
+): string | null {
+  const session = getSession(db, id);
+  if (!session) return null;
+  return sessionToJson(session, exportRows(db, id, range), withExcerpt(opts, range));
+}
+
 const READ_TOOLS = new Set(['Read', 'Grep', 'Glob', 'LS', 'NotebookRead']);
 const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit']);
 const COMMAND_RE = /<command-name>([^<]*)<\/command-name>/;
@@ -557,10 +576,18 @@ export function listTurns(db: Database.Database, sessionId: string): TurnsRespon
   const session = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(sessionId);
   if (!session) return null;
 
+  // Columns-only scan except mode evidence, which lives in raw JSON (the
+  // normalized subtype is not a DB column) — the CASE keeps every other
+  // row's raw out of the read. Two signals: mode/permission-mode records
+  // (older CC wrote 'plan' there), and the plan_mode_exit attachment that
+  // is how current CC marks a planning turn.
   const rows = db
     .prepare(
       `SELECT uuid, parent_uuid, message_id, idx, kind, tool_name, ts,
-              is_sidechain, is_error, tokens_out, text
+              is_sidechain, is_error, tokens_out, text,
+              CASE WHEN kind = 'mode'
+                     OR (kind = 'attachment' AND raw_json LIKE '%plan_mode_exit%')
+                   THEN raw_json END AS mode_raw
        FROM messages WHERE session_id = ? ORDER BY idx`,
     )
     .all(sessionId) as Array<{
@@ -575,6 +602,7 @@ export function listTurns(db: Database.Database, sessionId: string): TurnsRespon
     is_error: number;
     tokens_out: number;
     text: string;
+    mode_raw: string | null;
   }>;
 
   const abandoned = findAbandonedIdxs(rows);
@@ -582,12 +610,33 @@ export function listTurns(db: Database.Database, sessionId: string): TurnsRespon
   const turns: TurnSummary[] = [];
   let current: TurnSummary | null = null;
   let preludeCount = 0;
+  // Mode records ('mode' / 'permission-mode') mark switches; the value in
+  // force when a prompt lands is that turn's mode.
+  let currentMode: string | null = null;
 
   for (const r of rows) {
     // A prompt on an abandoned branch was never actually answered (the user
     // interrupted and retyped) — it must not open a turn or the spine counts
     // conversations that never happened.
     if (abandoned.has(r.idx)) continue;
+    if (r.mode_raw !== null) {
+      try {
+        const o = JSON.parse(r.mode_raw) as {
+          mode?: unknown;
+          permissionMode?: unknown;
+          attachment?: { type?: unknown };
+        };
+        if (r.kind === 'mode') {
+          const v = o.mode ?? o.permissionMode;
+          if (typeof v === 'string') currentMode = v;
+        } else if (o.attachment?.type === 'plan_mode_exit' && current) {
+          // The plan ended inside this turn — this turn was planning.
+          current.mode = 'plan';
+        }
+      } catch {
+        /* garbage-stored line — mode stays as it was */
+      }
+    }
     if (r.kind === 'prompt' && r.is_sidechain === 0) {
       if (current) current.endIdx = r.idx;
       const command = COMMAND_RE.exec(r.text)?.[1]?.trim() ?? null;
@@ -608,6 +657,7 @@ export function listTurns(db: Database.Database, sessionId: string): TurnsRespon
         otherTools: 0,
         errors: 0,
         tokensOut: 0,
+        mode: currentMode,
       };
       turns.push(current);
       continue;
@@ -735,6 +785,8 @@ export interface SearchFilters {
   hasNote?: boolean;
   /** has:bookmark — bookmarked moments themselves (message-level, not the whole session). */
   hasBookmark?: boolean;
+  /** path: — sessions whose family touched a matching file (files_touched). */
+  path?: string;
 }
 
 export interface ParsedQuery {
@@ -744,8 +796,41 @@ export interface ParsedQuery {
   hasFilters: boolean;
 }
 
-const FILTER_OPS = new Set(['tool', 'kind', 'is', 'has', 'project', 'model', 'before', 'after']);
+const FILTER_OPS = new Set([
+  'tool',
+  'kind',
+  'is',
+  'has',
+  'project',
+  'model',
+  'path',
+  'before',
+  'after',
+]);
 const DATE_RE = /^\d{4}(-\d{2}(-\d{2})?)?$/;
+const RELATIVE_DAYS_RE = /^(\d{1,4})d$/i;
+
+/**
+ * Date-operator values: ISO prefixes pass through (they compare
+ * lexicographically against stored full-ISO timestamps); `7d`, `today` and
+ * `yesterday` resolve to ISO at parse time. Null = not a date, keep as text.
+ */
+function resolveDateValue(value: string): string | null {
+  if (DATE_RE.test(value)) return value;
+  const days = RELATIVE_DAYS_RE.exec(value);
+  if (days) return new Date(Date.now() - Number(days[1]) * 86_400_000).toISOString();
+  const startOfToday = () => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  };
+  if (value.toLowerCase() === 'today') return startOfToday().toISOString();
+  if (value.toLowerCase() === 'yesterday') {
+    const d = startOfToday();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString();
+  }
+  return null;
+}
 
 export function parseSearchQuery(input: string): ParsedQuery {
   const terms: string[] = [];
@@ -771,6 +856,9 @@ export function parseSearchQuery(input: string): ParsedQuery {
       case 'model':
         filters.model = value;
         break;
+      case 'path':
+        filters.path = value;
+        break;
       case 'is':
         if (value.toLowerCase() === 'error') filters.isError = true;
         else if (value.toLowerCase() === 'pinned') filters.pinned = true;
@@ -782,12 +870,12 @@ export function parseSearchQuery(input: string): ParsedQuery {
         else terms.push(token);
         break;
       case 'before':
-      case 'after':
-        // ISO prefixes (2026, 2026-07, 2026-07-01) compare lexicographically
-        // against the stored full-ISO timestamps.
-        if (DATE_RE.test(value)) filters[op] = value;
+      case 'after': {
+        const resolved = resolveDateValue(value);
+        if (resolved !== null) filters[op] = resolved;
         else terms.push(token);
         break;
+      }
     }
   }
   return { terms: terms.join(' '), filters, hasFilters: Object.keys(filters).length > 0 };
@@ -839,6 +927,17 @@ function filterSql(f: SearchFilters, sessionAlias: string): { sql: string; param
     clauses.push(
       `EXISTS (SELECT 1 FROM message_bookmarks b WHERE b.session_id = m.session_id AND b.idx = m.idx)`,
     );
+  }
+  // Family-aware like the annotation operators: a hit in the parent counts
+  // when a subagent touched the file, and vice versa.
+  if (f.path !== undefined) {
+    clauses.push(
+      `EXISTS (SELECT 1 FROM files_touched ft
+         JOIN sessions fs ON fs.id = ft.session_id
+         WHERE COALESCE(fs.parent_session_id, fs.id) = COALESCE(${sessionAlias}.parent_session_id, ${sessionAlias}.id)
+           AND ft.path LIKE ?)`,
+    );
+    params.push(`%${f.path}%`);
   }
   return { sql: clauses.map((c) => `AND ${c}`).join(' '), params };
 }
@@ -917,14 +1016,27 @@ const SESSION_JOIN_COLUMNS = `s.id, s.project_path, s.project_key, s.parent_sess
                  WHERE c.root_uuid = s.root_uuid AND c.project_key IS s.project_key
                    AND c.parent_session_id IS NULL) AS chain_len`;
 
+/**
+ * Shared front half of every search entry point: operators parsed out, the
+ * remainder sanitized for FTS. `empty` = nothing searchable at all.
+ */
+function parseForSearch(query: string): {
+  parsed: ParsedQuery;
+  match: string | null;
+  empty: boolean;
+} {
+  const parsed = parseSearchQuery(query);
+  const match = parsed.terms !== '' ? toFtsQuery(parsed.terms) : null;
+  return { parsed, match, empty: match === null && !parsed.hasFilters };
+}
+
 export function searchMessages(
   db: Database.Database,
   q: { query: string; limit?: number; sessionId?: string },
 ): SearchResponse {
-  const parsed = parseSearchQuery(q.query);
-  const match = parsed.terms !== '' ? toFtsQuery(parsed.terms) : null;
+  const { parsed, match, empty: nothing } = parseForSearch(q.query);
   const empty: SearchResponse = { query: q.query, groups: [], totalHits: 0, aggregates: null };
-  if (match === null && !parsed.hasFilters) return empty;
+  if (nothing) return empty;
   const limit = Math.min(Math.max(q.limit ?? 100, 1), 500);
   const f = filterSql(parsed.filters, 's');
 
@@ -1003,6 +1115,113 @@ export function searchMessages(
   };
 }
 
+/**
+ * Sessions on a personal index rarely reach four digits; the cap only guards
+ * against a degenerate operator-only query matching everything.
+ */
+const TIMELINE_MAX_SESSIONS = 1000;
+
+/**
+ * The search-anchored timeline: the FULL match set (never the truncated hit
+ * page) grouped per root session, oldest first — "when did this keep coming
+ * up?". Each session carries its first in-root hit idx as the jump target.
+ */
+export function searchTimeline(
+  db: Database.Database,
+  q: { query: string },
+): SearchTimelineResponse {
+  const { parsed, match, empty: nothing } = parseForSearch(q.query);
+  const empty: SearchTimelineResponse = { query: q.query, sessions: [] };
+  if (nothing) return empty;
+  const f = filterSql(parsed.filters, 'ms');
+
+  // Hits resolve to the ROOT session (same rule as aggregates); the first-hit
+  // idx only counts hits in the root itself — an idx inside a subagent
+  // transcript is meaningless as a jump target in the parent's replay.
+  const hitsFrom =
+    match !== null
+      ? `FROM messages_fts
+         JOIN messages m ON m.rowid = messages_fts.rowid
+         JOIN sessions ms ON ms.id = m.session_id
+         WHERE messages_fts MATCH ? ${f.sql}`
+      : `FROM messages m
+         JOIN sessions ms ON ms.id = m.session_id
+         WHERE 1=1 ${f.sql}`;
+  const params: unknown[] = match !== null ? [match, ...f.params] : [...f.params];
+
+  try {
+    const rows = db
+      .prepare(
+        `SELECT ${SESSION_COLUMNS}, h.n AS hit_count, h.first_idx AS first_idx
+         FROM ${SESSIONS_JOINED}
+         JOIN (SELECT COALESCE(ms.parent_session_id, ms.id) AS root_id,
+                      COUNT(*) AS n,
+                      MIN(CASE WHEN ms.parent_session_id IS NULL THEN m.idx END) AS first_idx
+               ${hitsFrom}
+               GROUP BY root_id) h ON h.root_id = sessions.id
+         ORDER BY started_at, sessions.id
+         LIMIT ?`,
+      )
+      .all(...params, TIMELINE_MAX_SESSIONS);
+    return {
+      query: q.query,
+      sessions: rows.map((r: any) => ({
+        session: rowToSession(r),
+        hits: r.hit_count as number,
+        firstIdx: (r.first_idx as number | null) ?? null,
+      })),
+    };
+  } catch {
+    return empty; // same belt-and-suspenders as searchMessages: MATCH never 500s
+  }
+}
+
+/**
+ * The context-window timeline. Usage is zeroed on duplicate content-block
+ * lines at index time, so every surviving usage row IS one API response;
+ * its prompt side (input + cache read + cache write) is the window fill at
+ * that moment. Sidechains are excluded — subagents run their own context.
+ * Null = unknown session.
+ */
+export function getSessionContext(
+  db: Database.Database,
+  sessionId: string,
+): SessionContextResponse | null {
+  const exists = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(sessionId);
+  if (!exists) return null;
+  const points = db
+    .prepare(
+      `SELECT idx, ts,
+              tokens_in + cache_read_tokens + cache_write_tokens AS ctx,
+              tokens_out AS tout
+       FROM messages
+       WHERE session_id = ? AND is_sidechain = 0
+         AND tokens_in + cache_read_tokens + cache_write_tokens > 0
+       ORDER BY idx`,
+    )
+    .all(sessionId) as { idx: number; ts: string | null; ctx: number; tout: number }[];
+  // compact_boundary rides a plain system record; the metadata stays in raw
+  // JSON (json_valid guards garbage lines, per the cardinal rule).
+  const compactions = db
+    .prepare(
+      `SELECT idx, ts, json_extract(raw_json, '$.compactMetadata.preTokens') AS pre
+       FROM messages
+       WHERE session_id = ? AND kind = 'system' AND json_valid(raw_json)
+         AND json_extract(raw_json, '$.subtype') = 'compact_boundary'
+       ORDER BY idx`,
+    )
+    .all(sessionId) as { idx: number; ts: string | null; pre: unknown }[];
+  return {
+    sessionId,
+    points: points.map((p) => ({ idx: p.idx, ts: p.ts, context: p.ctx, tokensOut: p.tout })),
+    compactions: compactions.map((c) => ({
+      idx: c.idx,
+      ts: c.ts,
+      preTokens: typeof c.pre === 'number' ? c.pre : null,
+    })),
+  };
+}
+
 /* ── saved searches (schema v5; survives rebuilds like session_meta) ── */
 
 const SAVED_NAME_MAX = 120;
@@ -1043,27 +1262,67 @@ export function deleteSavedSearch(db: Database.Database, id: number): boolean {
 
 /* ── cross-session file history ("git blame for agent edits") ───────── */
 
-/** Files matching a path fragment, most recently touched first. */
+/**
+ * Files matching a path fragment, most recently touched first. `find` is the
+ * path: operator's reverse: keep only files touched by sessions matching a
+ * search query — "which files did the rate-limit work touch".
+ */
 export function searchFiles(
   db: Database.Database,
-  q: { query?: string; limit?: number },
+  q: { query?: string; limit?: number; find?: string },
 ): FileSummary[] {
   const limit = Math.min(Math.max(q.limit ?? 100, 1), 500);
   const like = q.query ? `%${q.query}%` : '%';
-  const rows = db
-    .prepare(
-      `SELECT ft.path AS path,
-              COUNT(DISTINCT COALESCE(s.parent_session_id, s.id)) AS n,
-              MAX(COALESCE(s.ended_at, s.started_at)) AS last
-       FROM files_touched ft
-       JOIN sessions s ON s.id = ft.session_id
-       WHERE ft.path LIKE ?
-       GROUP BY ft.path
-       ORDER BY last DESC
-       LIMIT ?`,
-    )
-    .all(like, limit) as { path: string; n: number; last: string | null }[];
-  return rows.map((r) => ({ path: r.path, sessions: r.n, lastTouched: r.last }));
+
+  let findSql = '';
+  const findParams: unknown[] = [];
+  if (q.find && q.find.trim() !== '') {
+    const { parsed, match, empty } = parseForSearch(q.find);
+    if (!empty) {
+      const f = filterSql(parsed.filters, 'ms');
+      const matched =
+        match !== null
+          ? `SELECT DISTINCT COALESCE(ms.parent_session_id, ms.id)
+             FROM messages_fts
+             JOIN messages m ON m.rowid = messages_fts.rowid
+             JOIN sessions ms ON ms.id = m.session_id
+             WHERE messages_fts MATCH ? ${f.sql}`
+          : `SELECT DISTINCT COALESCE(ms.parent_session_id, ms.id)
+             FROM messages m
+             JOIN sessions ms ON ms.id = m.session_id
+             WHERE 1=1 ${f.sql}`;
+      findSql = `AND COALESCE(s.parent_session_id, s.id) IN (${matched})`;
+      if (match !== null) findParams.push(match);
+      findParams.push(...f.params);
+    }
+  }
+
+  try {
+    const rows = db
+      .prepare(
+        `SELECT ft.path AS path,
+                COUNT(DISTINCT COALESCE(s.parent_session_id, s.id)) AS n,
+                MAX(COALESCE(s.ended_at, s.started_at)) AS last
+         FROM files_touched ft
+         JOIN sessions s ON s.id = ft.session_id
+         WHERE ft.path LIKE ? ${findSql}
+         GROUP BY ft.path
+         ORDER BY last DESC
+         LIMIT ?`,
+      )
+      .all(like, ...findParams, limit) as { path: string; n: number; last: string | null }[];
+    return rows.map((r) => ({ path: r.path, sessions: r.n, lastTouched: r.last }));
+  } catch {
+    return []; // MATCH errors must never 500 — same posture as search
+  }
+}
+
+/** True when a path was ever touched by any session — the open-in-editor
+ *  route only launches on paths the index actually knows. */
+export function isTouchedFile(db: Database.Database, filePath: string): boolean {
+  return (
+    db.prepare(`SELECT 1 FROM files_touched WHERE path = ? LIMIT 1`).get(filePath) !== undefined
+  );
 }
 
 /** Every session that touched a path (subagent hits resolve to their root). */
@@ -1309,9 +1568,16 @@ export function getIndexHealth(db: Database.Database): {
   events: number;
   unknownEvents: number;
   unknownTypes: { type: string; count: number }[];
+  missingFiles: number;
   dbBytes: number;
 } {
   const files = db.prepare(`SELECT COUNT(*) AS n FROM sessions`).get() as { n: number };
+  // Checked live rather than stored: the file count is small and the watcher
+  // only sees unlinks while running — this stays honest across restarts.
+  const filePaths = db.prepare(`SELECT file_path FROM sessions`).all() as {
+    file_path: string;
+  }[];
+  const missingFiles = filePaths.filter((f) => !fs.existsSync(f.file_path)).length;
   const events = db.prepare(`SELECT COUNT(*) AS n FROM messages`).get() as { n: number };
   const unknown = db
     .prepare(`SELECT COUNT(*) AS n FROM messages WHERE kind = 'unknown'`)
@@ -1339,6 +1605,7 @@ export function getIndexHealth(db: Database.Database): {
     events: events.n,
     unknownEvents: unknown.n,
     unknownTypes,
+    missingFiles,
     dbBytes,
   };
 }
@@ -1394,6 +1661,128 @@ export function vacuumIndex(db: Database.Database): { freedBytes: number; dbByte
   db.exec('VACUUM');
   const after = size();
   return { freedBytes: Math.max(0, before - after), dbBytes: after };
+}
+
+/* ── annotation portability (turnlog annotations export|import) ──────── */
+
+/**
+ * Everything the user wrote about their sessions, as one JSON document:
+ * pins/names/notes, message bookmarks, saved searches. Keyed by session id +
+ * idx, which survive reindexes (logs are append-only) — so a dump restores
+ * cleanly on another machine indexing the same logs. ui_prefs stay out:
+ * they are per-machine UI state, not curation.
+ */
+export interface AnnotationsDump {
+  version: 1;
+  exportedAt: string;
+  sessionMeta: {
+    sessionId: string;
+    pinned: boolean;
+    customName: string | null;
+    note: string | null;
+    updatedAt: string | null;
+  }[];
+  bookmarks: { sessionId: string; idx: number; createdAt: string | null }[];
+  savedSearches: { name: string; query: string; createdAt: string | null }[];
+}
+
+export function exportAnnotations(db: Database.Database): AnnotationsDump {
+  const meta = db
+    .prepare(`SELECT session_id, pinned, custom_name, note, updated_at FROM session_meta`)
+    .all() as { session_id: string; pinned: number; custom_name: string | null; note: string | null; updated_at: string | null }[];
+  const bookmarks = db
+    .prepare(`SELECT session_id, idx, created_at FROM message_bookmarks`)
+    .all() as { session_id: string; idx: number; created_at: string | null }[];
+  const saved = db
+    .prepare(`SELECT name, query, created_at FROM saved_searches`)
+    .all() as { name: string; query: string; created_at: string | null }[];
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    sessionMeta: meta.map((m) => ({
+      sessionId: m.session_id,
+      pinned: m.pinned === 1,
+      customName: m.custom_name,
+      note: m.note,
+      updatedAt: m.updated_at,
+    })),
+    bookmarks: bookmarks.map((b) => ({
+      sessionId: b.session_id,
+      idx: b.idx,
+      createdAt: b.created_at,
+    })),
+    savedSearches: saved.map((sv) => ({
+      name: sv.name,
+      query: sv.query,
+      createdAt: sv.created_at,
+    })),
+  };
+}
+
+/**
+ * Merge a dump back in. session_meta upserts (the dump wins), bookmarks are
+ * additive, saved searches dedupe on (name, query) so re-importing never
+ * doubles them. Throws on a shape that is not an annotations dump.
+ */
+export function importAnnotations(
+  db: Database.Database,
+  data: unknown,
+): { sessionMeta: number; bookmarks: number; savedSearches: number } {
+  const d = data as Partial<AnnotationsDump> | null;
+  if (
+    d === null ||
+    typeof d !== 'object' ||
+    d.version !== 1 ||
+    !Array.isArray(d.sessionMeta) ||
+    !Array.isArray(d.bookmarks) ||
+    !Array.isArray(d.savedSearches)
+  ) {
+    throw new Error('not a turnlog annotations export (expected {version: 1, …})');
+  }
+  const counts = { sessionMeta: 0, bookmarks: 0, savedSearches: 0 };
+  const upsertMeta = db.prepare(
+    `INSERT OR REPLACE INTO session_meta (session_id, pinned, custom_name, note, updated_at)
+     VALUES (?, ?, ?, ?, ?)`,
+  );
+  const insertBookmark = db.prepare(
+    `INSERT OR IGNORE INTO message_bookmarks (session_id, idx, created_at) VALUES (?, ?, ?)`,
+  );
+  const savedExists = db.prepare(
+    `SELECT 1 FROM saved_searches WHERE name = ? AND query = ? LIMIT 1`,
+  );
+  const insertSaved = db.prepare(
+    `INSERT INTO saved_searches (name, query, created_at) VALUES (?, ?, ?)`,
+  );
+  const tx = db.transaction(() => {
+    for (const m of d.sessionMeta!) {
+      if (typeof m?.sessionId !== 'string') continue;
+      upsertMeta.run(
+        m.sessionId,
+        m.pinned ? 1 : 0,
+        typeof m.customName === 'string' ? m.customName : null,
+        typeof m.note === 'string' ? m.note : null,
+        typeof m.updatedAt === 'string' ? m.updatedAt : null,
+      );
+      counts.sessionMeta++;
+    }
+    for (const b of d.bookmarks!) {
+      if (typeof b?.sessionId !== 'string' || !Number.isInteger(b.idx)) continue;
+      const res = insertBookmark.run(
+        b.sessionId,
+        b.idx,
+        typeof b.createdAt === 'string' ? b.createdAt : null,
+      );
+      counts.bookmarks += res.changes;
+    }
+    for (const sv of d.savedSearches!) {
+      if (typeof sv?.name !== 'string' || typeof sv.query !== 'string') continue;
+      if (savedExists.get(sv.name, sv.query) !== undefined) continue;
+      insertSaved.run(sv.name, sv.query, typeof sv.createdAt === 'string' ? sv.createdAt : null);
+      counts.savedSearches++;
+    }
+  });
+  tx();
+  return counts;
 }
 
 export function getStats(db: Database.Database): StatsResponse {

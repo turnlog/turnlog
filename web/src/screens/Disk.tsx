@@ -43,6 +43,7 @@ export default function Disk() {
                 {projectName(s)[0]?.toUpperCase() ?? '·'}
               </span>
               <span className="disk-row-name">{sessionName(s)}</span>
+              {s.missing && <span className="chip chip-failed">file gone</span>}
               <span className="disk-row-date">{fmtDate(s.startedAt)}</span>
               <span className="disk-row-bytes">{fmtBytes(s.bytes)}</span>
             </button>
@@ -60,8 +61,8 @@ export default function Disk() {
       </section>
       <p className="disk-note">
         Turnlog never deletes session files. To reclaim space, reveal a file and delete it
-        yourself — it stays in the index until the next{' '}
-        <code>turnlog index --rebuild</code>.
+        yourself — the session stays readable here, marked &ldquo;file gone&rdquo;, until you
+        prune it from the health card.
       </p>
     </div>
   );

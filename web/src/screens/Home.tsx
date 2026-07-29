@@ -108,6 +108,15 @@ function HealthCard() {
       <div className="health-facts">
         {fmtCount(h.indexedFiles)} session files · {fmtCount(h.events)} events ·{' '}
         {fmtBytes(h.dbBytes)} index
+        {h.missingFiles > 0 && (
+          <>
+            {' · '}
+            <span className="health-missing">
+              {fmtCount(h.missingFiles)} file{h.missingFiles === 1 ? '' : 's'} gone from disk —
+              prune forgets them
+            </span>
+          </>
+        )}
       </div>
       {h.unknownEvents > 0 && (
         <div className="health-unknown">
@@ -258,12 +267,6 @@ export default function Home() {
         <section className="card list-card">
           <div className="list-card-head">
             <h2>Recent sessions</h2>
-            <button
-              className="see-all"
-              onClick={() => window.dispatchEvent(new CustomEvent('turnlog:open-sidebar'))}
-            >
-              See all
-            </button>
           </div>
           {recent.isLoading && recentRows.length === 0 ? (
             <SkeletonRows n={4} tile={36} />

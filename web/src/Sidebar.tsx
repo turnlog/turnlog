@@ -12,6 +12,7 @@ import Dropdown from './components/Dropdown';
 import NoteDot from './components/NoteDot';
 import { SkeletonRows } from './components/Skeleton';
 import Tooltip from './components/Tooltip';
+import { SHORTCUTS } from './keys';
 import {
   Brandmark,
   EyeClosedIcon,
@@ -148,7 +149,7 @@ export default function Sidebar({
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <Tooltip content="Hide sessions">
+        <Tooltip content="Hide sessions" shortcut={SHORTCUTS.sidebar}>
           <button className="circle circle-active" onClick={onToggle} aria-label="Hide sessions">
             <SidebarIcon size={17} />
           </button>

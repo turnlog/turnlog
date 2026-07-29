@@ -14,9 +14,12 @@ import {
   getPrefs,
   getSession,
   getSessionChain,
+  getSessionContext,
   getSessionExport,
+  getSessionJsonExport,
   getSessionFilePath,
   getSessionHtmlExport,
+  isTouchedFile,
   getSpend,
   getStats,
   isLens,
@@ -30,6 +33,7 @@ import {
   pruneMissingSessions,
   searchFiles,
   searchMessages,
+  searchTimeline,
   setBookmark,
   setPrefs,
   setSessionMeta,
@@ -49,6 +53,15 @@ export interface ServerContext {
   pricingOverrides?: Record<string, Partial<ModelPricing>>;
   /** Append the export attribution footer (settings.json, default true). */
   exportFooter?: boolean;
+  /**
+   * settings.json `editorCommand` template ("code -g {path}") — enables the
+   * open-in-editor buttons and the POST /api/files/open route. Never a
+   * shell: split on whitespace, spawned directly.
+   */
+  editorCommand?: string;
+  /** Launch the editor on a path. Injectable for tests; defaults to spawning
+   *  the editorCommand template. */
+  openInEditor?: (filePath: string) => void;
   /**
    * Latest newer version from the CLI's startup registry check, or null.
    * Read live (not captured once) so /api/status reflects the result the
@@ -140,6 +153,22 @@ function defaultReveal(filePath: string): void {
         ? ['explorer', ['/select,' + filePath]]
         : ['xdg-open', [path.dirname(filePath)]];
   spawn(cmd as string, args as string[], { stdio: 'ignore', detached: true }).unref();
+}
+
+/** Expand the editorCommand template — args array, never a shell. */
+function editorArgs(template: string, filePath: string): [string, string[]] | null {
+  const parts = template.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return null;
+  const hasSlot = parts.some((a) => a.includes('{path}'));
+  const args = parts.slice(1).map((a) => a.replaceAll('{path}', filePath));
+  if (!hasSlot) args.push(filePath);
+  return [parts[0]!.replaceAll('{path}', filePath), args];
+}
+
+function defaultOpenInEditor(template: string, filePath: string): void {
+  const expanded = editorArgs(template, filePath);
+  if (!expanded) return;
+  spawn(expanded[0], expanded[1], { stdio: 'ignore', detached: true }).unref();
 }
 
 const BODY_MAX_BYTES = 16 * 1024;
@@ -449,6 +478,28 @@ async function handleApiWrite(
     return sendJson(res, 200, { prefs });
   }
 
+  // Open a touched file in the user's editor. Only exists when settings.json
+  // configures an editorCommand, and only launches on paths the index knows
+  // from files_touched — never an arbitrary client-supplied path.
+  if (p === '/api/files/open') {
+    if (!ctx.editorCommand || ctx.editorCommand.trim() === '') {
+      return sendJson(res, 404, { error: 'no editorCommand configured in settings.json' });
+    }
+    const body = await readJsonBody(req);
+    if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+      throw new HttpError(400, 'expected a JSON object');
+    }
+    const filePath = (body as Record<string, unknown>).path;
+    if (typeof filePath !== 'string' || filePath === '') {
+      throw new HttpError(400, 'path must be a string');
+    }
+    if (!isTouchedFile(ctx.db, filePath)) {
+      return sendJson(res, 404, { error: 'not a file any session touched' });
+    }
+    (ctx.openInEditor ?? ((fp: string) => defaultOpenInEditor(ctx.editorCommand!, fp)))(filePath);
+    return sendJson(res, 200, { ok: true });
+  }
+
   // Maintenance acts on Turnlog's own index only — never on ~/.claude, which
   // stays read-only. Both actions are idempotent and safe to repeat.
   if (p === '/api/maintenance') {
@@ -497,6 +548,7 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
       ...driver.status(),
       appVersion: APP_VERSION,
       updateAvailable: ctx.getUpdate?.() ?? null,
+      editorConfigured: typeof ctx.editorCommand === 'string' && ctx.editorCommand.trim() !== '',
     });
   }
   if (p === '/api/stats') {
@@ -533,6 +585,9 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
       }),
     );
   }
+  if (p === '/api/search/timeline') {
+    return sendJson(res, 200, searchTimeline(db, { query: q.get('q') ?? '' }));
+  }
   if (p === '/api/search') {
     return sendJson(
       res,
@@ -558,7 +613,11 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
     return sendJson(
       res,
       200,
-      searchFiles(db, { query: q.get('q') ?? undefined, limit: numParam(q, 'limit') }),
+      searchFiles(db, {
+        query: q.get('q') ?? undefined,
+        limit: numParam(q, 'limit'),
+        find: q.get('find') ?? undefined,
+      }),
     );
   }
   if (p === '/api/disk') {
@@ -601,6 +660,13 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
     return sendJson(res, 200, { sessionId, children });
   }
 
+  const contextMatch = /^\/api\/sessions\/([^/]+)\/context$/.exec(p);
+  if (contextMatch) {
+    const result = getSessionContext(db, decodeURIComponent(contextMatch[1]!));
+    if (!result) return sendJson(res, 404, { error: 'session not found' });
+    return sendJson(res, 200, result);
+  }
+
   const turnsMatch = /^\/api\/sessions\/([^/]+)\/turns$/.exec(p);
   if (turnsMatch) {
     const result = listTurns(db, decodeURIComponent(turnsMatch[1]!));
@@ -619,6 +685,18 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
     };
     // Optional message-idx bounds: export a turn range instead of the session.
     const range = { fromIdx: numParam(q, 'from'), toIdx: numParam(q, 'to') };
+    if (q.get('format') === 'json') {
+      const json = getSessionJsonExport(db, id, opts, range);
+      if (json === null) return sendJson(res, 404, { error: 'session not found' });
+      const payload = Buffer.from(json, 'utf8');
+      res.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Length': payload.length,
+        'X-Content-Type-Options': 'nosniff',
+      });
+      res.end(payload);
+      return;
+    }
     if (q.get('format') === 'html') {
       const html = getSessionHtmlExport(db, id, opts, range);
       if (html === null) return sendJson(res, 404, { error: 'session not found' });

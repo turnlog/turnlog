@@ -96,7 +96,8 @@ const TOOLS: McpTool[] = [
       'Full-text search across every indexed Claude Code session on this machine. ' +
       'Call this when you need to recall how something was done, discussed, or fixed in a past session. ' +
       'Supports operators combinable with text (or usable alone): tool:Bash, kind:prompt, is:error, ' +
-      'project:<name>, model:<name>, before:<ISO date prefix>, after:<ISO date prefix>, ' +
+      'project:<name>, model:<name>, path:<touched-file fragment>, ' +
+      'before:/after:<ISO date prefix, or 7d / today / yesterday>, ' +
       'is:pinned (user-pinned sessions), has:note (sessions the user annotated), ' +
       'has:bookmark (moments the user bookmarked). ' +
       'Returns hits grouped by session; use each hit’s sessionId + idx with get_messages to read the surrounding context.',

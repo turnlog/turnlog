@@ -26,10 +26,10 @@ export type Route =
       lens: Lens | null;
       view: ViewParam | null;
     }
-  | { name: 'search'; query: string }
+  | { name: 'search'; query: string; view: 'list' | 'timeline' }
   | { name: 'spend'; view: 'overview' | 'calendar' | 'disk' }
   | { name: 'whatsnew' }
-  | { name: 'files'; query: string; path: string | null };
+  | { name: 'files'; query: string; path: string | null; find: string };
 
 export function parseRoute(hash: string): Route {
   const h = hash.startsWith('#') ? hash.slice(1) : hash;
@@ -52,7 +52,11 @@ export function parseRoute(hash: string): Route {
     };
   }
   if (path === '/search') {
-    return { name: 'search', query: params.get('q') ?? '' };
+    return {
+      name: 'search',
+      query: params.get('q') ?? '',
+      view: params.get('v') === 'timeline' ? 'timeline' : 'list',
+    };
   }
   if (path === '/spend') {
     const v = params.get('v');
@@ -62,7 +66,12 @@ export function parseRoute(hash: string): Route {
     return { name: 'whatsnew' };
   }
   if (path === '/files') {
-    return { name: 'files', query: params.get('q') ?? '', path: params.get('path') };
+    return {
+      name: 'files',
+      query: params.get('q') ?? '',
+      path: params.get('path'),
+      find: params.get('find') ?? '',
+    };
   }
   return { name: 'library' };
 }
@@ -93,14 +102,15 @@ export function sessionHash(
   return `#/session/${encodeURIComponent(id)}${qs ? `?${qs}` : ''}`;
 }
 
-export function searchHash(q: string): string {
-  return `#/search?q=${encodeURIComponent(q)}`;
+export function searchHash(q: string, view: 'list' | 'timeline' = 'list'): string {
+  return `#/search?q=${encodeURIComponent(q)}${view === 'timeline' ? '&v=timeline' : ''}`;
 }
 
-export function filesHash(opts: { q?: string; path?: string } = {}): string {
+export function filesHash(opts: { q?: string; path?: string; find?: string } = {}): string {
   const params = new URLSearchParams();
   if (opts.q) params.set('q', opts.q);
   if (opts.path) params.set('path', opts.path);
+  if (opts.find) params.set('find', opts.find);
   const qs = params.toString();
   return `#/files${qs ? `?${qs}` : ''}`;
 }

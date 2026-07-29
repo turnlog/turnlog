@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { APP_EVENT, emitAppEvent } from './events';
 import { getPref, setPref, usePref } from './prefs';
 
 /**
@@ -17,7 +18,7 @@ export function setProjectFilter(value: string): void {
   project = value;
   listeners.forEach((fn) => fn());
   // The sidebar shows the result — make sure it's visible.
-  window.dispatchEvent(new CustomEvent('turnlog:open-sidebar'));
+  emitAppEvent(APP_EVENT.openSidebar);
 }
 
 function subscribe(fn: () => void): () => void {

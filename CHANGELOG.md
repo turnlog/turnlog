@@ -4,6 +4,78 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] — 2026-07-29
+
+### Added
+
+- Search-anchored timeline: the search screen gains a hits | timeline toggle
+  (`#/search?q=…&v=timeline`). Every matching session becomes a dot on a
+  time axis — project-colored, sized by hit count, spanning first match to
+  last with the gaps kept visible — and clicking one lands in that session
+  at its first hit. Answers "when did this keep coming up?" over the FULL
+  match set, not the truncated hit page (`GET /api/search/timeline`). Long
+  ranges bucket by week.
+- Context-window timeline: the replay's stats panel now draws how full the
+  context window was at every response (input + cache tokens the index
+  already holds), with the peak called out. Compaction boundaries are marked
+  on the curve, listed as clickable jump chips, and flagged with a
+  "compacted" chip on the spine turn where they happened — so "did it lose
+  the plot after the compaction?" is one glance (`GET
+  /api/sessions/:id/context`).
+- Command palette: ⌘K / Ctrl-K anywhere opens a fuzzy switcher over your
+  sessions — CC's own titles make them findable by name — plus screens and
+  saved searches; anything typed is also one Enter away from a full-text
+  search. `/` still focuses search.
+- Files joined the query language: `path:api.ts` narrows any search to
+  sessions that touched a matching file (combinable with everything else),
+  and the Files screen gained the reverse — an "in sessions matching…"
+  filter that keeps only files touched by matching work.
+- Date operators take plain words now: `after:7d`, `after:yesterday`,
+  `before:today` — alongside the ISO prefixes.
+- Turns spent in plan mode wear a quiet "plan" chip on the spine — lifted
+  from Claude Code's own mode records and plan-mode-exit markers.
+- Deleted session files show up honestly everywhere, live: the health card
+  counts files gone from disk the moment they vanish, disk-usage rows are
+  marked "file gone", and pruning from the health card is the one way to
+  forget them. The old "stays until index --rebuild" caveat is retired.
+- Open a file in your editor straight from the diffs pivot or the Files
+  screen. Configure once in settings.json — `"editorCommand": "code -g
+  {path}"` — and the button appears; only files your sessions actually
+  touched can be opened, and nothing runs through a shell.
+- Your curation travels: `turnlog annotations export` writes pins, names,
+  notes, bookmarks, and saved searches as one JSON file, and `… import`
+  merges them back — machine moves and reinstalls stop losing them.
+- A third export format for scripts: `turnlog export <id> --format json`
+  (or `?format=json`) emits the normalized message stream for jq —
+  same range and redaction options as the human formats.
+- Keyboard shortcuts got a real home: press `?` anywhere for a cheat sheet
+  (also reachable from the palette), and every shortcut hint in the app —
+  tooltips included — now renders as proper keycaps next to the label
+  instead of text like "(⌘F)". Modifier labels follow your platform (⌘ on
+  macOS, Ctrl elsewhere). New chrome shortcuts: `B` toggles the sidebar,
+  `T` switches the theme, and `⇧Q` stops Turnlog — pressed twice, the same
+  arm-then-confirm two-step as the button.
+
+### Improved
+
+- Find in session is fully keyboard-driven: Enter jumps to the next match
+  and ⇧Enter to the previous one, cycling from wherever you are.
+- Counts and dates inside tooltips (lens counts, resume-chain part dates)
+  now read as data — set off from the label in the monospace metadata
+  style instead of run into the sentence.
+- List rows everywhere (sidebar, home lists, spend splits, file history,
+  and the replay's turn spine) dropped their hairline rules for rounded
+  hover pills — the edge-to-edge lines that read as a table grid are gone
+  and hovers are clean rounded washes. The home, search, spine, and log
+  views also stopped centering at a fixed measure: content now uses the
+  full window width.
+- The home card's "See all" link is gone — the sidebar already is the
+  see-all.
+- Icon buttons speak one language: the last text "✕" buttons became real
+  icons, the error/bookmark jump rails no longer stack a browser tooltip on
+  top of the app's own, and the bookmark toggle uses the same tooltip pill
+  as every other icon button.
+
 ## [0.7.0] — 2026-07-27
 
 ### Added

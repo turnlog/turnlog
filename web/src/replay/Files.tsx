@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLensRows } from '../api';
+import { openFileInEditor, useLensRows, useStatus } from '../api';
 import { SkeletonRows } from '../components/Skeleton';
+import Tooltip from '../components/Tooltip';
 import { fmtTime } from '../format';
+import { CodeFileIcon } from '../icons';
 import { filesHash, navigate, sessionHash } from '../router';
 import type { MessageRow } from '../types';
 import { EditDiff, WriteDiff } from './DiffView';
@@ -124,6 +126,7 @@ export function EditBody({ edit }: { edit: FileEdit }) {
 
 export default function FilesView({ sessionId }: { sessionId: string }) {
   const rows = useLensRows(sessionId, 'diffs');
+  const status = useStatus();
   const groups = useMemo(() => groupByFile(rows.data ?? []), [rows.data]);
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -180,6 +183,17 @@ export default function FilesView({ sessionId }: { sessionId: string }) {
       <div className="file-diffs">
         <div className="file-diffs-head">
           <span className="file-diffs-path">{current.path}</span>
+          {status.data?.editorConfigured && (
+            <Tooltip content="Open this file in your editor">
+              <button
+                className="circle-sm fh-open-editor"
+                onClick={() => openFileInEditor(current.path)}
+                aria-label="Open this file in your editor"
+              >
+                <CodeFileIcon size={14} />
+              </button>
+            </Tooltip>
+          )}
           <a
             className="file-entry-jump fh-head-link"
             href={filesHash({ path: current.path })}

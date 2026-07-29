@@ -64,6 +64,7 @@ const TurnCard = memo(function TurnCard({
   open,
   onToggle,
   currentIdx,
+  compacted,
 }: {
   sessionId: string;
   turn: TurnSummary;
@@ -71,6 +72,8 @@ const TurnCard = memo(function TurnCard({
   open: boolean;
   onToggle: () => void;
   currentIdx: number | null;
+  /** CC compacted the conversation somewhere under this turn. */
+  compacted: boolean;
 }) {
   return (
     <div className={`turn ${open ? 'open' : ''}`} data-turn-idx={turn.idx}>
@@ -88,6 +91,8 @@ const TurnCard = memo(function TurnCard({
               {p.text}
             </span>
           ))}
+          {turn.mode === 'plan' && <span className="chip chip-summary turn-compact">plan</span>}
+          {compacted && <span className="chip chip-summary turn-compact">compacted</span>}
         </span>
         <span className="turn-ts">{fmtTime(turn.ts)}</span>
       </button>
@@ -111,10 +116,13 @@ export default function SpineView({
   sessionId,
   data,
   currentIdx,
+  compactionIdxs = [],
 }: {
   sessionId: string;
   data: TurnsResponse;
   currentIdx: number | null;
+  /** Message idxs of compact_boundary records — marked on their turns. */
+  compactionIdxs?: number[];
 }) {
   const [openTurns, setOpenTurns] = useState<Set<number>>(new Set());
   const [topPos, setTopPos] = useState(0);
@@ -256,6 +264,9 @@ export default function SpineView({
               open={openTurns.has(item.turn.idx)}
               onToggle={() => toggle(item.turn.idx)}
               currentIdx={currentIdx}
+              compacted={compactionIdxs.some(
+                (i) => i >= item.turn.idx && i < item.turn.endIdx,
+              )}
             />
           )
         }

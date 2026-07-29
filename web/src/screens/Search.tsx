@@ -1,10 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useDeleteSavedSearch, useSavedSearches, useSaveSearch, useSearch } from '../api';
+import {
+  useDeleteSavedSearch,
+  useSavedSearches,
+  useSaveSearch,
+  useSearch,
+  useSearchTimeline,
+} from '../api';
 import { SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
-import { fmtCost, fmtCount, fmtDate, fmtTime, projectName, sessionName } from '../format';
+import { CloseIcon } from '../icons';
+import {
+  DAY_MS,
+  dayKey,
+  fmtCost,
+  fmtCount,
+  fmtDate,
+  fmtTime,
+  projectName,
+  sessionName,
+  startOfDay,
+  startOfWeek,
+  tileClass,
+} from '../format';
 import { navigate, searchHash, sessionHash } from '../router';
-import { SNIPPET_CLOSE, SNIPPET_OPEN, type SearchHit } from '../types';
+import { SNIPPET_CLOSE, SNIPPET_OPEN, type SearchHit, type TimelineSession } from '../types';
 
 /**
  * FTS5 snippets arrive with U+E000/U+E001 marking match boundaries — chosen
@@ -47,6 +66,149 @@ function kindLabel(hit: SearchHit): string {
 
 const DEBOUNCE_MS = 200;
 
+/* ── search-anchored timeline ───────────────────────────────────────── */
+
+/** Past this span, day columns collapse into week columns. */
+const WEEKLY_PAST_DAYS = 180;
+
+interface TimelineBucket {
+  key: string;
+  date: Date;
+  sessions: TimelineSession[];
+}
+
+/**
+ * Continuous day (or week) buckets from the first matched session to the
+ * last — gaps stay visible; an empty month IS the answer to "when did this
+ * keep coming up?".
+ */
+function buildBuckets(sessions: TimelineSession[]): { buckets: TimelineBucket[]; weekly: boolean } {
+  const dated = sessions.filter((t) => t.session.startedAt !== null);
+  if (dated.length === 0) return { buckets: [], weekly: false };
+  const first = startOfDay(new Date(dated[0]!.session.startedAt!));
+  const last = startOfDay(new Date(dated[dated.length - 1]!.session.startedAt!));
+  const spanDays = Math.round((last.getTime() - first.getTime()) / DAY_MS) + 1;
+  const weekly = spanDays > WEEKLY_PAST_DAYS;
+
+  // Weeks bucket on their Monday, like the calendar grid.
+  const start = weekly ? startOfWeek(first) : first;
+
+  const buckets: TimelineBucket[] = [];
+  const byKey = new Map<string, TimelineBucket>();
+  for (const d = new Date(start); d.getTime() <= last.getTime(); d.setDate(d.getDate() + (weekly ? 7 : 1))) {
+    const bucket = { key: dayKey(d), date: new Date(d), sessions: [] };
+    buckets.push(bucket);
+    byKey.set(bucket.key, bucket);
+  }
+  for (const t of dated) {
+    const day = startOfDay(new Date(t.session.startedAt!));
+    byKey.get(dayKey(weekly ? startOfWeek(day) : day))?.sessions.push(t);
+  }
+  return { buckets, weekly };
+}
+
+/** Month labels above the strip, each spanning its buckets. */
+function monthSpans(buckets: TimelineBucket[]): { label: string; span: number }[] {
+  const out: { label: string; span: number }[] = [];
+  for (const b of buckets) {
+    const label = b.date.toLocaleDateString('en-US', {
+      month: 'short',
+      ...(b.date.getFullYear() === new Date().getFullYear() ? {} : { year: 'numeric' }),
+    });
+    const lastSpan = out[out.length - 1];
+    if (lastSpan && lastSpan.label === label) lastSpan.span++;
+    else out.push({ label, span: 1 });
+  }
+  return out;
+}
+
+function TimelineView({ query }: { query: string }) {
+  const timeline = useSearchTimeline(query);
+  const sessions = timeline.data?.sessions ?? [];
+  const { buckets, weekly } = useMemo(() => buildBuckets(sessions), [sessions]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Most recent activity is the likely target — start scrolled to the end.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [timeline.data]);
+
+  if (query === '') return null;
+  if (timeline.isLoading && sessions.length === 0) return <SkeletonRows n={3} tile={28} />;
+  if (buckets.length === 0) {
+    return (
+      <div className="fullscreen-note">
+        <div>
+          <h1>No matches</h1>
+          <p>Nothing to place on the timeline — try a broader query.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const firstDay = buckets[0]!.date;
+  const lastDay = buckets[buckets.length - 1]!.date;
+  const fmtSpanDay = (d: Date) =>
+    d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  return (
+    <div className="tl-card">
+      <div className="tl-scroll" ref={scrollRef}>
+        <div className="tl-inner">
+          <div className="tl-months">
+            {monthSpans(buckets).map((m, i) => (
+              <span key={i} className="tl-month" style={{ ['--span' as string]: m.span }}>
+                {m.label}
+              </span>
+            ))}
+          </div>
+          <div className="tl-strip">
+            {buckets.map((b) => (
+              <div
+                key={b.key}
+                className={`tl-col ${!weekly && (b.date.getDay() === 0 || b.date.getDay() === 6) ? 'weekend' : ''}`}
+              >
+                {b.sessions.map((t) => (
+                  <Tooltip
+                    key={t.session.id}
+                    content={
+                      <div className="tooltip-row">
+                        {sessionName(t.session)}
+                        <span className="tooltip-num">
+                          {fmtDate(t.session.startedAt)} · {t.hits} hit{t.hits === 1 ? '' : 's'}
+                        </span>
+                      </div>
+                    }
+                  >
+                    <button
+                      className={`tl-dot ${tileClass(t.session.projectKey)} ${t.hits >= 5 ? 'big' : ''}`}
+                      onClick={() =>
+                        navigate(
+                          sessionHash(t.session.id, {
+                            ...(t.firstIdx !== null ? { m: t.firstIdx } : {}),
+                            q: query,
+                          }),
+                        )
+                      }
+                      aria-label={`Open ${sessionName(t.session)}, ${t.hits} hits, ${fmtDate(t.session.startedAt)}`}
+                    />
+                  </Tooltip>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="tl-foot">
+        {fmtCount(sessions.length)} session{sessions.length === 1 ? '' : 's'} ·{' '}
+        {fmtSpanDay(firstDay)} — {fmtSpanDay(lastDay)}
+        {weekly ? ' · one column per week' : ''}
+      </div>
+    </div>
+  );
+}
+
 /** Saved-search chips + the save control for the current query. */
 function SavedSearches({ query }: { query: string }) {
   const saved = useSavedSearches();
@@ -81,7 +243,7 @@ function SavedSearches({ query }: { query: string }) {
               onClick={() => remove.mutate(s.id)}
               aria-label={`Delete saved search ${s.name}`}
             >
-              &times;
+              <CloseIcon size={11} />
             </button>
           </Tooltip>
         </span>
@@ -116,7 +278,13 @@ function SavedSearches({ query }: { query: string }) {
   );
 }
 
-export default function Search({ query }: { query: string }) {
+export default function Search({
+  query,
+  view = 'list',
+}: {
+  query: string;
+  view?: 'list' | 'timeline';
+}) {
   const [input, setInput] = useState(query);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -124,10 +292,10 @@ export default function Search({ query }: { query: string }) {
   useEffect(() => {
     if (input === query) return;
     const t = setTimeout(() => {
-      window.location.replace(searchHash(input.trim()));
+      window.location.replace(searchHash(input.trim(), view));
     }, DEBOUNCE_MS);
     return () => clearTimeout(t);
-  }, [input, query]);
+  }, [input, query, view]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -209,18 +377,42 @@ export default function Search({ query }: { query: string }) {
                 </>
               )}
               {' · '}
-              <kbd>↑↓</kbd> navigate · <kbd>Enter</kbd> open
+              <kbd>↑</kbd>
+              <kbd>↓</kbd> navigate · <kbd>enter</kbd> open
             </span>
           )}
         </div>
         <div className="search-ops">
           narrow with <code>tool:Bash</code> <code>kind:prompt</code> <code>is:error</code>{' '}
           <code>is:pinned</code> <code>has:note</code> <code>has:bookmark</code>{' '}
-          <code>project:name</code> <code>model:opus</code> <code>before:2026-07</code>{' '}
-          <code>after:2026-01</code>
+          <code>project:name</code> <code>model:opus</code> <code>path:api.ts</code>{' '}
+          <code>before:2026-07</code> <code>after:7d</code> <code>after:yesterday</code>
+          {query !== '' && (
+            <div className="view-toggle search-view" role="tablist" aria-label="Result view">
+              <button
+                role="tab"
+                aria-selected={view === 'list'}
+                className={view === 'list' ? 'active' : ''}
+                onClick={() => navigate(searchHash(query, 'list'))}
+              >
+                hits
+              </button>
+              <button
+                role="tab"
+                aria-selected={view === 'timeline'}
+                className={view === 'timeline' ? 'active' : ''}
+                onClick={() => navigate(searchHash(query, 'timeline'))}
+              >
+                timeline
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
+      {view === 'timeline' ? (
+        <TimelineView query={query} />
+      ) : (
       <div className="search-results">
         {search.isLoading && groups.length === 0 && query !== '' && (
           <SkeletonRows n={6} tile={28} />
@@ -272,6 +464,7 @@ export default function Search({ query }: { query: string }) {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
