@@ -217,7 +217,8 @@ export function sessionToMarkdown(
   // own title); the project then moves down into the meta line.
   const title = session.customName ?? session.aiTitle;
 
-  out.push(`# ${title ?? project} — Claude Code session${opts.excerpt ? ' (excerpt)' : ''}`);
+  const agent = session.tool === 'codex' ? 'Codex' : 'Claude Code';
+  out.push(`# ${title ?? project} — ${agent} session${opts.excerpt ? ' (excerpt)' : ''}`);
   out.push(
     `*${session.startedAt ?? 'unknown date'}${title ? ` · ${project}` : ''}${model} · ${session.turnCount} turns · ${fmtCost(session.costUsd)} est.*`,
   );

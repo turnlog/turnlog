@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSessionsRange } from '../api';
+import { agentInfo } from '../agents';
 import { useHideEmpty } from '../filterStore';
 import { SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
@@ -69,7 +70,8 @@ function BlockTip({ s }: { s: SessionMeta }) {
       <span>
         {fmtTime(s.startedAt)}
         {s.endedAt ? `–${fmtTime(s.endedAt)}` : ''} · {fmtCount(s.turnCount)} turns ·{' '}
-        {fmtTokens(s.inputTokens + s.outputTokens)} tok · {fmtCost(s.costUsd)}
+        {fmtTokens(s.inputTokens + s.outputTokens)} tok · {fmtCost(s.costUsd)} ·{' '}
+        {agentInfo(s.tool).label}
       </span>
     </>
   );
@@ -301,7 +303,7 @@ function WeekGrid({
                   return (
                     <Tooltip key={s.id} content={<BlockTip s={s} />}>
                       <button
-                        className={`calendar-block tier-${tier} ${tileClass(s.projectKey)}`}
+                        className={`calendar-block tier-${tier} ${tileClass(s.projectKey)} ${agentInfo(s.tool).colorClass}`}
                         style={{
                           left: `${left}%`,
                           width: `max(${Math.max(widthPx, 0)}px, 5px)`,

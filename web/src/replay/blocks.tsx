@@ -1,5 +1,6 @@
 import { memo, useContext, useMemo, useState } from 'react';
 import { useChildRows } from '../api';
+import { AgentLabelContext } from './agentContext';
 import CodeBlock from '../code/CodeBlock';
 import { langFromPath } from '../code/highlighter';
 import { SkeletonLines } from '../components/Skeleton';
@@ -87,11 +88,12 @@ const PromptBlock = memo(function PromptBlock({ row }: { row: MessageRow }) {
 const AssistantBlock = memo(function AssistantBlock({ row }: { row: MessageRow }) {
   const view = parseRaw(row);
   const [thinkingOpen, setThinkingOpen] = useState(false);
+  const agentLabel = useContext(AgentLabelContext);
 
   return (
     <div className="block block-assistant">
       <div className="block-head">
-        <span className="block-label">claude</span>
+        <span className="block-label">{agentLabel}</span>
         <Ts iso={row.ts} />
       </div>
       {view.thinkingParts.length > 0 && (

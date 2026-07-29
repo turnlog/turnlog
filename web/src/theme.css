@@ -67,6 +67,14 @@
   --tile-7: #8b34d4; /* purple  */
   --tile-on: #ffffff; /* the glyph on every hue — theme-invariant like them */
 
+  /* agent identity — each adapter's own brand hue, theme-invariant like the
+     tiles, and used only in SMALL DOSES (glyphs, calendar edge stripes,
+     dots): Claude's terracotta sits near our vermilion accent, so it must
+     never fill a surface. Registry: web/src/agents.ts — a new adapter adds
+     one token here and one entry there. */
+  --agent-claude: #d97757; /* Anthropic terracotta */
+  --agent-codex: #10a37f; /* OpenAI teal */
+
   /* the near-black surface — inverts to white on dark */
   --contrast-solid: #eceef2;
   --contrast-on: #14161b;

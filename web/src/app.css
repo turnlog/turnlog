@@ -4140,12 +4140,61 @@ kbd {
   flex: none;
 }
 
-/* Which agent wrote the session — quiet contrast chip, only when not CC. */
+
+/* Third row of a sidebar item: which agent + which model, wrapped under the
+   meta line so they never truncate against the right edge. The tool chip
+   keeps its contrast colors in every row state — the active-row wash only
+   restyles .side-item-model. */
+.side-item-chips {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+}
+.side-item-chips .side-item-model {
+  margin-left: 0;
+}
+
+/* ── agent identity (web/src/agents.ts registry) ────────────────────── */
+
+/* Uppercase contrast chip — the agent's name, not its brand color (that
+   lives in the calendar stripes; terracotta as a chip fill would fight the
+   accent). Same look in every row state. */
 .chip-tool {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 2px 8px;
   background: var(--contrast-solid);
   color: var(--contrast-on);
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
+  flex: none;
+}
+
+/* The model chip beside it shares the mono family (the two read as one
+   metadata pair). */
+.chip-model {
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+
+/* Pinned rows: the note-yellow wash eats the faint metadata — lift it. */
+.side-item.pinned .side-item-sub {
+  color: var(--tx1);
+}
+.side-item.pinned .side-item-model {
+  background: var(--card);
+}
+
+/* Calendar week blocks: a left edge stripe says which agent, the block's
+   fill keeps saying which project. Bars are too thin for a stripe — the
+   tooltip carries the agent there. */
+.calendar-block.agent-claude:not(.tier-bar) {
+  box-shadow: inset 3px 0 0 var(--agent-claude);
+}
+.calendar-block.agent-codex:not(.tier-bar) {
+  box-shadow: inset 3px 0 0 var(--agent-codex);
 }

@@ -11,6 +11,7 @@ import {
 import Dropdown from './components/Dropdown';
 import NoteDot from './components/NoteDot';
 import { SkeletonRows } from './components/Skeleton';
+import AgentChip from './components/AgentChip';
 import Tooltip from './components/Tooltip';
 import { SHORTCUTS } from './keys';
 import {
@@ -108,7 +109,9 @@ function Item({
           <span>{fmtDate(s.startedAt)}</span>
           <span>· {fmtCount(s.turnCount)}t</span>
           <span>· {fmtTokens(s.inputTokens + s.outputTokens)} tok</span>
-          {s.tool === 'codex' && <span className="side-item-model chip-tool">codex</span>}
+        </span>
+        <span className="side-item-chips">
+          <AgentChip tool={s.tool} />
           {s.model && <span className="side-item-model">{fmtModel(s.model)}</span>}
         </span>
       </span>

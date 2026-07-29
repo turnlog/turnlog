@@ -11,6 +11,8 @@ import {
   useToggleBookmark,
   useTurns,
 } from '../api';
+import { agentInfo } from '../agents';
+import AgentChip from '../components/AgentChip';
 import NoteDot from '../components/NoteDot';
 import { SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
@@ -34,6 +36,7 @@ import {
 } from '../icons';
 import { SHORTCUTS } from '../keys';
 import { getPref, setPref } from '../prefs';
+import { AgentLabelContext } from '../replay/agentContext';
 import AnnotatePanel from '../replay/AnnotatePanel';
 import { BookmarkContext } from '../replay/bookmarkContext';
 import ChainNav from '../replay/ChainNav';
@@ -180,6 +183,7 @@ export default function Replay({
   const s = session.data;
 
   return (
+    <AgentLabelContext.Provider value={agentInfo(s?.tool ?? 'claude-code').label}>
     <BookmarkContext.Provider value={bookmarkCtx}>
     <ChildSessionsContext.Provider value={childSessions}>
     <div className="replay">
@@ -201,8 +205,8 @@ export default function Replay({
               {s && sessionName(s) !== projectName(s) && (
                 <span className="replay-date">{projectName(s)}</span>
               )}
-              {s?.tool === 'codex' && <span className="chip chip-tool">codex</span>}
-              {s?.model && <span className="chip">{fmtModel(s.model)}</span>}
+              {s && <AgentChip tool={s.tool} />}
+              {s?.model && <span className="chip chip-model">{fmtModel(s.model)}</span>}
               <span className="replay-date">{s ? fmtDate(s.startedAt) : ''}</span>
               {s && s.chainLen > 1 && <ChainNav sessionId={sessionId} />}
               {s?.note && <NoteDot note={s.note} />}
@@ -442,5 +446,6 @@ export default function Replay({
     </div>
     </ChildSessionsContext.Provider>
     </BookmarkContext.Provider>
+    </AgentLabelContext.Provider>
   );
 }

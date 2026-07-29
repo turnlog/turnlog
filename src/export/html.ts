@@ -180,6 +180,8 @@ export function sessionToHtml(
   // The session's name leads when one exists (user's custom name, else CC's
   // own title); the project then moves down into the meta line.
   const title = session.customName ?? session.aiTitle;
+  const agent = session.tool === 'codex' ? 'codex' : 'claude';
+  const agentTitle = session.tool === 'codex' ? 'Codex' : 'Claude Code';
   const meta = [
     date,
     title ? project : null,
@@ -210,7 +212,7 @@ export function sessionToHtml(
   let claude: string[] = [];
   const flush = () => {
     if (claude.length === 0) return;
-    body.push(`<section class="turn claude"><div class="label">claude</div>${claude.join('\n')}</section>`);
+    body.push(`<section class="turn claude"><div class="label">${agent}</div>${claude.join('\n')}</section>`);
     claude = [];
   };
 
@@ -280,7 +282,7 @@ export function sessionToHtml(
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(red(title ?? project))} — Claude Code session</title>
+<title>${esc(red(title ?? project))} — ${agentTitle} session</title>
 <style>${STYLE}</style>
 </head>
 <body>

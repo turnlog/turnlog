@@ -6,6 +6,7 @@ import {
   useSearch,
   useSearchTimeline,
 } from '../api';
+import { agentInfo } from '../agents';
 import { SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
 import { CloseIcon } from '../icons';
@@ -55,12 +56,12 @@ function Snippet({ text }: { text: string }) {
   );
 }
 
-function kindLabel(hit: SearchHit): string {
+function kindLabel(hit: SearchHit, tool: string): string {
   if (hit.kind === 'tool_use' || hit.kind === 'tool_result') {
     return hit.toolName ?? hit.kind.replace('_', ' ');
   }
   if (hit.kind === 'prompt') return 'you';
-  if (hit.kind === 'assistant') return 'claude';
+  if (hit.kind === 'assistant') return agentInfo(tool).label;
   return hit.kind;
 }
 
@@ -444,7 +445,7 @@ export default function Search({
                   onClick={() => openHit(g.session.id, h.idx)}
                   onMouseEnter={() => setActive(pos)}
                 >
-                  <span className="chip chip-kind">{kindLabel(h)}</span>
+                  <span className="chip chip-kind">{kindLabel(h, g.session.tool)}</span>
                   <Snippet text={h.snippet} />
                   <span className="search-hit-ts">{fmtTime(h.ts)}</span>
                 </button>

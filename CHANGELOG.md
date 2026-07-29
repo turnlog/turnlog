@@ -14,7 +14,11 @@ All notable changes to Turnlog are documented here. The format follows
   replay, spend and disk views all work, sessions wear a CODEX badge, and
   the resume button copies `codex resume <id>`. Codex work on a repo lands
   in the **same project** as your Claude Code work on that repo — one
-  timeline per repo, whichever agent you pointed at it. Codex token
+  timeline per repo, whichever agent you pointed at it. Every session now
+  names its agent — an uppercase CLAUDE / CODEX chip in the sidebar and
+  replay header, correct speaker labels in the replay and exports, and
+  calendar blocks carry a brand-colored edge stripe (Anthropic terracotta,
+  OpenAI teal) so a mixed week reads at a glance. Codex token
   accounting reads the per-response usage the logs record (cached input
   split out), so totals are exact; GPT model pricing isn't bundled yet, so
   costs show as estimates only if you add rates via `modelPricing` in
