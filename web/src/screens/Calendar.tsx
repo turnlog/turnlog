@@ -19,6 +19,7 @@ import {
 } from '../format';
 import { ChevronLeftIcon, ChevronRightIcon } from '../icons';
 import { navigate, sessionHash } from '../router';
+import { getPref, setPref } from '../prefs';
 import type { SessionMeta } from '../types';
 
 /**
@@ -33,6 +34,7 @@ const ROW_H = 56; // px per day row; lanes divide it when sessions overlap
 const HEAD_W = 64; // day-label gutter (row head width + gap), px
 
 type Mode = 'week' | 'month';
+type ColorBy = 'project' | 'agent';
 
 function sameDay(a: Date, b: Date): boolean {
   return a.toDateString() === b.toDateString();
@@ -80,6 +82,15 @@ function BlockTip({ s }: { s: SessionMeta }) {
 export default function Calendar() {
   const [mode, setMode] = useState<Mode>('week');
   const [anchor, setAnchor] = useState(() => new Date());
+  // Blocks color by project (default) or by agent; the OTHER dimension
+  // becomes the edge stripe, so both signals stay visible either way.
+  const [colorBy, setColorBy] = useState<ColorBy>(() =>
+    getPref('calendarColor') === 'agent' ? 'agent' : 'project',
+  );
+  const setColorByPersist = (v: ColorBy) => {
+    setPref('calendarColor', v);
+    setColorBy(v);
+  };
 
   // Fetch range depends on mode.
   const weekStart = useMemo(() => startOfWeek(anchor), [anchor]);
@@ -147,6 +158,24 @@ export default function Calendar() {
             month
           </button>
         </div>
+        <div className="view-toggle" role="tablist" aria-label="Color blocks by">
+          <button
+            role="tab"
+            aria-selected={colorBy === 'project'}
+            className={colorBy === 'project' ? 'active' : ''}
+            onClick={() => setColorByPersist('project')}
+          >
+            projects
+          </button>
+          <button
+            role="tab"
+            aria-selected={colorBy === 'agent'}
+            className={colorBy === 'agent' ? 'active' : ''}
+            onClick={() => setColorByPersist('agent')}
+          >
+            agents
+          </button>
+        </div>
         <span className="calendar-range">{rangeLabel}</span>
         <div className="calendar-nav">
           <Tooltip content={mode === 'week' ? 'Previous week' : 'Previous month'}>
@@ -177,12 +206,13 @@ export default function Calendar() {
       {sessions.isLoading ? (
         <SkeletonRows n={6} tile={30} />
       ) : mode === 'week' ? (
-        <WeekGrid weekStart={weekStart} buckets={buckets} today={today} />
+        <WeekGrid weekStart={weekStart} buckets={buckets} today={today} colorBy={colorBy} />
       ) : (
         <MonthGrid
           grid={monthGrid}
           buckets={buckets}
           today={today}
+          colorBy={colorBy}
           onPickDay={(d) => {
             setAnchor(d);
             setMode('week');
@@ -215,10 +245,12 @@ function WeekGrid({
   weekStart,
   buckets,
   today,
+  colorBy,
 }: {
   weekStart: Date;
   buckets: Map<string, SessionMeta[]>;
   today: Date;
+  colorBy: ColorBy;
 }) {
   const days = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
@@ -303,7 +335,7 @@ function WeekGrid({
                   return (
                     <Tooltip key={s.id} content={<BlockTip s={s} />}>
                       <button
-                        className={`calendar-block tier-${tier} ${tileClass(s.projectKey)} ${agentInfo(s.tool).colorClass}`}
+                        className={`calendar-block tier-${tier} ${tileClass(s.projectKey)} ${agentInfo(s.tool).colorClass} ${colorBy === 'agent' ? 'mode-agent' : ''}`}
                         style={{
                           left: `${left}%`,
                           width: `max(${Math.max(widthPx, 0)}px, 5px)`,
@@ -339,11 +371,13 @@ function MonthGrid({
   grid,
   buckets,
   today,
+  colorBy,
   onPickDay,
 }: {
   grid: { gridStart: Date; weeks: number; month: number };
   buckets: Map<string, SessionMeta[]>;
   today: Date;
+  colorBy: ColorBy;
   onPickDay: (d: Date) => void;
 }) {
   const maxCost = useMemo(() => {
@@ -373,7 +407,10 @@ function MonthGrid({
           const tokens = list.reduce((n, s) => n + s.inputTokens + s.outputTokens, 0);
           const other = date.getMonth() !== grid.month;
           const isToday = sameDay(date, today);
-          const projects = [...new Set(list.map((s) => s.projectKey))].slice(0, 4);
+          const dotClasses =
+            colorBy === 'agent'
+              ? [...new Set(list.map((s) => agentInfo(s.tool).colorClass))].slice(0, 4)
+              : [...new Set(list.map((s) => tileClass(s.projectKey)))].slice(0, 4);
           const heat = cost > 0 ? 0.06 + (cost / maxCost) * 0.32 : 0;
           const cell = (
             <button
@@ -387,8 +424,8 @@ function MonthGrid({
                 <>
                   <span className="month-cost">{fmtCost(cost)}</span>
                   <span className="month-dots">
-                    {projects.map((p) => (
-                      <span key={p ?? '·'} className={`tile-dot ${tileClass(p)}`} />
+                    {dotClasses.map((c) => (
+                      <span key={c} className={`tile-dot ${c}`} />
                     ))}
                     <span className="month-count">{list.length}</span>
                   </span>
@@ -407,7 +444,9 @@ function MonthGrid({
                   <span>
                     {fmtCount(list.length)} session{list.length === 1 ? '' : 's'} ·{' '}
                     {fmtTokens(tokens)} tok · {fmtCost(cost)} ·{' '}
-                    {projects.map((p) => projectName({ projectKey: p, projectPath: null })).join(', ')}
+                    {[...new Set(list.map((s) => s.projectKey))]
+                      .map((p) => projectName({ projectKey: p, projectPath: null }))
+                      .join(', ')}
                   </span>
                 </>
               }

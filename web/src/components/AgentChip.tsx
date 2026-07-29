@@ -1,8 +1,9 @@
 import { agentInfo } from '../agents';
 
-/** Which agent wrote a session: uppercase contrast chip, one look everywhere
- *  (sidebar rows, replay header). Brand color lives in the calendar stripes,
- *  not here. */
+/** Which agent wrote a session: uppercase chip in the agent's brand color,
+ *  one look everywhere (sidebar rows, replay header). Unknown tools fall
+ *  back to the neutral contrast chip. */
 export default function AgentChip({ tool }: { tool: string }) {
-  return <span className="chip-tool">{agentInfo(tool).label}</span>;
+  const agent = agentInfo(tool);
+  return <span className={`chip-tool ${agent.colorClass}`}>{agent.label}</span>;
 }

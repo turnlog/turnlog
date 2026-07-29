@@ -4157,9 +4157,9 @@ kbd {
 
 /* ── agent identity (web/src/agents.ts registry) ────────────────────── */
 
-/* Uppercase contrast chip — the agent's name, not its brand color (that
-   lives in the calendar stripes; terracotta as a chip fill would fight the
-   accent). Same look in every row state. */
+/* Uppercase chip in the agent's brand hue (white text — the tokens are
+   tuned to clear 3.5:1 like the tile palette). Unknown agents keep the
+   neutral contrast look. Same in every row state. */
 .chip-tool {
   display: inline-flex;
   align-items: center;
@@ -4172,6 +4172,14 @@ kbd {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   flex: none;
+}
+.chip-tool.agent-claude {
+  background: var(--agent-claude);
+  color: var(--tile-on);
+}
+.chip-tool.agent-codex {
+  background: var(--agent-codex);
+  color: var(--tile-on);
 }
 
 /* The model chip beside it shares the mono family (the two read as one
@@ -4189,12 +4197,41 @@ kbd {
   background: var(--card);
 }
 
-/* Calendar week blocks: a left edge stripe says which agent, the block's
-   fill keeps saying which project. Bars are too thin for a stripe — the
-   tooltip carries the agent there. */
-.calendar-block.agent-claude:not(.tier-bar) {
+/* Calendar week blocks carry BOTH dimensions: the fill is the chosen one
+   (projects by default, agents via the calendar's color toggle) and the
+   left edge stripe is the other. Bars are too thin for a stripe — the
+   tooltip carries the missing dimension there. */
+.calendar-block:not(.mode-agent).agent-claude:not(.tier-bar) {
   box-shadow: inset 3px 0 0 var(--agent-claude);
 }
-.calendar-block.agent-codex:not(.tier-bar) {
+.calendar-block:not(.mode-agent).agent-codex:not(.tier-bar) {
   box-shadow: inset 3px 0 0 var(--agent-codex);
+}
+.calendar-block.mode-agent.agent-claude {
+  background: var(--agent-claude);
+}
+.calendar-block.mode-agent.agent-codex {
+  background: var(--agent-codex);
+}
+.calendar-block.mode-agent.agent-unknown {
+  background: var(--bg3);
+}
+.calendar-block.mode-agent.tile-0:not(.tier-bar) { box-shadow: inset 3px 0 0 var(--tile-0); }
+.calendar-block.mode-agent.tile-1:not(.tier-bar) { box-shadow: inset 3px 0 0 var(--tile-1); }
+.calendar-block.mode-agent.tile-2:not(.tier-bar) { box-shadow: inset 3px 0 0 var(--tile-2); }
+.calendar-block.mode-agent.tile-3:not(.tier-bar) { box-shadow: inset 3px 0 0 var(--tile-3); }
+.calendar-block.mode-agent.tile-4:not(.tier-bar) { box-shadow: inset 3px 0 0 var(--tile-4); }
+.calendar-block.mode-agent.tile-5:not(.tier-bar) { box-shadow: inset 3px 0 0 var(--tile-5); }
+.calendar-block.mode-agent.tile-6:not(.tier-bar) { box-shadow: inset 3px 0 0 var(--tile-6); }
+.calendar-block.mode-agent.tile-7:not(.tier-bar) { box-shadow: inset 3px 0 0 var(--tile-7); }
+
+/* Month-cell dots follow the same color-by choice. */
+.tile-dot.agent-claude {
+  background: var(--agent-claude);
+}
+.tile-dot.agent-codex {
+  background: var(--agent-codex);
+}
+.tile-dot.agent-unknown {
+  background: var(--bg3);
 }

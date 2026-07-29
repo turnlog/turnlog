@@ -68,12 +68,13 @@
   --tile-on: #ffffff; /* the glyph on every hue — theme-invariant like them */
 
   /* agent identity — each adapter's own brand hue, theme-invariant like the
-     tiles, and used only in SMALL DOSES (glyphs, calendar edge stripes,
-     dots): Claude's terracotta sits near our vermilion accent, so it must
-     never fill a surface. Registry: web/src/agents.ts — a new adapter adds
-     one token here and one entry there. */
-  --agent-claude: #d97757; /* Anthropic terracotta */
-  --agent-codex: #10a37f; /* OpenAI teal */
+     tiles. Fills the agent chips and (optionally) calendar blocks, stripes
+     the calendar edges — values darkened from the raw brand hues so white
+     text clears 3.5:1, same bar as the tile palette. Registry:
+     web/src/agents.ts — a new adapter adds one token here + one entry
+     there. */
+  --agent-claude: #c96442; /* Anthropic clay */
+  --agent-codex: #0e8c6d; /* OpenAI green */
 
   /* the near-black surface — inverts to white on dark */
   --contrast-solid: #eceef2;
