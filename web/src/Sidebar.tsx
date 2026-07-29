@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import {
   flattenSessions,
@@ -16,9 +16,11 @@ import Tooltip from './components/Tooltip';
 import { SHORTCUTS } from './keys';
 import {
   Brandmark,
+  CloseIcon,
   EyeClosedIcon,
   EyeIcon,
   HistoryIcon,
+  MagniferIcon,
   PinFilledIcon,
   PinIcon,
   SidebarIcon,
@@ -135,6 +137,16 @@ export default function Sidebar({
 
   const status = useStatus();
   const projects = useProjects();
+
+  // Quick name filter — server-side (matches custom names, CC titles, and
+  // projects across ALL sessions, not just loaded pages), debounced.
+  const [nameInput, setNameInput] = useState('');
+  const [name, setName] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setName(nameInput.trim()), 250);
+    return () => clearTimeout(t);
+  }, [nameInput]);
+
   // Resume chains collapse to their tip — the tip file carries the whole
   // copied history, so earlier parts would read as duplicate rows here.
   const sessions = useSessions({
@@ -142,6 +154,7 @@ export default function Sidebar({
     dir,
     project: project || undefined,
     hideEmpty,
+    name: name || undefined,
     collapseChains: true,
   });
 
@@ -168,6 +181,27 @@ export default function Sidebar({
       </div>
       <div className="sidebar-controls">
         <div className="sidebar-controls-row">
+          <div className="sidebar-filter">
+            <MagniferIcon size={13} />
+            <input
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              placeholder="Filter sessions…"
+              aria-label="Filter sessions by name or project"
+            />
+            {nameInput !== '' && (
+              <button
+                className="sidebar-filter-clear"
+                onClick={() => setNameInput('')}
+                aria-label="Clear session filter"
+              >
+                <CloseIcon size={12} />
+              </button>
+            )}
+          </div>
+          <span className="sidebar-count">{fmtCount(total)}</span>
+        </div>
+        <div className="sidebar-controls-row">
           <Dropdown
             className="dd-grow"
             value={project}
@@ -181,9 +215,6 @@ export default function Sidebar({
               })) ?? []),
             ]}
           />
-          <span className="sidebar-count">{fmtCount(total)}</span>
-        </div>
-        <div className="sidebar-controls-row">
           <Dropdown
             className="dd-grow"
             value={sort}

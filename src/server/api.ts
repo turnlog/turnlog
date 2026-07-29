@@ -86,6 +86,8 @@ export interface ListSessionsQuery {
   until?: string;
   /** Drop sessions with nothing in them (0 turns or 0 tokens, no cost). */
   hideEmpty?: boolean;
+  /** Case-insensitive name filter: custom name, CC title, or project. */
+  name?: string;
   /**
    * Collapse resume chains to their most recent part (the tip carries the
    * whole copied history anyway). The calendar wants every part at its real
@@ -113,6 +115,16 @@ export function listSessions(db: Database.Database, q: ListSessionsQuery): Sessi
   if (q.until) {
     clauses.push('started_at < ?');
     params.push(q.until);
+  }
+  if (q.name && q.name.trim() !== '') {
+    // The sidebar's quick filter — matches everything a row can display as
+    // its name, so what you see is what it filters.
+    const like = `%${q.name.trim()}%`;
+    clauses.push(
+      `(custom_name LIKE ? OR cc_title LIKE ? OR ai_title LIKE ?
+        OR project_path LIKE ? OR project_key LIKE ?)`,
+    );
+    params.push(like, like, like, like, like);
   }
   if (q.hideEmpty) {
     // Empty = reads zero on either axis (no prompts, or no usage at all —

@@ -131,6 +131,8 @@ export interface SessionsQuery {
   project?: string;
   /** Drop sessions with nothing in them (0 turns or 0 tokens, no cost). */
   hideEmpty?: boolean;
+  /** Case-insensitive name/title/project filter (sidebar quick filter). */
+  name?: string;
   /** Collapse resume chains to their most recent part (sidebar list). */
   collapseChains?: boolean;
 }
@@ -255,6 +257,7 @@ export function useSessions(q: SessionsQuery) {
   if (q.dir) params.set('dir', q.dir);
   if (q.project) params.set('project', q.project);
   if (q.hideEmpty) params.set('hideEmpty', '1');
+  if (q.name) params.set('name', q.name);
   if (q.collapseChains) params.set('chains', 'collapse');
 
   return useInfiniteQuery({
@@ -264,6 +267,7 @@ export function useSessions(q: SessionsQuery) {
       q.dir ?? 'desc',
       q.project ?? '',
       q.hideEmpty ?? false,
+      q.name ?? '',
       q.collapseChains ?? false,
     ],
     queryFn: ({ pageParam }) =>

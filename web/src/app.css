@@ -1284,6 +1284,18 @@
   padding: 3px;
   margin-left: 12px;
 }
+
+/* Toggles that sit on the bare background (screen headers, the search
+   cheat-line) take the card tone — bg2-on-bg0 is nearly invisible in the
+   light theme. Inside cards the inset bg2 stays. Same figure/ground as the
+   header pills. */
+.spend-head .view-toggle,
+.calendar-head .view-toggle,
+.calendar-head .circle-sm,
+.calendar-head .pill,
+.search-view {
+  background: var(--card);
+}
 .view-toggle button {
   display: inline-flex;
   align-items: center;
@@ -4234,4 +4246,45 @@ kbd {
 }
 .tile-dot.agent-unknown {
   background: var(--bg3);
+}
+
+/* ── sidebar quick filter (the controls section's primary row) ──────── */
+
+.sidebar-filter {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--bg1);
+  border-radius: 999px;
+  padding: 6px 12px;
+  color: var(--tx2);
+}
+.sidebar-filter input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--tx0);
+  padding: 0;
+}
+.sidebar-filter input:focus-visible {
+  outline: none; /* the wrapper carries the ring */
+}
+.sidebar-filter:focus-within {
+  outline: 1.5px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  outline-offset: 1px;
+}
+.sidebar-filter-clear {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  color: var(--tx2);
+}
+.sidebar-filter-clear:hover {
+  color: var(--tx0);
 }

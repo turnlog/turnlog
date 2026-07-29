@@ -8,6 +8,11 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Added
 
+- The sidebar got a quick filter: type a few letters and the session list
+  narrows by name, title, or project — across your whole history, not just
+  the rows already loaded. The project and sort dropdowns moved onto one
+  compact row beneath it.
+
 - Turnlog now reads OpenAI Codex sessions. Rollouts under
   `~/.codex/sessions` are indexed automatically when the directory exists
   (read-only, like everything else): full-text search, the turn spine,
@@ -25,6 +30,13 @@ All notable changes to Turnlog are documented here. The format follows
   split out), so totals are exact; GPT model pricing isn't bundled yet, so
   costs show as estimates only if you add rates via `modelPricing` in
   settings.json.
+
+### Fixed
+
+- Controls sitting directly on the page background (the Spend and calendar
+  header toggles, the calendar's arrows and "This week" pill) were nearly
+  invisible in the light theme — they now use the card tone, like the
+  header pills always have.
 
 ## [0.8.0] — 2026-07-29
 
