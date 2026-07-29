@@ -4139,3 +4139,13 @@ kbd {
 .disk-row .chip-failed {
   flex: none;
 }
+
+/* Which agent wrote the session — quiet contrast chip, only when not CC. */
+.chip-tool {
+  background: var(--contrast-solid);
+  color: var(--contrast-on);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}

@@ -23,8 +23,11 @@ export default function ResumeButton({ session }: { session: SessionMeta }) {
 
   const copy = async () => {
     const cd = tip.projectPath ? `cd ${shellQuote(tip.projectPath)} && ` : '';
+    // Each tool has its own resume verb; the id is the session id either way.
+    const resume =
+      session.tool === 'codex' ? `codex resume ${tip.id}` : `claude --resume ${tip.id}`;
     try {
-      await navigator.clipboard.writeText(`${cd}claude --resume ${tip.id}`);
+      await navigator.clipboard.writeText(`${cd}${resume}`);
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
     } catch {
@@ -39,7 +42,9 @@ export default function ResumeButton({ session }: { session: SessionMeta }) {
           ? 'Command copied — paste it in your terminal'
           : isElsewhere
             ? 'Continue this conversation (resumes the latest part)'
-            : 'Continue this session in Claude Code'
+            : session.tool === 'codex'
+              ? 'Continue this session in Codex'
+              : 'Continue this session in Claude Code'
       }
     >
       <button

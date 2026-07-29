@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
-import { dbPath, defaultProjectsDir, loadSettings, serverInfoPath } from '../config.js';
+import { dbPath, defaultCodexDir, defaultProjectsDir, loadSettings, serverInfoPath } from '../config.js';
 import { renderSearch } from './search.js';
 import {
   exportAnnotations,
@@ -98,15 +98,17 @@ async function main(): Promise<void> {
 
   const command = positionals[0] ?? 'start';
   const projectsDir = path.resolve(values.projects ?? defaultProjectsDir());
+  // Codex sessions ride along when the dir exists — read-only, like ~/.claude.
+  const codexDir = fs.existsSync(defaultCodexDir()) ? defaultCodexDir() : undefined;
 
   switch (command) {
     case 'start':
-      return start(projectsDir, {
+      return start(projectsDir, codexDir, {
         port: values.port ? Number(values.port) : undefined,
         open: values['no-open'] !== true,
       });
     case 'index':
-      return runIndex(projectsDir, values.rebuild === true);
+      return runIndex(projectsDir, codexDir, values.rebuild === true);
     case 'export':
       return runExport(positionals[1], {
         noFooter: values['no-footer'] === true,
@@ -124,13 +126,17 @@ async function main(): Promise<void> {
     case 'annotations':
       return runAnnotations(positionals[1], positionals[2]);
     case 'mcp':
-      return runMcp(projectsDir);
+      return runMcp(projectsDir, codexDir);
     default:
       fail(`Unknown command "${command}". Run turnlog --help.`);
   }
 }
 
-async function start(projectsDir: string, opts: { port?: number; open: boolean }): Promise<void> {
+async function start(
+  projectsDir: string,
+  codexDir: string | undefined,
+  opts: { port?: number; open: boolean },
+): Promise<void> {
   if (!fs.existsSync(projectsDir)) {
     console.warn(
       `Note: ${projectsDir} does not exist yet — no Claude Code sessions found.\n` +
@@ -147,6 +153,7 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
   const driver = new WorkerDriver({
     dbPath: dbFile,
     projectsDir,
+    codexDir,
     pricingOverrides: settings.modelPricing,
   });
 
@@ -185,6 +192,7 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
   console.log(`turnlog ${APP_VERSION}`);
   console.log(`  UI:       ${url}`);
   console.log(`  Projects: ${projectsDir}`);
+  if (codexDir) console.log(`  Codex:    ${codexDir} (read-only)`);
   console.log(`  Index:    ${dbFile}`);
   console.log(`  Bound to 127.0.0.1 only — verify with: lsof -iTCP -sTCP:LISTEN | grep node`);
   if (firstRun) {
@@ -249,6 +257,24 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
     () => events.broadcast('indexed', { sessionId: null, at: new Date().toISOString() }),
   );
 
+  // Codex rollouts live under a second root (date-nested, within the
+  // watcher's depth); their session ids come from the filename, so a broad
+  // refresh is the honest broadcast.
+  const stopWatchingCodex = codexDir
+    ? watchProjects(
+        codexDir,
+        (filePath) => {
+          driver
+            .indexFile(filePath)
+            .then(() =>
+              events.broadcast('indexed', { sessionId: null, at: new Date().toISOString() }),
+            )
+            .catch(() => undefined);
+        },
+        () => events.broadcast('indexed', { sessionId: null, at: new Date().toISOString() }),
+      )
+    : null;
+
   let shuttingDown = false;
   const shutdown = async () => {
     if (shuttingDown) return;
@@ -260,6 +286,7 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
       /* already gone */
     }
     await stopWatching();
+    await stopWatchingCodex?.();
     await driver.close();
     events.close(); // open SSE responses would otherwise block server.close
     server.close();
@@ -270,11 +297,15 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
   process.on('SIGTERM', shutdown);
 }
 
-async function runIndex(projectsDir: string, rebuild: boolean): Promise<void> {
+async function runIndex(
+  projectsDir: string,
+  codexDir: string | undefined,
+  rebuild: boolean,
+): Promise<void> {
   const started = Date.now();
   const db = openDb(dbPath());
   const settings = loadSettings();
-  const indexer = new Indexer(db, { projectsDir, pricingOverrides: settings.modelPricing });
+  const indexer = new Indexer(db, { projectsDir, codexDir, pricingOverrides: settings.modelPricing });
 
   const onProgress = (p: { filesTotal: number; filesDone: number }) => {
     if (process.stdout.isTTY) {
@@ -421,7 +452,7 @@ async function runSearch(
  * MCP server mode: the index as read-only agent memory over stdio.
  * stdout is the protocol channel — every diagnostic here goes to stderr.
  */
-async function runMcp(projectsDir: string): Promise<void> {
+async function runMcp(projectsDir: string, codexDir: string | undefined): Promise<void> {
   const db = openDb(dbPath());
   // The main app may be running and writing; wait out its locks briefly.
   db.pragma('busy_timeout = 5000');
@@ -434,7 +465,7 @@ async function runMcp(projectsDir: string): Promise<void> {
     // first build belongs to `turnlog index` — MCP clients time out on it.
     try {
       const settings = loadSettings();
-      await new Indexer(db, { projectsDir, pricingOverrides: settings.modelPricing }).scanAll();
+      await new Indexer(db, { projectsDir, codexDir, pricingOverrides: settings.modelPricing }).scanAll();
     } catch (err) {
       console.error(
         `turnlog mcp: index refresh failed (serving the existing index): ${

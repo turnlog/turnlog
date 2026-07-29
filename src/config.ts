@@ -29,6 +29,14 @@ export function defaultProjectsDir(): string {
 }
 
 /**
+ * Codex rollout root. Indexed read-only when it exists — same posture as
+ * `~/.claude/projects`; Turnlog never writes into another tool's data dir.
+ */
+export function defaultCodexDir(): string {
+  return process.env.TURNLOG_CODEX_DIR ?? path.join(os.homedir(), '.codex', 'sessions');
+}
+
+/**
  * Where the running server records its tokened URL so `turnlog search` can
  * print working deep links. Written 0600 and removed on shutdown — it sits
  * next to the index DB, which already holds every session's content, so it

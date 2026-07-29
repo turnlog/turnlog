@@ -42,6 +42,8 @@ export interface SessionMeta {
    * across files.
    */
   chainLen: number;
+  /** Which agent wrote the session: 'claude-code' (default) or 'codex'. */
+  tool: string;
 }
 
 /** `GET /api/sessions/:id/chain` — every part of a resume chain, oldest first. */

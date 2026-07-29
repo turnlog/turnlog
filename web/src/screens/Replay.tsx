@@ -201,6 +201,7 @@ export default function Replay({
               {s && sessionName(s) !== projectName(s) && (
                 <span className="replay-date">{projectName(s)}</span>
               )}
+              {s?.tool === 'codex' && <span className="chip chip-tool">codex</span>}
               {s?.model && <span className="chip">{fmtModel(s.model)}</span>}
               <span className="replay-date">{s ? fmtDate(s.startedAt) : ''}</span>
               {s && s.chainLen > 1 && <ChainNav sessionId={sessionId} />}

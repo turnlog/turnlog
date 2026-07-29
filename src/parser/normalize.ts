@@ -1,4 +1,5 @@
 import type { NormalizedRecord } from './types.js';
+import { normalizeCodex, type CodexParseState } from './adapters/codex.js';
 import { normalizeV1 } from './adapters/v1.js';
 
 /**
@@ -32,6 +33,32 @@ export function normalizeLine(text: string, fallbackId: string): NormalizedRecor
   try {
     sniffAdapterVersion(obj);
     return normalizeV1(obj, trimmed, fallbackId);
+  } catch {
+    return unknownRecord(trimmed, fallbackId);
+  }
+}
+
+/**
+ * The Codex flavor of normalizeLine. Same cardinal rule; the state object
+ * threads cross-line context (cwd, current model) through one file's pass.
+ */
+export function normalizeCodexLine(
+  text: string,
+  fallbackId: string,
+  state: CodexParseState,
+): NormalizedRecord | null {
+  const trimmed = text.trim();
+  if (trimmed === '') return null;
+
+  let obj: unknown;
+  try {
+    obj = JSON.parse(trimmed);
+  } catch {
+    return unknownRecord(trimmed, fallbackId);
+  }
+
+  try {
+    return normalizeCodex(obj, trimmed, fallbackId, state);
   } catch {
     return unknownRecord(trimmed, fallbackId);
   }

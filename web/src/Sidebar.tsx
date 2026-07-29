@@ -108,6 +108,7 @@ function Item({
           <span>{fmtDate(s.startedAt)}</span>
           <span>· {fmtCount(s.turnCount)}t</span>
           <span>· {fmtTokens(s.inputTokens + s.outputTokens)} tok</span>
+          {s.tool === 'codex' && <span className="side-item-model chip-tool">codex</span>}
           {s.model && <span className="side-item-model">{fmtModel(s.model)}</span>}
         </span>
       </span>

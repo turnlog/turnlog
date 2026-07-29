@@ -4,6 +4,22 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Turnlog now reads OpenAI Codex sessions. Rollouts under
+  `~/.codex/sessions` are indexed automatically when the directory exists
+  (read-only, like everything else): full-text search, the turn spine,
+  replay, spend and disk views all work, sessions wear a CODEX badge, and
+  the resume button copies `codex resume <id>`. Codex work on a repo lands
+  in the **same project** as your Claude Code work on that repo — one
+  timeline per repo, whichever agent you pointed at it. Codex token
+  accounting reads the per-response usage the logs record (cached input
+  split out), so totals are exact; GPT model pricing isn't bundled yet, so
+  costs show as estimates only if you add rates via `modelPricing` in
+  settings.json.
+
 ## [0.8.0] — 2026-07-29
 
 ### Added
