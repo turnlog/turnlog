@@ -117,3 +117,52 @@ describe('listTurns', () => {
     expect(msgs.messages.some((m) => m.isError)).toBe(true);
   });
 });
+
+describe('turn mode (plan-mode chips)', () => {
+  it('lifts the governing mode from mode records onto turns', () => {
+    const sid = 'mode-lift-test';
+    db.prepare(`INSERT INTO sessions (id, file_path, adapter_version) VALUES (?, ?, 1)`).run(
+      sid,
+      '/tmp/mode-lift-test.jsonl',
+    );
+    const ins = db.prepare(
+      `INSERT INTO messages (uuid, session_id, parent_uuid, idx, role, kind, raw_json, text)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    ins.run('p1', sid, null, 0, 'user', 'prompt', '{}', 'first');
+    ins.run('m1', sid, 'p1', 1, null, 'mode', '{"type":"mode","mode":"plan"}', '');
+    ins.run('p2', sid, 'm1', 2, 'user', 'prompt', '{}', 'second');
+    ins.run('m2', sid, 'p2', 3, null, 'mode', '{"type":"permission-mode","permissionMode":"acceptEdits"}', '');
+    ins.run('p3', sid, 'm2', 4, 'user', 'prompt', '{}', 'third');
+
+    const res = listTurns(db, sid)!;
+    expect(res.turns.map((t) => t.mode)).toEqual([null, 'plan', 'acceptEdits']);
+  });
+
+  it('marks a turn containing plan_mode_exit as planning (current CC)', () => {
+    const sid = 'plan-exit-test';
+    db.prepare(`INSERT INTO sessions (id, file_path, adapter_version) VALUES (?, ?, 1)`).run(
+      sid,
+      '/tmp/plan-exit-test.jsonl',
+    );
+    const ins = db.prepare(
+      `INSERT INTO messages (uuid, session_id, parent_uuid, idx, role, kind, raw_json, text)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    ins.run('p1', sid, null, 0, 'user', 'prompt', '{}', 'plan this');
+    ins.run(
+      'at1',
+      sid,
+      'p1',
+      1,
+      null,
+      'attachment',
+      '{"type":"attachment","attachment":{"type":"plan_mode_exit","planFilePath":"/x/plan.md"}}',
+      '',
+    );
+    ins.run('p2', sid, 'at1', 2, 'user', 'prompt', '{}', 'now build it');
+
+    const res = listTurns(db, sid)!;
+    expect(res.turns.map((t) => t.mode)).toEqual(['plan', null]);
+  });
+});

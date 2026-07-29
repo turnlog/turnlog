@@ -45,6 +45,14 @@ export interface Settings {
   exportFooter?: boolean;
   /** Check the npm registry for a newer version on startup (default true). */
   checkUpdates?: boolean;
+  /**
+   * Command template for the web UI's open-in-editor buttons, e.g.
+   * "code -g {path}" or "webstorm {path}". `{path}` is replaced with the
+   * file's absolute path (appended when the template has no placeholder).
+   * Unset = the buttons don't render. Never a shell — split on whitespace
+   * and spawned directly.
+   */
+  editorCommand?: string;
 }
 
 export function loadSettings(): Settings {

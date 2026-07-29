@@ -358,7 +358,9 @@ export default function App() {
           {route.name === 'search' && <Search query={route.query} view={route.view} />}
           {route.name === 'spend' && <Spend view={route.view} />}
           {route.name === 'whatsnew' && <WhatsNew />}
-          {route.name === 'files' && <FileHistory query={route.query} path={route.path} />}
+          {route.name === 'files' && (
+            <FileHistory query={route.query} path={route.path} find={route.find} />
+          )}
           {route.name === 'session' && (
             <Replay
               key={route.id}

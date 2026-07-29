@@ -4115,3 +4115,27 @@ kbd {
   align-items: center;
   justify-content: center;
 }
+
+/* ── files-in-sessions filter + open-in-editor + missing-file facts ─── */
+
+.health-missing {
+  color: var(--accent);
+}
+.fh-open-editor {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--bg1);
+  color: var(--tx1);
+}
+.fh-open-editor:hover {
+  background: var(--bg2);
+  color: var(--tx0);
+}
+.disk-row .chip-failed {
+  flex: none;
+}

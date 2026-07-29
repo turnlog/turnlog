@@ -91,6 +91,7 @@ const TurnCard = memo(function TurnCard({
               {p.text}
             </span>
           ))}
+          {turn.mode === 'plan' && <span className="chip chip-summary turn-compact">plan</span>}
           {compacted && <span className="chip chip-summary turn-compact">compacted</span>}
         </span>
         <span className="turn-ts">{fmtTime(turn.ts)}</span>

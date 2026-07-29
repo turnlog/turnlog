@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import fs from 'node:fs';
 import http from 'node:http';
 import type Database from 'better-sqlite3';
 import { Indexer } from '../src/indexer/indexer.js';
@@ -67,16 +68,21 @@ const withToken = (p: string) => `${p}${p.includes('?') ? '&' : '?'}token=${TOKE
 const hub = new SseHub();
 
 const revealed: string[] = [];
+const editorOpened: string[] = [];
+let corpusDir: string;
 
 beforeAll(async () => {
   db = testDb(tmpDir('turnlog-server-'));
-  await new Indexer(db, { projectsDir: copyCorpus() }).scanAll();
+  corpusDir = copyCorpus();
+  await new Indexer(db, { projectsDir: corpusDir }).scanAll();
   const started = await startServer({
     db,
     driver: stubDriver,
     token: TOKEN,
     events: hub,
     reveal: (p) => revealed.push(p),
+    editorCommand: 'fake-editor -g {path}',
+    openInEditor: (p) => editorOpened.push(p),
   });
   server = started.server;
   port = started.port;
@@ -698,5 +704,97 @@ describe('API', () => {
   it('404s unknown API routes', async () => {
     const res = await request(withToken('/api/nope'));
     expect(res.status).toBe(404);
+  });
+});
+
+describe('open-in-editor (POST /api/files/open)', () => {
+  const TOUCHED = '/Users/dev/projects/webapp/src/hooks/useWebSocket.ts';
+
+  it('reports editorConfigured on /api/status', async () => {
+    const res = await request(withToken('/api/status'));
+    expect(res.json().editorConfigured).toBe(true);
+  });
+
+  it('launches the injected opener on a touched path only', async () => {
+    const ok = await request(
+      withToken('/api/files/open'),
+      {},
+      'POST',
+      port,
+      JSON.stringify({ path: TOUCHED }),
+    );
+    expect(ok.status).toBe(200);
+    expect(editorOpened).toEqual([TOUCHED]);
+
+    const nope = await request(
+      withToken('/api/files/open'),
+      {},
+      'POST',
+      port,
+      JSON.stringify({ path: '/etc/passwd' }),
+    );
+    expect(nope.status).toBe(404);
+    expect(editorOpened).toHaveLength(1);
+  });
+
+  it('does not exist without an editorCommand', async () => {
+    const bare = await startServer({ db, driver: stubDriver, token: TOKEN });
+    try {
+      const res = await new Promise<{ status: number }>((resolve, reject) => {
+        const req = http.request(
+          {
+            host: '127.0.0.1',
+            port: bare.port,
+            path: withToken('/api/files/open'),
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          },
+          (r) => {
+            r.resume();
+            r.on('end', () => resolve({ status: r.statusCode ?? 0 }));
+          },
+        );
+        req.on('error', reject);
+        req.write(JSON.stringify({ path: TOUCHED }));
+        req.end();
+      });
+      expect(res.status).toBe(404);
+    } finally {
+      bare.server.close();
+    }
+  });
+});
+
+describe('files content filter (find=) and missing-file facts', () => {
+  it('find= keeps only files touched by matching sessions', async () => {
+    const all = (await request(withToken('/api/files'))).json() as { path: string }[];
+    expect(all.length).toBeGreaterThan(0);
+
+    const filtered = (
+      await request(withToken('/api/files?find=useWebSocket'))
+    ).json() as { path: string }[];
+    expect(filtered.length).toBeGreaterThan(0);
+    for (const f of filtered) {
+      expect(f.path).toMatch(/webapp/); // only session A's project touched files
+    }
+
+    const none = (
+      await request(withToken('/api/files?find=zzznotinanysession'))
+    ).json() as unknown[];
+    expect(none).toHaveLength(0);
+  });
+
+  it('health counts files gone from disk, live', async () => {
+    const before = (await request(withToken('/api/health'))).json() as {
+      missingFiles: number;
+    };
+    expect(before.missingFiles).toBe(0);
+
+    const victim = `${corpusDir}/-Users-dev-projects-api/${'44444444-4444-4444-8444-444444444444'}.jsonl`;
+    fs.rmSync(victim);
+    const after = (await request(withToken('/api/health'))).json() as {
+      missingFiles: number;
+    };
+    expect(after.missingFiles).toBe(1);
   });
 });

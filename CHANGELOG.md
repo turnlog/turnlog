@@ -26,6 +26,28 @@ All notable changes to Turnlog are documented here. The format follows
   sessions — CC's own titles make them findable by name — plus screens and
   saved searches; anything typed is also one Enter away from a full-text
   search. `/` still focuses search.
+- Files joined the query language: `path:api.ts` narrows any search to
+  sessions that touched a matching file (combinable with everything else),
+  and the Files screen gained the reverse — an "in sessions matching…"
+  filter that keeps only files touched by matching work.
+- Date operators take plain words now: `after:7d`, `after:yesterday`,
+  `before:today` — alongside the ISO prefixes.
+- Turns spent in plan mode wear a quiet "plan" chip on the spine — lifted
+  from Claude Code's own mode records and plan-mode-exit markers.
+- Deleted session files show up honestly everywhere, live: the health card
+  counts files gone from disk the moment they vanish, disk-usage rows are
+  marked "file gone", and pruning from the health card is the one way to
+  forget them. The old "stays until index --rebuild" caveat is retired.
+- Open a file in your editor straight from the diffs pivot or the Files
+  screen. Configure once in settings.json — `"editorCommand": "code -g
+  {path}"` — and the button appears; only files your sessions actually
+  touched can be opened, and nothing runs through a shell.
+- Your curation travels: `turnlog annotations export` writes pins, names,
+  notes, bookmarks, and saved searches as one JSON file, and `… import`
+  merges them back — machine moves and reinstalls stop losing them.
+- A third export format for scripts: `turnlog export <id> --format json`
+  (or `?format=json`) emits the normalized message stream for jq —
+  same range and redaction options as the human formats.
 - Keyboard shortcuts got a real home: press `?` anywhere for a cheat sheet
   (also reachable from the palette), and every shortcut hint in the app —
   tooltips included — now renders as proper keycaps next to the label

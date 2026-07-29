@@ -250,3 +250,44 @@ describe('searchTimeline (search-anchored timeline)', () => {
     expect(searchTimeline(db, { query: '   ' }).sessions).toHaveLength(0);
   });
 });
+
+describe('path: operator (files join the query language)', () => {
+  it('parses path: onto filters', () => {
+    const parsed = parseSearchQuery('reconnect path:useWebSocket.ts');
+    expect(parsed.terms).toBe('reconnect');
+    expect(parsed.filters.path).toBe('useWebSocket.ts');
+  });
+
+  it('narrows hits to sessions whose family touched the file', () => {
+    const res = searchMessages(db, { query: 'path:useWebSocket.ts' });
+    expect(res.totalHits).toBeGreaterThan(0);
+    for (const g of res.groups) expect(g.session.id).toBe(SESSION_A);
+    // Combined with text: still only the touching session.
+    const combined = searchMessages(db, { query: 'reconnect path:useWebSocket.ts' });
+    expect(combined.groups.length).toBe(1);
+    expect(combined.groups[0]!.session.id).toBe(SESSION_A);
+    // A path nothing touched matches nothing.
+    expect(searchMessages(db, { query: 'path:no-such-file.xyz' }).totalHits).toBe(0);
+  });
+});
+
+describe('relative date sugar', () => {
+  it('resolves Nd, today, and yesterday to ISO timestamps', () => {
+    const after = parseSearchQuery('after:7d').filters.after!;
+    expect(after).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    const age = Date.now() - new Date(after).getTime();
+    expect(age).toBeGreaterThan(6.9 * 86_400_000);
+    expect(age).toBeLessThan(7.1 * 86_400_000);
+
+    const today = new Date(parseSearchQuery('before:today').filters.before!);
+    const yesterday = new Date(parseSearchQuery('after:yesterday').filters.after!);
+    expect(today.getTime() - yesterday.getTime()).toBe(86_400_000);
+  });
+
+  it('keeps ISO prefixes verbatim and non-dates as text', () => {
+    expect(parseSearchQuery('after:2026-07').filters.after).toBe('2026-07');
+    const junk = parseSearchQuery('after:banana');
+    expect(junk.filters.after).toBeUndefined();
+    expect(junk.terms).toBe('after:banana');
+  });
+});

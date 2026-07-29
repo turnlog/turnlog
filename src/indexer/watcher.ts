@@ -10,6 +10,8 @@ const DEBOUNCE_MS = 400;
 export function watchProjects(
   projectsDir: string,
   onFile: (filePath: string) => void,
+  /** A watched session file disappeared — health/disk views want to know. */
+  onGone?: (filePath: string) => void,
 ): () => Promise<void> {
   const watcher = chokidar.watch(projectsDir, {
     ignoreInitial: true,
@@ -33,6 +35,16 @@ export function watchProjects(
 
   watcher.on('add', handle);
   watcher.on('change', handle);
+  watcher.on('unlink', (filePath: string) => {
+    if (!filePath.endsWith('.jsonl') || !onGone) return;
+    // A pending reindex for a vanished file would just error — drop it.
+    const pending = timers.get(filePath);
+    if (pending) {
+      clearTimeout(pending);
+      timers.delete(filePath);
+    }
+    onGone(filePath);
+  });
 
   return async () => {
     for (const timer of timers.values()) clearTimeout(timer);

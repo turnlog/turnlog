@@ -5,7 +5,14 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { dbPath, defaultProjectsDir, loadSettings, serverInfoPath } from '../config.js';
 import { renderSearch } from './search.js';
-import { getSessionExport, getSessionHtmlExport, resolveSessionId } from '../server/api.js';
+import {
+  exportAnnotations,
+  getSessionExport,
+  getSessionHtmlExport,
+  getSessionJsonExport,
+  importAnnotations,
+  resolveSessionId,
+} from '../server/api.js';
 import { openDb } from '../indexer/db.js';
 import { Indexer } from '../indexer/indexer.js';
 import { WorkerDriver } from '../indexer/workerDriver.js';
@@ -22,12 +29,19 @@ Usage:
   turnlog index               Incrementally index ~/.claude/projects and exit
   turnlog index --rebuild     Drop the index and rebuild from scratch
   turnlog export <id>         Print a session as markdown (id or unique prefix);
-                              --html for a styled, self-contained web page,
+                              --format html|json for a styled web page or the
+                              normalized message stream (jq-able),
                               --redact to scrub keys, emails, and home paths,
                               --from <n> / --to <n> to export a message range
   turnlog search <query>      Search from the terminal (same operators as the UI:
                               tool: kind: is:error is:pinned has:note has:bookmark
-                              project: model: before: after:)
+                              project: model: path: before: after: — dates take
+                              ISO prefixes or 7d / today / yesterday)
+  turnlog annotations export  Print pins, names, notes, bookmarks, and saved
+                              searches as one JSON document (stdout)
+  turnlog annotations import <file>
+                              Merge a previous export back in (additive; the
+                              file's pins/names/notes win on conflict)
   turnlog mcp                 Serve the index as a read-only MCP server (stdio)
                               Register: claude mcp add turnlog -- npx turnlog mcp
 
@@ -56,6 +70,7 @@ async function main(): Promise<void> {
         'no-open': { type: 'boolean' },
         'no-footer': { type: 'boolean' },
         html: { type: 'boolean' },
+        format: { type: 'string' },
         redact: { type: 'boolean' },
         from: { type: 'string' },
         to: { type: 'string' },
@@ -95,7 +110,8 @@ async function main(): Promise<void> {
     case 'export':
       return runExport(positionals[1], {
         noFooter: values['no-footer'] === true,
-        html: values.html === true,
+        // --html predates --format and stays as an alias.
+        format: values.format ?? (values.html === true ? 'html' : 'markdown'),
         redact: values.redact === true,
         from: values.from,
         to: values.to,
@@ -105,6 +121,8 @@ async function main(): Promise<void> {
         limit: values.limit,
         json: values.json === true,
       });
+    case 'annotations':
+      return runAnnotations(positionals[1], positionals[2]);
     case 'mcp':
       return runMcp(projectsDir);
     default:
@@ -146,6 +164,7 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
       token,
       pricingOverrides: settings.modelPricing,
       exportFooter: settings.exportFooter,
+      editorCommand: settings.editorCommand,
       getUpdate: () => latestUpdate,
       events,
       // The web UI's stop button — same path as Ctrl-C. `shutdown` is declared
@@ -209,20 +228,26 @@ async function start(projectsDir: string, opts: { port?: number; open: boolean }
     });
   }
 
-  const stopWatching = watchProjects(projectsDir, (filePath) => {
-    driver
-      .indexFile(filePath)
-      .then(() => {
-        // Subagent transcripts roll into their parent — broadcast without a
-        // session id so clients refresh broadly instead of a wrong target.
-        const isSubagent = path.basename(path.dirname(filePath)) === 'subagents';
-        events.broadcast('indexed', {
-          sessionId: isSubagent ? null : path.basename(filePath, '.jsonl'),
-          at: new Date().toISOString(),
-        });
-      })
-      .catch(() => undefined);
-  });
+  const stopWatching = watchProjects(
+    projectsDir,
+    (filePath) => {
+      driver
+        .indexFile(filePath)
+        .then(() => {
+          // Subagent transcripts roll into their parent — broadcast without a
+          // session id so clients refresh broadly instead of a wrong target.
+          const isSubagent = path.basename(path.dirname(filePath)) === 'subagents';
+          events.broadcast('indexed', {
+            sessionId: isSubagent ? null : path.basename(filePath, '.jsonl'),
+            at: new Date().toISOString(),
+          });
+        })
+        .catch(() => undefined);
+    },
+    // A session file vanished: nothing to reindex (rows stay until prune),
+    // but health/disk views should reflect it now, not on next launch.
+    () => events.broadcast('indexed', { sessionId: null, at: new Date().toISOString() }),
+  );
 
   let shuttingDown = false;
   const shutdown = async () => {
@@ -272,9 +297,12 @@ async function runIndex(projectsDir: string, rebuild: boolean): Promise<void> {
 
 async function runExport(
   idArg: string | undefined,
-  opts: { noFooter: boolean; html: boolean; redact: boolean; from?: string; to?: string },
+  opts: { noFooter: boolean; format: string; redact: boolean; from?: string; to?: string },
 ): Promise<void> {
   if (!idArg) fail('Usage: turnlog export <session-id>  (accepts a unique id prefix)');
+  if (!['markdown', 'md', 'html', 'json'].includes(opts.format)) {
+    fail(`Unknown format "${opts.format}" — use markdown, html, or json.`);
+  }
   const bound = (v: string | undefined, name: string): number | undefined => {
     if (v === undefined) return undefined;
     const n = Number(v);
@@ -291,11 +319,46 @@ async function runExport(
       attribution: opts.noFooter ? false : (settings.exportFooter ?? true),
       redact: opts.redact,
     };
-    const out = opts.html
-      ? getSessionHtmlExport(db, id, exportOpts, range)
-      : getSessionExport(db, id, exportOpts, range);
+    const out =
+      opts.format === 'html'
+        ? getSessionHtmlExport(db, id, exportOpts, range)
+        : opts.format === 'json'
+          ? getSessionJsonExport(db, id, exportOpts, range)
+          : getSessionExport(db, id, exportOpts, range);
     if (out === null) fail(`Session "${id}" not found.`);
     process.stdout.write(out);
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * Curation in, curation out: pins/names/notes, bookmarks, and saved searches
+ * as one JSON file — machine moves and reinstalls stop orphaning them.
+ */
+async function runAnnotations(sub: string | undefined, fileArg: string | undefined): Promise<void> {
+  if (sub !== 'export' && sub !== 'import') {
+    fail('Usage: turnlog annotations export | turnlog annotations import <file>');
+  }
+  const db = openDb(dbPath());
+  try {
+    if (sub === 'export') {
+      process.stdout.write(`${JSON.stringify(exportAnnotations(db), null, 2)}\n`);
+      return;
+    }
+    if (!fileArg) fail('Usage: turnlog annotations import <file>');
+    let data: unknown;
+    try {
+      data = JSON.parse(fs.readFileSync(fileArg, 'utf8'));
+    } catch (err) {
+      fail(`Could not read ${fileArg}: ${err instanceof Error ? err.message : err}`);
+    }
+    const counts = importAnnotations(db, data);
+    console.log(
+      `Imported ${counts.sessionMeta} session annotation${counts.sessionMeta === 1 ? '' : 's'}, ` +
+        `${counts.bookmarks} bookmark${counts.bookmarks === 1 ? '' : 's'}, ` +
+        `${counts.savedSearches} saved search${counts.savedSearches === 1 ? '' : 'es'}.`,
+    );
   } finally {
     db.close();
   }
@@ -329,7 +392,8 @@ async function runSearch(
   if (!query) {
     fail(
       'Usage: turnlog search <query>\n' +
-        'Operators: tool: kind: is:error is:pinned has:note has:bookmark project: model: before: after: (combinable with text)',
+        'Operators: tool: kind: is:error is:pinned has:note has:bookmark project: model: path: before: after: ' +
+        '(combinable with text; dates take ISO prefixes or 7d/today/yesterday)',
     );
   }
   let limit: number | undefined;

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useFileHistory, useFiles, useLensRows } from '../api';
+import { openFileInEditor, useFileHistory, useFiles, useLensRows, useStatus } from '../api';
 import { SkeletonRows } from '../components/Skeleton';
+import Tooltip from '../components/Tooltip';
 import { fmtCost, fmtDate, fmtTime, projectName, sessionName, tileClass } from '../format';
+import { CodeFileIcon } from '../icons';
 import { dirName, EditBody, fileName, groupByFile } from '../replay/Files';
 import { filesHash, navigate, sessionHash } from '../router';
 import type { SessionMeta } from '../types';
@@ -50,20 +52,33 @@ function SessionEdits({ session, path }: { session: SessionMeta; path: string })
   );
 }
 
-export default function FileHistory({ query, path }: { query: string; path: string | null }) {
+export default function FileHistory({
+  query,
+  path,
+  find = '',
+}: {
+  query: string;
+  path: string | null;
+  /** Content filter: only files touched by sessions matching this search. */
+  find?: string;
+}) {
   const [input, setInput] = useState(query);
+  const [findInput, setFindInput] = useState(find);
 
   // Debounce typing into the URL — the URL is the screen state.
   useEffect(() => {
-    if (input === query) return;
+    if (input === query && findInput === find) return;
     const t = setTimeout(() => {
-      window.location.replace(filesHash({ q: input.trim(), path: path ?? undefined }));
+      window.location.replace(
+        filesHash({ q: input.trim(), path: path ?? undefined, find: findInput.trim() }),
+      );
     }, DEBOUNCE_MS);
     return () => clearTimeout(t);
-  }, [input, query, path]);
+  }, [input, query, findInput, find, path]);
 
-  const files = useFiles(query);
+  const files = useFiles(query, find);
   const history = useFileHistory(path);
+  const status = useStatus();
   const [open, setOpen] = useState<string | null>(null);
   useEffect(() => setOpen(null), [path]);
 
@@ -76,6 +91,14 @@ export default function FileHistory({ query, path }: { query: string; path: stri
             onChange={(e) => setInput(e.target.value)}
             placeholder="Filter by path…"
             aria-label="Filter files by path"
+          />
+        </div>
+        <div className="fh-search">
+          <input
+            value={findInput}
+            onChange={(e) => setFindInput(e.target.value)}
+            placeholder="…in sessions matching"
+            aria-label="Only files touched by sessions matching this search"
           />
         </div>
         <div className="outline-title">
@@ -117,6 +140,17 @@ export default function FileHistory({ query, path }: { query: string; path: stri
           <>
             <div className="file-diffs-head">
               <span className="file-diffs-path">{path}</span>
+              {status.data?.editorConfigured && (
+                <Tooltip content="Open this file in your editor">
+                  <button
+                    className="circle-sm fh-open-editor"
+                    onClick={() => openFileInEditor(path)}
+                    aria-label="Open this file in your editor"
+                  >
+                    <CodeFileIcon size={14} />
+                  </button>
+                </Tooltip>
+              )}
             </div>
             <div className="file-diffs-body">
               {history.isLoading ? (

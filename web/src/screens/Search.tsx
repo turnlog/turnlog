@@ -385,8 +385,8 @@ export default function Search({
         <div className="search-ops">
           narrow with <code>tool:Bash</code> <code>kind:prompt</code> <code>is:error</code>{' '}
           <code>is:pinned</code> <code>has:note</code> <code>has:bookmark</code>{' '}
-          <code>project:name</code> <code>model:opus</code> <code>before:2026-07</code>{' '}
-          <code>after:2026-01</code>
+          <code>project:name</code> <code>model:opus</code> <code>path:api.ts</code>{' '}
+          <code>before:2026-07</code> <code>after:7d</code> <code>after:yesterday</code>
           {query !== '' && (
             <div className="view-toggle search-view" role="tablist" aria-label="Result view">
               <button

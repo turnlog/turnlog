@@ -550,13 +550,22 @@ export function useDisk() {
 
 /* ── cross-session file history ─────────────────────────────────────── */
 
-export function useFiles(q: string) {
+export function useFiles(q: string, find = '') {
   return useQuery({
-    queryKey: ['files', q],
+    queryKey: ['files', q, find],
     queryFn: () =>
-      apiFetch<FileSummary[]>(`/api/files?q=${encodeURIComponent(q)}&limit=200`),
+      apiFetch<FileSummary[]>(
+        `/api/files?q=${encodeURIComponent(q)}&limit=200${find ? `&find=${encodeURIComponent(find)}` : ''}`,
+      ),
     placeholderData: keepPreviousData,
     staleTime: 30_000,
+  });
+}
+
+/** Launch the configured editor on a touched file (settings.json editorCommand). */
+export function openFileInEditor(path: string): void {
+  void apiPost('/api/files/open', { path }).catch(() => {
+    /* local UX nicety — nothing actionable if it fails */
   });
 }
 

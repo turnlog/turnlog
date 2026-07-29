@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type Database from 'better-sqlite3';
 import { Indexer } from '../src/indexer/indexer.js';
-import { getSessionExport, getSessionHtmlExport, resolveSessionId } from '../src/server/api.js';
+import { getSessionExport, getSessionHtmlExport, getSessionJsonExport, resolveSessionId } from '../src/server/api.js';
 import { redactText } from '../src/export/redact.js';
 import { SESSION_C, copyCorpus, testDb, tmpDir } from './helpers.js';
 
@@ -122,5 +122,33 @@ describe('redaction', () => {
     const html = getSessionHtmlExport(db, SESSION_C, { redact: true })!;
     expect(md).toContain('quantum_flux_capacitor');
     expect(html).toContain('quantum_flux_capacitor');
+  });
+});
+
+describe('json export (the machine format)', () => {
+  it('emits valid JSON with the session row and message stream', () => {
+    const out = getSessionJsonExport(db, SESSION_C)!;
+    const parsed = JSON.parse(out) as {
+      turnlogExport: number;
+      excerpt: boolean;
+      session: { id: string };
+      messages: { idx: number; raw: string }[];
+    };
+    expect(parsed.turnlogExport).toBe(1);
+    expect(parsed.excerpt).toBe(false);
+    expect(parsed.session.id).toBe(SESSION_C);
+    expect(parsed.messages.length).toBeGreaterThan(0);
+    expect(typeof parsed.messages[0]!.raw).toBe('string');
+  });
+
+  it('bounds ranges honestly and stays valid JSON under redaction', () => {
+    const out = getSessionJsonExport(db, SESSION_C, { redact: true }, { fromIdx: 1, toIdx: 2 })!;
+    const parsed = JSON.parse(out) as { excerpt: boolean; messages: { idx: number }[] };
+    expect(parsed.excerpt).toBe(true);
+    expect(parsed.messages.map((m) => m.idx)).toEqual([1, 2]);
+  });
+
+  it('returns null for unknown sessions', () => {
+    expect(getSessionJsonExport(db, 'nope')).toBeNull();
   });
 });

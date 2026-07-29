@@ -108,6 +108,15 @@ function HealthCard() {
       <div className="health-facts">
         {fmtCount(h.indexedFiles)} session files · {fmtCount(h.events)} events ·{' '}
         {fmtBytes(h.dbBytes)} index
+        {h.missingFiles > 0 && (
+          <>
+            {' · '}
+            <span className="health-missing">
+              {fmtCount(h.missingFiles)} file{h.missingFiles === 1 ? '' : 's'} gone from disk —
+              prune forgets them
+            </span>
+          </>
+        )}
       </div>
       {h.unknownEvents > 0 && (
         <div className="health-unknown">

@@ -255,6 +255,8 @@ export interface PrefsResponse {
 /** A session with its on-disk footprint (subagent files rolled in). */
 export interface DiskSessionInfo extends SessionMeta {
   bytes: number;
+  /** The session's own file is gone from disk (still indexed until pruned). */
+  missing: boolean;
 }
 
 export interface DiskUsageResponse {
@@ -289,6 +291,13 @@ export interface TurnSummary {
   /** Failed tool results under this turn (main chain + sidechains). */
   errors: number;
   tokensOut: number;
+  /**
+   * Mode governing this turn ('plan', 'acceptEdits', …): the last
+   * mode/permission-mode value before the prompt, and 'plan' whenever the
+   * turn contains a plan_mode_exit attachment (how current CC marks
+   * planning). Null when never recorded.
+   */
+  mode: string | null;
 }
 
 export interface TurnsResponse {
@@ -378,6 +387,11 @@ export interface IndexFacts {
   unknownEvents: number;
   /** Unknown records grouped by their raw `type`, largest first. */
   unknownTypes: { type: string; count: number }[];
+  /**
+   * Indexed session files that no longer exist on disk (checked live — the
+   * watcher can't see historic unlinks). Prune forgets them on request.
+   */
+  missingFiles: number;
   /** SQLite database size on disk. */
   dbBytes: number;
 }
@@ -423,4 +437,9 @@ export interface StatusResponse {
    * (src/cli/updateCheck.ts) so the web UI can surface the same notice.
    */
   updateAvailable: string | null;
+  /**
+   * settings.json carries an `editorCommand` template — the open-in-editor
+   * buttons only render when there is something to launch.
+   */
+  editorConfigured: boolean;
 }
