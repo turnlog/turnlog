@@ -7,6 +7,10 @@ import {
   useSearchTimeline,
 } from '../api';
 import { agentInfo } from '../agents';
+import Chip from '../components/Chip';
+import IconButton from '../components/IconButton';
+import SearchField from '../components/SearchField';
+import Segmented from '../components/Segmented';
 import { SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
 import { CloseIcon } from '../icons';
@@ -238,15 +242,15 @@ function SavedSearches({ query }: { query: string }) {
           >
             {s.name}
           </button>
-          <Tooltip content="Delete saved search">
-            <button
-              className="saved-chip-x"
-              onClick={() => remove.mutate(s.id)}
-              aria-label={`Delete saved search ${s.name}`}
-            >
-              <CloseIcon size={11} />
-            </button>
-          </Tooltip>
+          <IconButton
+            variant="ghost"
+            label={`Delete saved search ${s.name}`}
+            tooltip="Delete saved search"
+            className="saved-chip-x"
+            onClick={() => remove.mutate(s.id)}
+          >
+            <CloseIcon size={11} />
+            </IconButton>
         </span>
       ))}
       {query !== '' && !alreadySaved && !naming && (
@@ -348,13 +352,13 @@ export default function Search({
   return (
     <div className="search-screen" onKeyDown={onKeyDown}>
       <div className="search-head">
-        <input
-          ref={inputRef}
-          className="search-input"
+        <SearchField
+          size="lg"
+          inputRef={inputRef}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={setInput}
           placeholder="Search every turn of every session…"
-          aria-label="Search"
+          ariaLabel="Search"
         />
         <SavedSearches query={query} />
         <div className="search-meta">
@@ -389,24 +393,16 @@ export default function Search({
           <code>project:name</code> <code>model:opus</code> <code>path:api.ts</code>{' '}
           <code>before:2026-07</code> <code>after:7d</code> <code>after:yesterday</code>
           {query !== '' && (
-            <div className="view-toggle search-view" role="tablist" aria-label="Result view">
-              <button
-                role="tab"
-                aria-selected={view === 'list'}
-                className={view === 'list' ? 'active' : ''}
-                onClick={() => navigate(searchHash(query, 'list'))}
-              >
-                hits
-              </button>
-              <button
-                role="tab"
-                aria-selected={view === 'timeline'}
-                className={view === 'timeline' ? 'active' : ''}
-                onClick={() => navigate(searchHash(query, 'timeline'))}
-              >
-                timeline
-              </button>
-            </div>
+            <Segmented
+              className="search-view"
+              ariaLabel="Result view"
+              value={view}
+              onChange={(v) => navigate(searchHash(query, v))}
+              options={[
+                { value: 'list', label: 'hits' },
+                { value: 'timeline', label: 'timeline' },
+              ]}
+            />
           )}
         </div>
       </div>
@@ -445,7 +441,7 @@ export default function Search({
                   onClick={() => openHit(g.session.id, h.idx)}
                   onMouseEnter={() => setActive(pos)}
                 >
-                  <span className="chip chip-kind">{kindLabel(h, g.session.tool)}</span>
+                  <Chip className="chip-kind">{kindLabel(h, g.session.tool)}</Chip>
                   <Snippet text={h.snippet} />
                   <span className="search-hit-ts">{fmtTime(h.ts)}</span>
                 </button>

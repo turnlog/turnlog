@@ -3,6 +3,7 @@ import { useChildRows } from '../api';
 import { AgentLabelContext } from './agentContext';
 import CodeBlock from '../code/CodeBlock';
 import { langFromPath } from '../code/highlighter';
+import Chip from '../components/Chip';
 import { SkeletonLines } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
 import { fmtCount, fmtTime } from '../format';
@@ -73,7 +74,7 @@ const PromptBlock = memo(function PromptBlock({ row }: { row: MessageRow }) {
       </div>
       {command ? (
         <div className="prompt-command">
-          <span className="chip chip-cmd">{command}</span>
+          <Chip kind="cmd">{command}</Chip>
           {stdout && stdout !== '' && <ClampedText text={stdout} />}
         </div>
       ) : (
@@ -419,7 +420,7 @@ const ToolBlockView = memo(function ToolBlockView({
 function SummaryBlock({ row }: { row: MessageRow }) {
   return (
     <div className="block block-summary">
-      <span className="chip chip-summary">summary</span>
+      <Chip kind="summary">summary</Chip>
       <span className="summary-text">{row.text}</span>
     </div>
   );
@@ -444,7 +445,7 @@ const SystemBlock = memo(function SystemBlock({ row }: { row: MessageRow }) {
 function TitleBlock({ row }: { row: MessageRow }) {
   return (
     <div className="block block-summary">
-      <span className="chip chip-summary">title</span>
+      <Chip kind="summary">title</Chip>
       <span className="summary-text">{row.text}</span>
     </div>
   );
@@ -480,7 +481,7 @@ const AttachmentBlock = memo(function AttachmentBlock({ row }: { row: MessageRow
     const detail = row.text || str(att?.prompt) || str(att?.planFilePath) || '';
     return (
       <div className="block block-summary block-attachment">
-        <span className="chip chip-attach">{label}</span>
+        <Chip kind="attach">{label}</Chip>
         {detail && <span className="attach-detail">{shortPath(detail)}</span>}
         <Ts iso={row.ts} />
       </div>

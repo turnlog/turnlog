@@ -13,7 +13,10 @@ import {
 } from '../api';
 import { agentInfo } from '../agents';
 import AgentChip from '../components/AgentChip';
+import Chip from '../components/Chip';
+import IconButton from '../components/IconButton';
 import NoteDot from '../components/NoteDot';
+import Segmented from '../components/Segmented';
 import { SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
 import { fmtCount, fmtDate, fmtModel, projectName, sessionName, shortId } from '../format';
@@ -206,7 +209,7 @@ export default function Replay({
                 <span className="replay-date">{projectName(s)}</span>
               )}
               {s && <AgentChip tool={s.tool} />}
-              {s?.model && <span className="chip chip-model">{fmtModel(s.model)}</span>}
+              {s?.model && <Chip kind="model">{fmtModel(s.model)}</Chip>}
               <span className="replay-date">{s ? fmtDate(s.startedAt) : ''}</span>
               {s && s.chainLen > 1 && <ChainNav sessionId={sessionId} />}
               {s?.note && <NoteDot note={s.note} />}
@@ -214,38 +217,27 @@ export default function Replay({
           </div>
           <div className="replay-controls-right">
             <div className="replay-views">
-              <div className="view-toggle" role="tablist" aria-label="View mode">
-              <button
-                role="tab"
-                aria-selected={activeLens === null && effectiveMode === 'spine'}
-                className={activeLens === null && effectiveMode === 'spine' ? 'active' : ''}
-                disabled={!spinePossible}
-                onClick={() => {
-                  setModePersist('spine');
+              <Segmented
+                ariaLabel="View mode"
+                value={activeLens === null ? effectiveMode : ''}
+                onChange={(v) => {
+                  setModePersist(v);
                   if (activeLens) navigate(sessionHash(sessionId));
                 }}
-              >
-                spine
-              </button>
-              <button
-                role="tab"
-                aria-selected={activeLens === null && effectiveMode === 'log'}
-                className={activeLens === null && effectiveMode === 'log' ? 'active' : ''}
-                onClick={() => {
-                  setModePersist('log');
-                  if (activeLens) navigate(sessionHash(sessionId));
-                }}
-              >
-                log
-              </button>
-            </div>
+                options={[
+                  { value: 'spine', label: 'spine', disabled: !spinePossible },
+                  { value: 'log', label: 'log' },
+                ]}
+              />
             <div className="lens-actions" role="tablist" aria-label="Lens">
               {LENS_LABELS.map(({ value, label, Icon }) => {
                 const count = lensCounts?.[value];
                 return (
-                  <Tooltip
+                  <IconButton
                     key={value}
-                    content={
+                    variant="action"
+                    label={`${label} lens`}
+                    tooltip={
                       count ? (
                         <div className="tooltip-row">
                           {label}
@@ -255,82 +247,77 @@ export default function Replay({
                         label
                       )
                     }
+                    className={`lens-action lens-${value}`}
+                    active={activeLens === value}
+                    role="tab"
+                    aria-selected={activeLens === value}
+                    disabled={count === 0}
+                    onClick={() =>
+                      navigate(
+                        activeLens === value
+                          ? sessionHash(sessionId)
+                          : sessionHash(sessionId, { l: value }),
+                      )
+                    }
                   >
-                    <button
-                      role="tab"
-                      aria-selected={activeLens === value}
-                      aria-label={`${label} lens`}
-                      className={`replay-action lens-action lens-${value} ${
-                        activeLens === value ? 'active' : ''
-                      }`}
-                      disabled={count === 0}
-                      onClick={() =>
-                        navigate(
-                          activeLens === value
-                            ? sessionHash(sessionId)
-                            : sessionHash(sessionId, { l: value }),
-                        )
-                      }
-                    >
-                      <Icon size={16} />
-                    </button>
-                  </Tooltip>
+                    <Icon size={16} />
+                  </IconButton>
                 );
               })}
             </div>
             </div>
             <div className="replay-actions">
-            <Tooltip content="Find in session" shortcut={SHORTCUTS.find}>
-              <button
-                className={`replay-action ${findOpen || searchQuery ? 'active' : ''}`}
-                onClick={() => (findOpen || searchQuery ? closeFind() : setFindOpen(true))}
-                aria-label="Find in session"
-                aria-pressed={findOpen || !!searchQuery}
-              >
-                <MagniferIcon size={16} />
-              </button>
-            </Tooltip>
-            <Tooltip content={s?.pinned ? 'Unpin from sidebar top' : 'Pin to sidebar top'}>
-              <button
-                className={`replay-action ${s?.pinned ? 'active' : ''}`}
-                onClick={() => s && setMeta.mutate({ id: s.id, patch: { pinned: !s.pinned } })}
-                aria-label={s?.pinned ? 'Unpin session' : 'Pin session'}
-                aria-pressed={s?.pinned ?? false}
-              >
-                {s?.pinned ? <PinFilledIcon size={16} /> : <PinIcon size={16} />}
-              </button>
-            </Tooltip>
-            <Tooltip content={editOpen ? 'Close editor' : 'Name & note'}>
-              <button
-                className={`replay-action ${editOpen ? 'active' : ''}`}
-                onClick={() => setEditOpen(!editOpen)}
-                aria-label="Edit session name and note"
-                aria-pressed={editOpen}
-              >
-                <PenIcon size={16} />
-              </button>
-            </Tooltip>
-            <Tooltip content="Show the session file in your file manager">
-              <button
-                className="replay-action"
-                onClick={() => revealSession(sessionId)}
-                aria-label="Show session file in file manager"
-              >
-                <FolderIcon size={16} />
-              </button>
-            </Tooltip>
+            <IconButton
+              variant="action"
+              label="Find in session"
+              tooltip="Find in session"
+              shortcut={SHORTCUTS.find}
+              active={findOpen || !!searchQuery}
+              aria-pressed={findOpen || !!searchQuery}
+              onClick={() => (findOpen || searchQuery ? closeFind() : setFindOpen(true))}
+            >
+              <MagniferIcon size={16} />
+            </IconButton>
+            <IconButton
+              variant="action"
+              label={s?.pinned ? 'Unpin session' : 'Pin session'}
+              tooltip={s?.pinned ? 'Unpin from sidebar top' : 'Pin to sidebar top'}
+              active={s?.pinned ?? false}
+              aria-pressed={s?.pinned ?? false}
+              onClick={() => s && setMeta.mutate({ id: s.id, patch: { pinned: !s.pinned } })}
+            >
+              {s?.pinned ? <PinFilledIcon size={16} /> : <PinIcon size={16} />}
+            </IconButton>
+            <IconButton
+              variant="action"
+              label="Edit session name and note"
+              tooltip={editOpen ? 'Close editor' : 'Name & note'}
+              active={editOpen}
+              aria-pressed={editOpen}
+              onClick={() => setEditOpen(!editOpen)}
+            >
+              <PenIcon size={16} />
+            </IconButton>
+            <IconButton
+              variant="action"
+              label="Show session file in file manager"
+              tooltip="Show the session file in your file manager"
+              onClick={() => revealSession(sessionId)}
+            >
+              <FolderIcon size={16} />
+            </IconButton>
             {s && <ResumeButton session={s} />}
             <SharePanel sessionId={sessionId} />
-            <Tooltip content={statsOpen ? 'Hide stats' : 'Session stats'}>
-              <button
-                className={`replay-action ${statsOpen ? 'active' : ''}`}
-                onClick={() => setStatsOpen(!statsOpen)}
-                aria-label="Session stats"
-                aria-pressed={statsOpen}
-              >
-                <ChartIcon size={16} />
-              </button>
-            </Tooltip>
+            <IconButton
+              variant="action"
+              label="Session stats"
+              tooltip={statsOpen ? 'Hide stats' : 'Session stats'}
+              active={statsOpen}
+              aria-pressed={statsOpen}
+              onClick={() => setStatsOpen(!statsOpen)}
+            >
+              <ChartIcon size={16} />
+            </IconButton>
             </div>
           </div>
         </div>
@@ -381,32 +368,44 @@ export default function Replay({
           <div className="error-nav bookmark-nav">
             <BookmarkFilledIcon size={13} className="bookmark-nav-ico" />
             <span className="error-nav-count bookmark-nav-count">{bookmarkIdxs.length}</span>
-            <Tooltip content="Previous bookmark">
-              <button onClick={() => jumpBookmark(-1)} aria-label="Previous bookmark">
-                <ChevronUpIcon size={16} />
-              </button>
-            </Tooltip>
-            <Tooltip content="Next bookmark">
-              <button onClick={() => jumpBookmark(1)} aria-label="Next bookmark">
-                <ChevronDownIcon size={16} />
-              </button>
-            </Tooltip>
+            <IconButton
+              variant="ghost"
+              label="Previous bookmark"
+              tooltip="Previous bookmark"
+              onClick={() => jumpBookmark(-1)}
+            >
+              <ChevronUpIcon size={16} />
+            </IconButton>
+            <IconButton
+              variant="ghost"
+              label="Next bookmark"
+              tooltip="Next bookmark"
+              onClick={() => jumpBookmark(1)}
+            >
+              <ChevronDownIcon size={16} />
+            </IconButton>
           </div>
         )}
         {(errorIdxs.data?.length ?? 0) > 0 && (
           <div className="error-nav">
             <span className="dot dot-accent" />
             <span className="error-nav-count">{errorIdxs.data!.length}</span>
-            <Tooltip content="Previous error">
-              <button onClick={() => jumpError(-1)} aria-label="Previous error">
-                <ChevronUpIcon size={16} />
-              </button>
-            </Tooltip>
-            <Tooltip content="Next error">
-              <button onClick={() => jumpError(1)} aria-label="Next error">
-                <ChevronDownIcon size={16} />
-              </button>
-            </Tooltip>
+            <IconButton
+              variant="ghost"
+              label="Previous error"
+              tooltip="Previous error"
+              onClick={() => jumpError(-1)}
+            >
+              <ChevronUpIcon size={16} />
+            </IconButton>
+            <IconButton
+              variant="ghost"
+              label="Next error"
+              tooltip="Next error"
+              onClick={() => jumpError(1)}
+            >
+              <ChevronDownIcon size={16} />
+            </IconButton>
           </div>
         )}
       </div>
@@ -417,30 +416,30 @@ export default function Replay({
           <span className="match-count">
             {hitPos === -1 ? '–' : hitPos + 1}/{hitIdxs.length}
           </span>
-          <Tooltip content="Previous match">
-            <button
-              onClick={() => goToHit(hitIdxs[(hitPos - 1 + hitIdxs.length) % hitIdxs.length]!)}
-              aria-label="Previous match"
-            >
-              <ChevronUpIcon size={16} />
-            </button>
-          </Tooltip>
-          <Tooltip content="Next match">
-            <button
-              onClick={() => goToHit(hitIdxs[(hitPos + 1) % hitIdxs.length]!)}
-              aria-label="Next match"
-            >
-              <ChevronDownIcon size={16} />
-            </button>
-          </Tooltip>
-          <Tooltip content="Clear search">
-            <button
-              aria-label="Clear match navigation"
-              onClick={() => navigate(sessionHash(sessionId))}
-            >
-              <CloseIcon size={14} />
-            </button>
-          </Tooltip>
+          <IconButton
+            variant="ghost"
+            label="Previous match"
+            tooltip="Previous match"
+            onClick={() => goToHit(hitIdxs[(hitPos - 1 + hitIdxs.length) % hitIdxs.length]!)}
+          >
+            <ChevronUpIcon size={16} />
+          </IconButton>
+          <IconButton
+            variant="ghost"
+            label="Next match"
+            tooltip="Next match"
+            onClick={() => goToHit(hitIdxs[(hitPos + 1) % hitIdxs.length]!)}
+          >
+            <ChevronDownIcon size={16} />
+          </IconButton>
+          <IconButton
+            variant="ghost"
+            label="Clear match navigation"
+            tooltip="Clear search"
+            onClick={() => navigate(sessionHash(sessionId))}
+          >
+            <CloseIcon size={14} />
+          </IconButton>
         </div>
       )}
     </div>

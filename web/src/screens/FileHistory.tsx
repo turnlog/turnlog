@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { openFileInEditor, useFileHistory, useFiles, useLensRows, useStatus } from '../api';
+import Chip from '../components/Chip';
+import IconButton from '../components/IconButton';
 import { SkeletonRows } from '../components/Skeleton';
-import Tooltip from '../components/Tooltip';
 import { fmtCost, fmtDate, fmtTime, projectName, sessionName, tileClass } from '../format';
 import { CodeFileIcon } from '../icons';
 import { dirName, EditBody, fileName, groupByFile } from '../replay/Files';
@@ -33,10 +34,10 @@ function SessionEdits({ session, path }: { session: SessionMeta; path: string })
         <section key={edit.idx} className="file-entry">
           <header className="file-entry-head">
             <span className="turn-n">{i + 1}</span>
-            <span className={`chip ${edit.failed ? 'chip-failed' : ''}`}>
+            <Chip kind={edit.failed ? 'failed' : 'default'}>
               {edit.tool}
               {edit.failed ? ' · failed' : ''}
-            </span>
+            </Chip>
             <button
               className="file-entry-jump"
               onClick={() => navigate(sessionHash(session.id, { m: edit.idx }))}
@@ -141,15 +142,14 @@ export default function FileHistory({
             <div className="file-diffs-head">
               <span className="file-diffs-path">{path}</span>
               {status.data?.editorConfigured && (
-                <Tooltip content="Open this file in your editor">
-                  <button
-                    className="circle-sm fh-open-editor"
-                    onClick={() => openFileInEditor(path)}
-                    aria-label="Open this file in your editor"
-                  >
-                    <CodeFileIcon size={14} />
-                  </button>
-                </Tooltip>
+                <IconButton
+                  variant="action"
+                  label="Open this file in your editor"
+                  tooltip="Open this file in your editor"
+                  onClick={() => openFileInEditor(path)}
+                >
+                  <CodeFileIcon size={14} />
+                </IconButton>
               )}
             </div>
             <div className="file-diffs-body">

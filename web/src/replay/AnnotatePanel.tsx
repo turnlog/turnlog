@@ -1,3 +1,4 @@
+import Button from '../components/Button';
 import { useState } from 'react';
 import { useSetSessionMeta } from '../api';
 import { projectName } from '../format';
@@ -43,9 +44,9 @@ export default function AnnotatePanel({ s, onClose }: { s: SessionMeta; onClose:
         />
       </label>
       <div className="annotate-actions">
-        <button className="pill" onClick={onClose}>
+        <Button pill onClick={onClose}>
           Cancel
-        </button>
+        </Button>
         <button className="btn-accent annotate-save" onClick={save} disabled={setMeta.isPending}>
           Save
         </button>

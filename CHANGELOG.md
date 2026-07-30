@@ -10,8 +10,10 @@ All notable changes to Turnlog are documented here. The format follows
 
 - The sidebar got a quick filter: type a few letters and the session list
   narrows by name, title, or project — across your whole history, not just
-  the rows already loaded. The project and sort dropdowns moved onto one
-  compact row beneath it.
+  the rows already loaded. Everything else — project, sort order, direction,
+  and empty-session visibility — now lives in a filter popover behind one
+  button beside it, with a dot on the button (and a reset link inside)
+  whenever a hidden control is narrowing the list.
 
 - Turnlog now reads OpenAI Codex sessions. Rollouts under
   `~/.codex/sessions` are indexed automatically when the directory exists

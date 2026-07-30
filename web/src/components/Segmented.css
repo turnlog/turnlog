@@ -1,0 +1,28 @@
+/* Segmented — pill track, contrast surface on the pressed segment. Context
+   tones (card track on bare-background screen headers) stay in app.css. */
+
+.view-toggle {
+  display: flex;
+  background: var(--bg2);
+  border-radius: 999px;
+  padding: 3px;
+  margin-left: 12px;
+}
+.view-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 5px 14px;
+  border-radius: 999px;
+  color: var(--tx1);
+}
+.view-toggle button.active {
+  background: var(--contrast-solid);
+  color: var(--contrast-on);
+}
+.view-toggle button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

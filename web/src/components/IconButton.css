@@ -1,0 +1,111 @@
+/* IconButton — every round icon-only button. Base look lives here; screen
+   context (route-active headers, armed stop button, calendar card tone) stays
+   in app.css, and the shared motion voice lives in app.css's
+   micro-interactions block. */
+
+/* header variant — 44px on the app background */
+.circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card);
+  color: var(--tx1);
+}
+.circle:hover {
+  color: var(--tx0);
+}
+.circle-active {
+  background: var(--bg3);
+  color: var(--tx0);
+}
+.circle-sm {
+  width: 34px;
+  height: 34px;
+  background: var(--bg2);
+}
+/* Route-active state for circular header links — same statement as the
+   header pills (Spend, Files). */
+.circle.active {
+  background: var(--contrast-solid);
+  color: var(--contrast-on);
+}
+.circle-onaccent {
+  background: rgba(255, 255, 255, 0.22);
+  color: var(--accent-on);
+}
+
+/* control variant — 34px inside sidebars and cards */
+.dir-toggle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg1);
+  color: var(--tx1);
+}
+.dir-toggle:hover {
+  background: var(--bg2);
+  color: var(--tx0);
+}
+/* Direction reads from the mirrored mark: desc as drawn, asc flipped. */
+.dir-toggle svg {
+  transition: transform 200ms cubic-bezier(0.25, 0.8, 0.3, 1);
+}
+.dir-toggle.asc svg {
+  transform: scaleY(-1);
+}
+.dir-toggle.on {
+  background: var(--bg3);
+  color: var(--tx0);
+}
+
+/* ghost variant — quiet inline button: invisible until hovered. Rows and
+   floating pills use it for their secondary controls; non-button anchors
+   (chain-nav links) reuse the class directly. */
+.icon-ghost {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tx2);
+}
+.icon-ghost:hover {
+  color: var(--tx0);
+  background: var(--bg2);
+}
+.icon-ghost.on {
+  color: var(--tx0);
+}
+
+/* action variant — 32px toolbar buttons (replay header) */
+.replay-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  color: var(--tx1);
+  background: var(--bg2);
+  transition:
+    color 0.12s,
+    background 0.12s;
+}
+.replay-action:hover,
+.replay-action.active {
+  color: var(--tx0);
+  background: var(--bg3);
+}
+.replay-action.ok {
+  color: var(--mint);
+}

@@ -62,39 +62,8 @@
   align-items: center;
   gap: 10px;
 }
-.circle {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--card);
-  color: var(--tx1);
-}
-.circle:hover {
-  color: var(--tx0);
-}
-.circle-active {
-  background: var(--bg3);
-  color: var(--tx0);
-}
-.circle-sm {
-  width: 34px;
-  height: 34px;
-  background: var(--bg2);
-}
-/* Route-active state for circular header links — same statement as the
-   header pills (Spend, Files). */
-.circle.active {
-  background: var(--contrast-solid);
-  color: var(--contrast-on);
-}
-.circle-onaccent {
-  background: rgba(255, 255, 255, 0.22);
-  color: var(--accent-on);
-}
+/* Round icon buttons (circle / dir-toggle / replay-action) live in
+   components/IconButton.css; only their screen context stays here. */
 
 /* Stop Turnlog: first click arms (reads as danger), second click kills the CLI. */
 .stop-btn.armed,
@@ -254,51 +223,11 @@
 .btn-accent:hover {
   background: var(--accent-hi);
 }
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--bg2);
-  color: var(--tx0);
-  border-radius: 999px;
-  padding: 9px 18px;
-  font-size: 13.5px;
-  font-weight: 500;
-}
-.pill:hover {
-  background: var(--bg3);
-}
+/* The .pill action button lives in components/Button.css. */
 
-.chip {
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1;
-  padding: 4px 10px;
-  border-radius: 999px;
-  color: var(--tx1);
-  background: var(--bg2);
-  white-space: nowrap;
-}
-.chip-open {
-  background: var(--contrast-solid);
-  color: var(--contrast-on);
-}
-.chip-cmd {
-  background: var(--contrast-solid);
-  color: var(--contrast-on);
-  font-family: var(--mono);
-  font-size: 12px;
-}
-.chip-summary {
-  background: var(--blue-dim);
-  color: var(--c-side);
-}
+/* Chips live in components/Chip.css; layout-only modifiers stay here. */
 .chip-kind {
   flex: none;
-}
-.chip-attach {
-  background: var(--bg2);
-  color: var(--tx1);
 }
 
 .tile {
@@ -400,13 +329,11 @@
 .share-wrap {
   position: relative;
 }
-.share-pop {
+/* Popover chrome shared with the sidebar filter panel — one overlay voice. */
+.share-pop,
+.filter-pop {
   position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
   z-index: 30;
-  /* Wide enough that the segment labels ("web page") never wrap. */
-  width: 340px;
   padding: 14px;
   display: flex;
   flex-direction: column;
@@ -415,12 +342,20 @@
   border-radius: 16px;
   box-shadow: var(--shadow);
 }
-.share-row {
+.share-pop {
+  top: calc(100% + 8px);
+  right: 0;
+  /* Wide enough that the segment labels ("web page") never wrap. */
+  width: 340px;
+}
+.share-row,
+.pop-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.share-label {
+.share-label,
+.pop-label {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -449,7 +384,8 @@
 /* Two classes: .view-toggle sets a header margin and is declared later in this
    file, so a single-class override would lose and the row would sit 12px right
    of the range track. */
-.share-row .share-seg {
+.share-row .share-seg,
+.pop-row .share-seg {
   flex: 1;
   margin-left: 0;
 }
@@ -495,113 +431,12 @@
   display: flex;
   gap: 8px;
 }
-.share-btn {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 10px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--tx0);
-  background: var(--bg2);
-  border-radius: 10px;
-  transition: background 150ms;
-}
-.share-btn:hover {
-  background: var(--bg3);
-}
-.share-btn.primary {
-  background: var(--contrast-solid);
-  color: var(--contrast-on);
-}
-.share-btn.primary:hover {
-  opacity: 0.9;
-}
-
-/* ── custom dropdown ───────────────────────────────────────────────── */
-
-.dd {
-  position: relative;
-  min-width: 0;
-}
-.dd-grow {
+/* Share/download buttons are components/Button.css; both actions stretch. */
+.share-actions .btn {
   flex: 1;
 }
-.dd-trigger {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  text-align: left;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--tx0);
-  background: var(--bg2);
-  border-radius: 999px;
-  padding: 9px 16px;
-}
-.dd-trigger:hover {
-  background: var(--bg3);
-}
-.dd-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.dd-caret {
-  margin-left: auto;
-  flex: none;
-  color: var(--tx1);
-  transition: transform 120ms;
-}
-.dd.open .dd-caret {
-  transform: rotate(180deg);
-}
-.dd-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  right: 0;
-  z-index: 30;
-  margin: 0;
-  padding: 6px;
-  list-style: none;
-  background: var(--card);
-  border-radius: 16px;
-  box-shadow: var(--shadow);
-  max-height: 280px;
-  overflow-y: auto;
-}
-.dd-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 11px;
-  border-radius: 10px;
-  font-size: 13px;
-  color: var(--tx1);
-  cursor: pointer;
-}
-.dd-option.active {
-  background: var(--bg2);
-  color: var(--tx0);
-}
-.dd-option.selected {
-  color: var(--tx0);
-  font-weight: 600;
-}
-.dd-option-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.dd-check {
-  margin-left: auto;
-  flex: none;
-  color: var(--tx0);
-}
+
+/* The custom dropdown lives in components/Dropdown.css. */
 
 /* ── sidebar (sessions) — a zone, not a floating card ─────────────── */
 
@@ -646,6 +481,8 @@
   flex-direction: column;
   gap: 8px;
   padding: 18px 16px 12px;
+  /* Anchor for the filter popover. */
+  position: relative;
 }
 .sidebar-controls .dd-trigger {
   background: var(--bg1);
@@ -655,38 +492,43 @@
   align-items: center;
   gap: 8px;
 }
-.dir-toggle {
-  width: 34px;
-  height: 34px;
+/* The filter popover trigger: the accent dot flags that hidden controls are
+   narrowing the list, so a filtered sidebar is never a silent mystery. */
+.filter-btn {
+  position: relative;
+}
+.filter-dot {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg1);
+  background: var(--accent);
+  border: 2px solid var(--card);
+}
+.filter-pop {
+  top: calc(100% - 4px);
+  left: 16px;
+  right: 16px;
+}
+/* On the card-toned popover the bg1 controls of the sidebar would vanish —
+   step them up one surface. */
+.filter-pop .dd-trigger,
+.filter-pop .dir-toggle {
+  background: var(--bg2);
+}
+.filter-pop .dir-toggle:hover {
+  background: var(--bg3);
+}
+.filter-reset {
+  align-self: flex-end;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--tx1);
 }
-.dir-toggle:hover {
-  background: var(--bg2);
-  color: var(--tx0);
-}
-/* Direction reads from the mirrored mark: desc as drawn, asc flipped. */
-.dir-toggle svg {
-  transition: transform 200ms cubic-bezier(0.25, 0.8, 0.3, 1);
-}
-.dir-toggle.asc svg {
-  transform: scaleY(-1);
-}
-.dir-toggle.on {
-  background: var(--bg3);
-  color: var(--tx0);
-}
-/* Hide-empty filter: the eye itself is the state (open = shown, closed =
-   hidden); an active filter reads as the contrast surface. */
-.eye-toggle.on,
-.eye-toggle.on:hover {
-  background: var(--contrast-solid);
-  color: var(--contrast-on);
+.filter-reset:hover {
+  color: var(--accent);
 }
 .sidebar-count {
   font-family: var(--mono);
@@ -763,30 +605,18 @@
   color: var(--tx1);
   flex: none;
 }
-/* Pin toggle: invisible until the row is hovered, unless already pinned. */
-.side-item-pin {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+/* Pin toggle: a ghost IconButton, invisible until the row is hovered,
+   unless already pinned; sized down for the dense row. */
+.side-item .side-item-pin {
   width: 22px;
   height: 22px;
-  border-radius: 999px;
-  flex: none;
-  color: var(--tx2);
   opacity: 0;
   transition: opacity 150ms ease;
 }
 .side-item:hover .side-item-pin,
-.side-item-pin:focus-visible,
-.side-item-pin.pinned {
+.side-item .side-item-pin:focus-visible,
+.side-item .side-item-pin.on {
   opacity: 1;
-}
-.side-item-pin:hover {
-  background: var(--bg2);
-  color: var(--tx0);
-}
-.side-item-pin.pinned {
-  color: var(--tx0);
 }
 .side-item-sub {
   display: flex;
@@ -798,25 +628,23 @@
   white-space: nowrap;
   overflow: hidden;
 }
-.side-item-model {
+/* Model Chip, toned down for the dense sidebar row. */
+.side-item .side-item-model {
   margin-left: auto;
-  font-family: var(--mono);
   font-size: 11px;
   color: var(--tx2);
   background: var(--bg1);
-  border-radius: 999px;
   padding: 2px 8px;
   flex: none;
 }
-/* Resume chain tip: the row stands for N session files, not one. */
-.chain-badge {
+/* Resume chain tip Chip: the row stands for N session files, not one. */
+.side-item .chain-badge {
   display: inline-flex;
   align-items: center;
   gap: 3px;
   font-size: 11px;
   color: var(--tx2);
   background: var(--bg1);
-  border-radius: 999px;
   padding: 2px 7px;
   flex: none;
 }
@@ -868,12 +696,13 @@
   min-width: 340px;
   max-width: 560px;
 }
-.hero-search input {
+/* The hero field is a components/SearchField.css lg field, compacted to the
+   hero's 50px control height. */
+.hero-search .search-field {
   flex: 1;
-  min-width: 0;
+  width: auto;
   height: 50px;
   padding: 0 24px;
-  font-size: 15px;
 }
 
 .bento {
@@ -1194,18 +1023,10 @@
   font-size: 12px;
   color: var(--tx2);
 }
-.chain-nav-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+/* Ghost chevron links, sized down for the meta line. */
+.chain-nav .chain-nav-btn {
   width: 20px;
   height: 20px;
-  border-radius: 50%;
-  color: var(--tx2);
-}
-.chain-nav-btn:hover {
-  color: var(--tx0);
-  background: var(--bg2);
 }
 .replay-controls-right {
   margin-left: auto;
@@ -1277,13 +1098,7 @@
   white-space: nowrap;
   flex: none;
 }
-.view-toggle {
-  display: flex;
-  background: var(--bg2);
-  border-radius: 999px;
-  padding: 3px;
-  margin-left: 12px;
-}
+/* Segmented toggles live in components/Segmented.css. */
 
 /* Toggles that sit on the bare background (screen headers, the search
    cheat-line) take the card tone — bg2-on-bg0 is nearly invisible in the
@@ -1295,24 +1110,6 @@
 .calendar-head .pill,
 .search-view {
   background: var(--card);
-}
-.view-toggle button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  font-weight: 500;
-  padding: 5px 14px;
-  border-radius: 999px;
-  color: var(--tx1);
-}
-.view-toggle button.active {
-  background: var(--contrast-solid);
-  color: var(--contrast-on);
-}
-.view-toggle button:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 /* replay-header action cluster: icon-only copy · download · stats */
 .replay-actions {
@@ -1373,25 +1170,6 @@
   font-size: 13px;
 }
 
-.replay-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  color: var(--tx1);
-  background: var(--bg2);
-  transition: color 0.12s, background 0.12s;
-}
-.replay-action:hover,
-.replay-action.active {
-  color: var(--tx0);
-  background: var(--bg3);
-}
-.replay-action.ok {
-  color: var(--mint);
-}
 /* Active lens = the contrast surface, same statement as the sidebar's
    hide-empty eye; the legend color yields to legibility while pressed. */
 .lens-action.active,
@@ -2004,19 +1782,11 @@
   font-family: var(--mono);
   font-size: 12px;
 }
-/* Same 26px circle family as the error/bookmark rails, inverted for the
-   contrast pill. */
-.match-bar button {
-  width: 26px;
-  height: 26px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  flex: none;
+/* Ghost buttons inverted for the contrast pill. */
+.match-bar .icon-ghost {
   color: var(--contrast-dim);
 }
-.match-bar button:hover {
+.match-bar .icon-ghost:hover {
   color: var(--contrast-on);
   background: var(--contrast-line);
 }
@@ -2208,13 +1978,7 @@
 .search-head {
   flex: none;
 }
-.search-input {
-  width: 100%;
-  font-size: 15px;
-  padding: 15px 26px;
-  background: var(--card);
-  border-radius: 999px;
-}
+/* The query box is a components/SearchField.css lg field. */
 .search-meta {
   font-size: 13px;
   color: var(--tx1);
@@ -2418,32 +2182,13 @@
   gap: 10px;
   margin-top: 12px;
 }
-.find-bar input {
-  flex: 1;
+.find-bar .search-field {
   max-width: 380px;
-  height: 38px;
-  padding: 0 16px;
-  font-size: 13.5px;
-  background: var(--bg1);
 }
 .find-count {
   font-family: var(--mono);
   font-size: 12px;
   color: var(--tx1);
-}
-.find-bar button {
-  width: 26px;
-  height: 26px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  flex: none;
-  color: var(--tx2);
-}
-.find-bar button:hover {
-  color: var(--tx0);
-  background: var(--bg1);
 }
 
 .log-wrap {
@@ -2508,17 +2253,10 @@
   font-weight: 500;
   color: var(--c-error);
 }
-.error-nav button {
-  width: 26px;
-  height: 26px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  flex: none;
+.error-nav .icon-ghost {
   color: var(--tx1);
 }
-.error-nav button:hover {
+.error-nav .icon-ghost:hover {
   color: var(--c-error);
   background: var(--bg1);
 }
@@ -2532,7 +2270,7 @@
 .bookmark-nav-count {
   color: var(--c-note);
 }
-.bookmark-nav button:hover {
+.bookmark-nav .icon-ghost:hover {
   color: var(--tx0);
 }
 
@@ -2720,14 +2458,15 @@
 .saved-chip:hover .saved-chip-run {
   color: var(--tx0);
 }
-.saved-chip-x {
-  padding: 5px 10px 5px 4px;
-  font-size: 14px;
-  line-height: 1;
-  color: var(--tx2);
+/* Ghost ✕ sized into the chip; delete reads accent on hover. */
+.saved-chip .saved-chip-x {
+  width: 22px;
+  height: 22px;
+  margin-right: 3px;
 }
-.saved-chip-x:hover {
+.saved-chip .saved-chip-x:hover {
   color: var(--accent);
+  background: none;
 }
 .saved-add {
   font-size: 12.5px;
@@ -2897,21 +2636,7 @@
   font-size: 12.5px;
   color: var(--tx0);
 }
-.disk-row-reveal {
-  position: relative;
-  flex: none;
-  width: 30px;
-  height: 30px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  color: var(--tx2);
-}
-.disk-row-reveal:hover {
-  color: var(--tx0);
-  background: var(--bg2);
-}
+/* The reveal button is a plain ghost IconButton. */
 .disk-note {
   margin: 0 6px 30px;
   font-size: 12.5px;
@@ -3058,11 +2783,11 @@
   min-width: 220px;
   max-width: 380px;
 }
-.spend-filter input {
-  width: 100%;
-  height: 40px;
-  padding: 0 18px;
-  font-size: 13.5px;
+/* On the bare screen header the field takes the card tone (figure/ground,
+   like the toggles beside it) and matches their control height. */
+.spend-filter .search-field {
+  background: var(--card);
+  padding: 9px 18px;
 }
 .spend-actions {
   margin-left: auto;
@@ -3465,18 +3190,10 @@
   letter-spacing: 0.04em;
   font-size: 11px;
 }
-.update-banner-x {
+.update-banner .update-banner-x {
   margin-left: auto;
-  flex: none;
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
-  font-size: 18px;
-  line-height: 1;
-  color: var(--tx2);
 }
-.update-banner-x:hover {
-  color: var(--tx0);
+.update-banner .update-banner-x:hover {
   background: var(--card);
 }
 
@@ -3487,120 +3204,7 @@
 
 /* ── tooltip component ─────────────────────────────────────────────── */
 
-.tooltip {
-  position: fixed;
-  z-index: 100;
-  pointer-events: none;
-  transform: translate(-50%, -100%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  background: var(--contrast-solid);
-  color: var(--contrast-on);
-  border-radius: 12px;
-  padding: 8px 13px;
-  box-shadow: var(--shadow);
-  font-size: 12.5px;
-  /* Size to content, not to the space left of the viewport edge — a fixed
-     element with `left` near the right edge otherwise shrink-wraps to a
-     sliver before translate(-50%) recenters it. */
-  width: max-content;
-  max-width: 300px;
-  text-align: center;
-  animation: tip-in-above 140ms cubic-bezier(0.25, 0.8, 0.3, 1);
-}
-.tooltip.below {
-  transform: translate(-50%, 0);
-  animation-name: tip-in-below;
-}
-@keyframes tip-in-above {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -100%) translateY(4px) scale(0.96);
-  }
-}
-@keyframes tip-in-below {
-  from {
-    opacity: 0;
-    transform: translate(-50%, 0) translateY(-4px) scale(0.96);
-  }
-}
-.tooltip strong {
-  font-size: 13px;
-  font-weight: 600;
-}
-.tooltip span {
-  color: var(--contrast-dim);
-  font-family: var(--mono);
-  font-size: 11.5px;
-  line-height: 1.4;
-}
-
-/* A saved note shows as a tiny tilted sticky — yellow paper with a folded
-   corner (::before is the sheet, ::after the flap); hover or focus lifts the
-   note itself. The span is a 15px hover/focus target around an 11px mark. */
-.note-dot {
-  position: relative;
-  width: 15px;
-  height: 15px;
-  flex: none;
-  align-self: center;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: default;
-  transform: rotate(-6deg);
-}
-.note-dot::before {
-  content: '';
-  width: 11px;
-  height: 11px;
-  border-radius: 2px;
-  background: var(--c-note);
-  clip-path: polygon(0 0, 100% 0, 100% 64%, 64% 100%, 0 100%);
-}
-.note-dot::after {
-  content: '';
-  position: absolute;
-  right: 2px;
-  bottom: 2px;
-  width: 4px;
-  height: 4px;
-  background: color-mix(in srgb, var(--c-note) 55%, var(--note-ink));
-  clip-path: polygon(0 0, 100% 0, 0 100%);
-}
-/* The lifted note: yellow paper, left-set ink, and an unfold-style entrance —
-   the same uniform rounding as every floating surface, no folded corner. */
-.tooltip.note-tip {
-  background: var(--note-paper);
-  color: var(--note-ink);
-  align-items: flex-start;
-  text-align: left;
-  white-space: pre-wrap;
-  font-size: 13px;
-  line-height: 1.55;
-  border-radius: 12px;
-  padding: 12px 16px 14px;
-  min-width: 150px;
-  max-width: 320px;
-  animation: note-in-above 170ms cubic-bezier(0.25, 0.8, 0.3, 1);
-}
-.tooltip.note-tip.below {
-  animation-name: note-in-below;
-}
-@keyframes note-in-above {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -100%) translateY(7px) rotate(-2deg) scale(0.92);
-  }
-}
-@keyframes note-in-below {
-  from {
-    opacity: 0;
-    transform: translate(-50%, 0) translateY(-7px) rotate(2deg) scale(0.92);
-  }
-}
+/* Tooltip pill: components/Tooltip.css · sticky note: components/NoteDot.css */
 /* ── month grid ────────────────────────────────────────────────────── */
 
 .calendar-card.month {
@@ -3911,16 +3515,7 @@
 
 /* ── command palette (⌘K) ───────────────────────────────────────────── */
 
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  background: rgba(0, 0, 0, 0.3);
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 12vh 20px 20px;
-}
+/* The shared scrim lives in components/Overlay.css. */
 .palette {
   width: min(580px, 100%);
   background: var(--card);
@@ -4040,36 +3635,13 @@ kbd {
   color: var(--tx1);
 }
 
-/* On the contrast tooltip pill the cap inverts with it. */
-.tooltip kbd {
-  background: var(--contrast-line);
-  box-shadow: inset 0 -2px 0 var(--contrast-line);
-  color: var(--contrast-on);
-}
-/* Keycap rows — tooltips, shortcut-sheet combos, palette items. */
-.tooltip-keys,
+/* Keycap rows — shortcut-sheet combos and palette items (the tooltip's own
+   keycap row lives in components/Tooltip.css). */
 .shortcuts-combo,
 .palette-keys {
   flex: none;
   display: inline-flex;
   gap: 3px;
-}
-/* Label + keys (or a count) on one line; the div dodges the `.tooltip span`
-   dim-mono rule that rich multi-line tooltips rely on. Long labels wrap
-   instead of clipping past the pill's max-width. */
-.tooltip-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 2px 8px;
-}
-/* A number riding a label — data-styled, like metadata everywhere else. */
-.tooltip-num {
-  color: var(--contrast-dim);
-  font-family: var(--mono);
-  font-size: 11.5px;
-  white-space: nowrap;
 }
 
 .shortcuts {
@@ -4120,33 +3692,11 @@ kbd {
   gap: 8px;
 }
 
-/* Icon close buttons (CloseIcon replaced the old text ✕) center their glyph. */
-.saved-chip-x,
-.update-banner-x {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
 
 /* ── files-in-sessions filter + open-in-editor + missing-file facts ─── */
 
 .health-missing {
   color: var(--accent);
-}
-.fh-open-editor {
-  flex: none;
-  width: 28px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: var(--bg1);
-  color: var(--tx1);
-}
-.fh-open-editor:hover {
-  background: var(--bg2);
-  color: var(--tx0);
 }
 .disk-row .chip-failed {
   flex: none;
@@ -4172,34 +3722,7 @@ kbd {
 /* Uppercase chip in the agent's brand hue (white text — the tokens are
    tuned to clear 3.5:1 like the tile palette). Unknown agents keep the
    neutral contrast look. Same in every row state. */
-.chip-tool {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  padding: 2px 8px;
-  background: var(--contrast-solid);
-  color: var(--contrast-on);
-  font-family: var(--mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  flex: none;
-}
-.chip-tool.agent-claude {
-  background: var(--agent-claude);
-  color: var(--tile-on);
-}
-.chip-tool.agent-codex {
-  background: var(--agent-codex);
-  color: var(--tile-on);
-}
-
-/* The model chip beside it shares the mono family (the two read as one
-   metadata pair). */
-.chip-model {
-  font-family: var(--mono);
-  font-size: 11.5px;
-}
+/* Agent + model chips live in components/Chip.css. */
 
 /* Pinned rows: the note-yellow wash eats the faint metadata — lift it. */
 .side-item.pinned .side-item-sub {
@@ -4248,43 +3771,4 @@ kbd {
   background: var(--bg3);
 }
 
-/* ── sidebar quick filter (the controls section's primary row) ──────── */
-
-.sidebar-filter {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  background: var(--bg1);
-  border-radius: 999px;
-  padding: 6px 12px;
-  color: var(--tx2);
-}
-.sidebar-filter input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  background: none;
-  outline: none;
-  font: inherit;
-  font-size: 13px;
-  color: var(--tx0);
-  padding: 0;
-}
-.sidebar-filter input:focus-visible {
-  outline: none; /* the wrapper carries the ring */
-}
-.sidebar-filter:focus-within {
-  outline: 1.5px solid color-mix(in srgb, var(--accent) 65%, transparent);
-  outline-offset: 1px;
-}
-.sidebar-filter-clear {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  color: var(--tx2);
-}
-.sidebar-filter-clear:hover {
-  color: var(--tx0);
-}
+/* The sidebar quick filter is a components/SearchField.css field. */

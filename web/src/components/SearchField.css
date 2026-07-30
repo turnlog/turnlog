@@ -1,0 +1,55 @@
+/* SearchField — the wrapper carries surface, radius, and focus ring; the
+   input inside is bare. Context tweaks (hero height) stay in app.css. */
+
+.search-field {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  color: var(--tx2);
+}
+.search-field-sm {
+  flex: 1;
+  background: var(--bg1);
+  padding: 6px 12px;
+}
+.search-field-lg {
+  width: 100%;
+  background: var(--card);
+  padding: 15px 26px;
+  gap: 10px;
+}
+.search-field input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  font: inherit;
+  color: var(--tx0);
+  padding: 0;
+  border-radius: 0;
+}
+.search-field-sm input {
+  font-size: 13px;
+}
+.search-field-lg input {
+  font-size: 15px;
+}
+.search-field input:focus-visible {
+  outline: none; /* the wrapper carries the ring */
+}
+.search-field:focus-within {
+  outline: 1.5px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  outline-offset: 1px;
+}
+.search-field-clear {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  color: var(--tx2);
+}
+.search-field-clear:hover {
+  color: var(--tx0);
+}

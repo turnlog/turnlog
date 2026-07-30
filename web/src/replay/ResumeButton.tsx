@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSessionChain } from '../api';
-import Tooltip from '../components/Tooltip';
+import IconButton from '../components/IconButton';
 import { CheckIcon, PlayCircleIcon } from '../icons';
 import type { SessionMeta } from '../types';
 
@@ -36,8 +36,10 @@ export default function ResumeButton({ session }: { session: SessionMeta }) {
   };
 
   return (
-    <Tooltip
-      content={
+    <IconButton
+      variant="action"
+      label="Copy the resume command for this session"
+      tooltip={
         copied
           ? 'Command copied — paste it in your terminal'
           : isElsewhere
@@ -46,14 +48,10 @@ export default function ResumeButton({ session }: { session: SessionMeta }) {
               ? 'Continue this session in Codex'
               : 'Continue this session in Claude Code'
       }
+      className={copied ? 'ok' : ''}
+      onClick={copy}
     >
-      <button
-        className={`replay-action ${copied ? 'ok' : ''}`}
-        onClick={copy}
-        aria-label="Copy the claude --resume command for this session"
-      >
-        {copied ? <CheckIcon size={16} /> : <PlayCircleIcon size={16} />}
-      </button>
-    </Tooltip>
+      {copied ? <CheckIcon size={16} /> : <PlayCircleIcon size={16} />}
+    </IconButton>
   );
 }

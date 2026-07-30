@@ -1,6 +1,7 @@
 import { revealSession, useDisk } from '../api';
+import Chip from '../components/Chip';
+import IconButton from '../components/IconButton';
 import { SkeletonRows } from '../components/Skeleton';
-import Tooltip from '../components/Tooltip';
 import { fmtBytes, fmtDate, projectName, sessionName, tileClass } from '../format';
 import { FolderIcon } from '../icons';
 import { navigate, sessionHash } from '../router';
@@ -43,19 +44,18 @@ export default function Disk() {
                 {projectName(s)[0]?.toUpperCase() ?? '·'}
               </span>
               <span className="disk-row-name">{sessionName(s)}</span>
-              {s.missing && <span className="chip chip-failed">file gone</span>}
+              {s.missing && <Chip kind="failed">file gone</Chip>}
               <span className="disk-row-date">{fmtDate(s.startedAt)}</span>
               <span className="disk-row-bytes">{fmtBytes(s.bytes)}</span>
             </button>
-            <Tooltip content="Show the session file in your file manager">
-              <button
-                className="disk-row-reveal"
-                onClick={() => revealSession(s.id)}
-                aria-label="Show session file in file manager"
-              >
-                <FolderIcon size={15} />
-              </button>
-            </Tooltip>
+            <IconButton
+              variant="ghost"
+              label="Show session file in file manager"
+              tooltip="Show the session file in your file manager"
+              onClick={() => revealSession(s.id)}
+            >
+              <FolderIcon size={15} />
+            </IconButton>
           </div>
         ))}
       </section>

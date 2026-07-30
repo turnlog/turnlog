@@ -3,6 +3,9 @@ import { useProjects, useSpend } from '../api';
 import { navigate } from '../router';
 import Calendar from './Calendar';
 import Disk from './Disk';
+import Button from '../components/Button';
+import SearchField from '../components/SearchField';
+import Segmented from '../components/Segmented';
 import { Skel, SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
 import { fmtCost, fmtCount, fmtModel, fmtTokens, projectName, tileClass } from '../format';
@@ -220,50 +223,28 @@ export default function Spend({
     <div className="spend">
       <div className="spend-head">
         <h1>Spend</h1>
-        <div className="view-toggle" role="tablist" aria-label="Spend view">
-          <button
-            role="tab"
-            aria-selected={view === 'overview'}
-            className={view === 'overview' ? 'active' : ''}
-            onClick={() => navigate('#/spend')}
-          >
-            overview
-          </button>
-          <button
-            role="tab"
-            aria-selected={view === 'calendar'}
-            className={view === 'calendar' ? 'active' : ''}
-            onClick={() => navigate('#/spend?v=calendar')}
-          >
-            calendar
-          </button>
-          <button
-            role="tab"
-            aria-selected={view === 'disk'}
-            className={view === 'disk' ? 'active' : ''}
-            onClick={() => navigate('#/spend?v=disk')}
-          >
-            disk
-          </button>
-        </div>
+        <Segmented
+          ariaLabel="Spend view"
+          value={view}
+          onChange={(v) => navigate(v === 'overview' ? '#/spend' : `#/spend?v=${v}`)}
+          options={[
+            { value: 'overview', label: 'overview' },
+            { value: 'calendar', label: 'calendar' },
+            { value: 'disk', label: 'disk' },
+          ]}
+        />
         {view === 'overview' && (
-        <div className="view-toggle" role="tablist" aria-label="Period">
-          {PERIODS.map((p) => (
-            <button
-              key={p.days}
-              role="tab"
-              aria-selected={days === p.days}
-              className={days === p.days ? 'active' : ''}
-              onClick={() => {
-                setDays(p.days);
-                // A year-plus of daily bars is unreadable — flip to weeks.
-                if (p.days >= 365) setGran('week');
-              }}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+          <Segmented
+            ariaLabel="Period"
+            value={String(days)}
+            onChange={(v) => {
+              const d = Number(v);
+              setDays(d);
+              // A year-plus of daily bars is unreadable — flip to weeks.
+              if (d >= 365) setGran('week');
+            }}
+            options={PERIODS.map((p) => ({ value: String(p.days), label: p.label }))}
+          />
         )}
         {view === 'overview' && (
         <form
@@ -273,27 +254,27 @@ export default function Spend({
             setApplied(q);
           }}
         >
-          <input
+          <SearchField
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={setQ}
             placeholder="Only work matching… (e.g. websocket)"
-            aria-label="Filter spend by search query"
+            ariaLabel="Filter spend by search query"
           />
         </form>
         )}
         {view === 'overview' && d && (
           <div className="spend-actions">
-            <button className="pill" onClick={() => download('turnlog-spend.csv', 'text/csv', toCsv(d))}>
+            <Button pill onClick={() => download('turnlog-spend.csv', 'text/csv', toCsv(d))}>
               CSV
-            </button>
-            <button
-              className="pill"
+            </Button>
+            <Button
+              pill
               onClick={() =>
                 download('turnlog-spend.json', 'application/json', JSON.stringify(d, null, 2))
               }
             >
               JSON
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -324,24 +305,15 @@ export default function Spend({
                   {d.totals.unpricedSessions > 0 && <> · {d.totals.unpricedSessions} unpriced</>}
                 </span>
               </div>
-              <div className="view-toggle" role="tablist" aria-label="Chart granularity">
-                <button
-                  role="tab"
-                  aria-selected={gran === 'day'}
-                  className={gran === 'day' ? 'active' : ''}
-                  onClick={() => setGran('day')}
-                >
-                  daily
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={gran === 'week'}
-                  className={gran === 'week' ? 'active' : ''}
-                  onClick={() => setGran('week')}
-                >
-                  weekly
-                </button>
-              </div>
+              <Segmented
+                ariaLabel="Chart granularity"
+                value={gran}
+                onChange={setGran}
+                options={[
+                  { value: 'day', label: 'daily' },
+                  { value: 'week', label: 'weekly' },
+                ]}
+              />
             </div>
             <SpendChart data={d} granularity={gran} />
           </section>

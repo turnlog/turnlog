@@ -22,6 +22,7 @@ import Search from './screens/Search';
 import Spend from './screens/Spend';
 import WhatsNew from './screens/WhatsNew';
 import Sidebar from './Sidebar';
+import IconButton from './components/IconButton';
 import Palette from './components/Palette';
 import Shortcuts from './components/Shortcuts';
 import Tooltip from './components/Tooltip';
@@ -125,13 +126,14 @@ function UpdateBanner() {
         <code>{cmd}</code>
         <span className="update-banner-copy">{copied ? 'copied' : 'copy'}</span>
       </button>
-      <button
+      <IconButton
+        variant="ghost"
+        label="Dismiss update notice"
         className="update-banner-x"
         onClick={dismiss}
-        aria-label="Dismiss update notice"
       >
         <CloseIcon size={13} />
-      </button>
+      </IconButton>
     </div>
   );
 }
@@ -171,18 +173,15 @@ function StopButton({ onStopped }: { onStopped: () => void }) {
   }, [armed]);
 
   return (
-    <Tooltip
-      content={armed ? 'Press again to stop' : 'Stop Turnlog'}
+    <IconButton
+      label={armed ? 'Confirm: stop Turnlog' : 'Stop Turnlog'}
+      tooltip={armed ? 'Press again to stop' : 'Stop Turnlog'}
       shortcut={SHORTCUTS.stop}
+      className={`stop-btn ${armed ? 'armed' : ''}`}
+      onClick={() => (armed ? void stop() : setArmed(true))}
     >
-      <button
-        className={`circle stop-btn ${armed ? 'armed' : ''}`}
-        onClick={() => (armed ? void stop() : setArmed(true))}
-        aria-label={armed ? 'Confirm: stop Turnlog' : 'Stop Turnlog'}
-      >
-        <PowerIcon size={16} />
-      </button>
-    </Tooltip>
+      <PowerIcon size={16} />
+    </IconButton>
   );
 }
 
@@ -309,11 +308,14 @@ export default function App() {
           {/* While the sidebar is open, its own top row carries these. */}
           {!sidebarOpen && (
             <>
-              <Tooltip content="Show sessions" shortcut={SHORTCUTS.sidebar}>
-                <button className="circle" onClick={toggleSidebar} aria-label="Show sessions">
-                  <SidebarIcon size={17} />
-                </button>
-              </Tooltip>
+              <IconButton
+                label="Show sessions"
+                tooltip="Show sessions"
+                shortcut={SHORTCUTS.sidebar}
+                onClick={toggleSidebar}
+              >
+                <SidebarIcon size={17} />
+              </IconButton>
               <a href="#/" className="header-brand" aria-label="Turnlog — overview">
                 <Brandmark />
                 <span className="header-title">
@@ -339,15 +341,14 @@ export default function App() {
               Spend
             </a>
             <SearchButton />
-            <Tooltip content={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} shortcut={SHORTCUTS.theme}>
-              <button
-                className="circle"
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
-              >
-                {theme === 'dark' ? <SunIcon size={16} /> : <MoonIcon size={16} />}
-              </button>
-            </Tooltip>
+            <IconButton
+              label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+              tooltip={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+              shortcut={SHORTCUTS.theme}
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            >
+              {theme === 'dark' ? <SunIcon size={16} /> : <MoonIcon size={16} />}
+            </IconButton>
             <StatusCircle />
             <StopButton onStopped={() => setStopped(true)} />
           </div>

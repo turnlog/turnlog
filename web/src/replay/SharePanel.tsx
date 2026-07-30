@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { fetchExport, useTurns } from '../api';
-import Tooltip from '../components/Tooltip';
+import Button from '../components/Button';
+import IconButton from '../components/IconButton';
+import Segmented from '../components/Segmented';
 import { CheckIcon, CopyIcon, DownloadIcon, ShareIcon } from '../icons';
 
 /**
@@ -93,43 +95,44 @@ export default function SharePanel({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="share-wrap" ref={rootRef}>
-      <Tooltip content="Share / export">
-        <button
-          className={`replay-action ${open ? 'active' : ''}`}
-          onClick={() => (open ? setOpen(false) : openPanel())}
-          aria-label="Share or export this session"
-          aria-expanded={open}
-        >
-          <ShareIcon size={16} />
-        </button>
-      </Tooltip>
+      <IconButton
+        variant="action"
+        label="Share or export this session"
+        tooltip="Share / export"
+        active={open}
+        aria-expanded={open}
+        onClick={() => (open ? setOpen(false) : openPanel())}
+      >
+        <ShareIcon size={16} />
+      </IconButton>
       {open && (
         <div className="share-pop" role="dialog" aria-label="Share this session">
           <div className="share-row">
             <span className="share-label">format</span>
-            <div className="view-toggle share-seg">
-              <button
-                className={format === 'markdown' ? 'active' : ''}
-                onClick={() => setFormat('markdown')}
-              >
-                markdown
-              </button>
-              <button className={format === 'html' ? 'active' : ''} onClick={() => setFormat('html')}>
-                web page
-              </button>
-            </div>
+            <Segmented
+              className="share-seg"
+              ariaLabel="Export format"
+              value={format}
+              onChange={setFormat}
+              options={[
+                { value: 'markdown', label: 'markdown' },
+                { value: 'html', label: 'web page' },
+              ]}
+            />
           </div>
           {turnCount > 1 && (
             <div className="share-row">
               <span className="share-label">turns</span>
-              <div className="view-toggle share-seg">
-                <button className={whole ? 'active' : ''} onClick={() => setWhole(true)}>
-                  all {turnCount}
-                </button>
-                <button className={!whole ? 'active' : ''} onClick={() => setWhole(false)}>
-                  range
-                </button>
-              </div>
+              <Segmented
+                className="share-seg"
+                ariaLabel="Turn range"
+                value={whole ? 'all' : 'range'}
+                onChange={(v) => setWhole(v === 'all')}
+                options={[
+                  { value: 'all', label: `all ${turnCount}` },
+                  { value: 'range', label: 'range' },
+                ]}
+              />
             </div>
           )}
           {!whole && turnCount > 1 && (
@@ -144,14 +147,16 @@ export default function SharePanel({ sessionId }: { sessionId: string }) {
           )}
           <div className="share-row">
             <span className="share-label">redact</span>
-            <div className="view-toggle share-seg">
-              <button className={!redact ? 'active' : ''} onClick={() => setRedact(false)}>
-                off
-              </button>
-              <button className={redact ? 'active' : ''} onClick={() => setRedact(true)}>
-                on
-              </button>
-            </div>
+            <Segmented
+              className="share-seg"
+              ariaLabel="Redact secrets"
+              value={redact ? 'on' : 'off'}
+              onChange={(v) => setRedact(v === 'on')}
+              options={[
+                { value: 'off', label: 'off' },
+                { value: 'on', label: 'on' },
+              ]}
+            />
           </div>
           <p className="share-hint">
             {redact
@@ -159,14 +164,14 @@ export default function SharePanel({ sessionId }: { sessionId: string }) {
               : 'Exports verbatim — switch redact on before sharing outside your machine.'}
           </p>
           <div className="share-actions">
-            <button className="share-btn" onClick={copy}>
+            <Button onClick={copy}>
               {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
               {copied ? 'copied' : 'copy'}
-            </button>
-            <button className="share-btn primary" onClick={() => void download()}>
+            </Button>
+            <Button primary onClick={() => void download()}>
               <DownloadIcon size={14} />
               download
-            </button>
+            </Button>
           </div>
         </div>
       )}

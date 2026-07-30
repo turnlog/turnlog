@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSessionsRange } from '../api';
 import { agentInfo } from '../agents';
 import { useHideEmpty } from '../filterStore';
+import Button from '../components/Button';
+import IconButton from '../components/IconButton';
+import Segmented from '../components/Segmented';
 import { SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
 import {
@@ -140,66 +143,46 @@ export default function Calendar() {
   return (
     <div className="calendar">
       <div className="calendar-head">
-        <div className="view-toggle" role="tablist" aria-label="Calendar mode">
-          <button
-            role="tab"
-            aria-selected={mode === 'week'}
-            className={mode === 'week' ? 'active' : ''}
-            onClick={() => setMode('week')}
-          >
-            week
-          </button>
-          <button
-            role="tab"
-            aria-selected={mode === 'month'}
-            className={mode === 'month' ? 'active' : ''}
-            onClick={() => setMode('month')}
-          >
-            month
-          </button>
-        </div>
-        <div className="view-toggle" role="tablist" aria-label="Color blocks by">
-          <button
-            role="tab"
-            aria-selected={colorBy === 'project'}
-            className={colorBy === 'project' ? 'active' : ''}
-            onClick={() => setColorByPersist('project')}
-          >
-            projects
-          </button>
-          <button
-            role="tab"
-            aria-selected={colorBy === 'agent'}
-            className={colorBy === 'agent' ? 'active' : ''}
-            onClick={() => setColorByPersist('agent')}
-          >
-            agents
-          </button>
-        </div>
+        <Segmented
+          ariaLabel="Calendar mode"
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: 'week', label: 'week' },
+            { value: 'month', label: 'month' },
+          ]}
+        />
+        <Segmented
+          ariaLabel="Color blocks by"
+          value={colorBy}
+          onChange={setColorByPersist}
+          options={[
+            { value: 'project', label: 'projects' },
+            { value: 'agent', label: 'agents' },
+          ]}
+        />
         <span className="calendar-range">{rangeLabel}</span>
         <div className="calendar-nav">
-          <Tooltip content={mode === 'week' ? 'Previous week' : 'Previous month'}>
-            <button
-              className="circle circle-sm"
-              onClick={() => (mode === 'week' ? jump(-7) : jumpMonth(-1))}
-              aria-label={mode === 'week' ? 'Previous week' : 'Previous month'}
-            >
-              <ChevronLeftIcon size={16} />
-            </button>
-          </Tooltip>
-          <button className="pill" disabled={isCurrentPeriod} onClick={() => setAnchor(new Date())}>
+          <IconButton
+            small
+            label={mode === 'week' ? 'Previous week' : 'Previous month'}
+            tooltip={mode === 'week' ? 'Previous week' : 'Previous month'}
+            onClick={() => (mode === 'week' ? jump(-7) : jumpMonth(-1))}
+          >
+            <ChevronLeftIcon size={16} />
+          </IconButton>
+          <Button pill disabled={isCurrentPeriod} onClick={() => setAnchor(new Date())}>
             {mode === 'week' ? 'This week' : 'This month'}
-          </button>
-          <Tooltip content={mode === 'week' ? 'Next week' : 'Next month'}>
-            <button
-              className="circle circle-sm"
-              onClick={() => (mode === 'week' ? jump(7) : jumpMonth(1))}
-              aria-label={mode === 'week' ? 'Next week' : 'Next month'}
-              disabled={isCurrentPeriod}
-            >
-              <ChevronRightIcon size={16} />
-            </button>
-          </Tooltip>
+          </Button>
+          <IconButton
+            small
+            label={mode === 'week' ? 'Next week' : 'Next month'}
+            tooltip={mode === 'week' ? 'Next week' : 'Next month'}
+            onClick={() => (mode === 'week' ? jump(7) : jumpMonth(1))}
+            disabled={isCurrentPeriod}
+          >
+            <ChevronRightIcon size={16} />
+          </IconButton>
         </div>
       </div>
 

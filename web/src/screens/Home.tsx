@@ -8,6 +8,9 @@ import {
   useStatus,
 } from '../api';
 import { setProjectFilter } from '../filterStore';
+import Button from '../components/Button';
+import Chip from '../components/Chip';
+import SearchField from '../components/SearchField';
 import {
   fmtBytes,
   fmtCost,
@@ -50,7 +53,7 @@ function RecentRow({ s }: { s: SessionMeta }) {
         <span className="recent-main">
           <span className="recent-title">
             {name}
-            {s.model && <span className="chip">{fmtModel(s.model)}</span>}
+            {s.model && <Chip kind="model">{fmtModel(s.model)}</Chip>}
           </span>
           <span className="recent-sub">
             {fmtCost(s.costUsd)} · {fmtCount(s.turnCount)} turns · {fmtDate(s.startedAt)}
@@ -125,9 +128,9 @@ function HealthCard() {
             {h.unknownEvents === 1 ? '' : 's'} — kept raw, shown collapsed:
           </span>
           {h.unknownTypes.map((t) => (
-            <span key={t.type} className="chip health-chip">
+            <Chip key={t.type} className="health-chip">
               {t.type} ×{fmtCount(t.count)}
-            </span>
+            </Chip>
           ))}
         </div>
       )}
@@ -144,20 +147,22 @@ function HealthCard() {
       {/* Housekeeping on our own index only — ~/.claude is never written to. */}
       <div className="health-maintain">
         <span className="health-maintain-label">Maintain</span>
-        <button
-          className="pill health-action"
+        <Button
+          pill
+          className="health-action"
           onClick={() => run('prune')}
           disabled={maintain.isPending}
         >
           forget deleted files
-        </button>
-        <button
-          className="pill health-action"
+        </Button>
+        <Button
+          pill
+          className="health-action"
           onClick={() => run('vacuum')}
           disabled={maintain.isPending}
         >
           repack index
-        </button>
+        </Button>
         <span className="health-maintain-note">
           {maintain.isPending ? 'working…' : (done ?? 'Turnlog only ever writes to its own index.')}
         </span>
@@ -206,11 +211,12 @@ export default function Home() {
           </em>
         </h1>
         <form className="hero-search" onSubmit={submit}>
-          <input
+          <SearchField
+            size="lg"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={setQuery}
             placeholder="grep, but for everything your agents ever did…"
-            aria-label="Search all sessions"
+            ariaLabel="Search all sessions"
           />
           <button className="btn-accent" aria-label="Search">
             Search
