@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { fetchExport, useTurns } from '../api';
-import Button from '../components/Button';
+import Primary from '../components/Primary';
 import IconButton from '../components/IconButton';
 import Segmented from '../components/Segmented';
 import { CheckIcon, CopyIcon, DownloadIcon, ShareIcon } from '../icons';
@@ -71,7 +71,8 @@ export default function SharePanel({ sessionId }: { sessionId: string }) {
     const body = await fetchExport(sessionId, { format, redact, ...idxRange() }).catch(() => null);
     if (body === null) return;
     const [type, ext] = format === 'html' ? ['text/html', 'html'] : ['text/markdown', 'md'];
-    const rangeTag = whole || turnCount === 0 ? '' : `-t${clampTurn(fromTurn)}-${clampTurn(toTurn)}`;
+    const rangeTag =
+      whole || turnCount === 0 ? '' : `-t${clampTurn(fromTurn)}-${clampTurn(toTurn)}`;
     const url = URL.createObjectURL(new Blob([body], { type }));
     const a = document.createElement('a');
     a.href = url;
@@ -96,7 +97,6 @@ export default function SharePanel({ sessionId }: { sessionId: string }) {
   return (
     <div className="share-wrap" ref={rootRef}>
       <IconButton
-        variant="action"
         label="Share or export this session"
         tooltip="Share / export"
         active={open}
@@ -107,8 +107,8 @@ export default function SharePanel({ sessionId }: { sessionId: string }) {
       </IconButton>
       {open && (
         <div className="share-pop" role="dialog" aria-label="Share this session">
-          <div className="share-row">
-            <span className="share-label">format</span>
+          <div className="pop-row">
+            <span className="pop-label">format</span>
             <Segmented
               className="share-seg"
               ariaLabel="Export format"
@@ -121,8 +121,8 @@ export default function SharePanel({ sessionId }: { sessionId: string }) {
             />
           </div>
           {turnCount > 1 && (
-            <div className="share-row">
-              <span className="share-label">turns</span>
+            <div className="pop-row">
+              <span className="pop-label">turns</span>
               <Segmented
                 className="share-seg"
                 ariaLabel="Turn range"
@@ -136,8 +136,8 @@ export default function SharePanel({ sessionId }: { sessionId: string }) {
             </div>
           )}
           {!whole && turnCount > 1 && (
-            <div className="share-row">
-              <span className="share-label">range</span>
+            <div className="pop-row">
+              <span className="pop-label">range</span>
               <div className="share-range">
                 {turnInput(fromTurn, setFromTurn, 'First turn to export')}
                 <span className="share-range-sep">to</span>
@@ -145,8 +145,8 @@ export default function SharePanel({ sessionId }: { sessionId: string }) {
               </div>
             </div>
           )}
-          <div className="share-row">
-            <span className="share-label">redact</span>
+          <div className="pop-row">
+            <span className="pop-label">redact</span>
             <Segmented
               className="share-seg"
               ariaLabel="Redact secrets"
@@ -164,14 +164,14 @@ export default function SharePanel({ sessionId }: { sessionId: string }) {
               : 'Exports verbatim — switch redact on before sharing outside your machine.'}
           </p>
           <div className="share-actions">
-            <Button onClick={copy}>
+            <Primary fill="quiet" onClick={copy}>
               {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
-              {copied ? 'copied' : 'copy'}
-            </Button>
-            <Button primary onClick={() => void download()}>
+              {copied ? 'Copied' : 'Copy'}
+            </Primary>
+            <Primary fill="contrast" onClick={() => void download()}>
               <DownloadIcon size={14} />
-              download
-            </Button>
+              Download
+            </Primary>
           </div>
         </div>
       )}

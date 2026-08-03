@@ -27,7 +27,7 @@ export const RELEASES: ReleaseNotes[] = [
       },
       {
         kind: 'added',
-        text: 'See the context window fill up: the replay’s stats panel draws how full Claude’s context was at every response, with compaction points marked on the curve, listed as jump chips, and flagged on the turn where they happened.',
+        text: 'See the context window fill up: the replay’s stats panel draws how full Claude’s context was at every response, with compaction points marked on the curve, listed as jump badges, and flagged on the turn where they happened.',
       },
       {
         kind: 'added',
@@ -59,7 +59,7 @@ export const RELEASES: ReleaseNotes[] = [
       },
       {
         kind: 'improved',
-        text: 'Turns spent in plan mode wear a quiet "plan" chip on the spine.',
+        text: 'Turns spent in plan mode wear a quiet "plan" badge on the spine.',
       },
       {
         kind: 'improved',
@@ -183,7 +183,7 @@ export const RELEASES: ReleaseNotes[] = [
       },
       {
         kind: 'added',
-        text: 'Saved searches: keep the queries you rerun as one-click chips under the search box.',
+        text: 'Saved searches: keep the queries you rerun as one-click badges under the search box.',
       },
       {
         kind: 'added',

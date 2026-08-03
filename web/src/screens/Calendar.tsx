@@ -109,7 +109,10 @@ export default function Calendar() {
   const [rangeStart, rangeEnd] =
     mode === 'week'
       ? [weekStart, new Date(weekStart.getTime() + 7 * DAY_MS)]
-      : [monthGrid.gridStart, new Date(monthGrid.gridStart.getTime() + monthGrid.weeks * 7 * DAY_MS)];
+      : [
+          monthGrid.gridStart,
+          new Date(monthGrid.gridStart.getTime() + monthGrid.weeks * 7 * DAY_MS),
+        ];
   const hideEmpty = useHideEmpty();
   const sessions = useSessionsRange(rangeStart.toISOString(), rangeEnd.toISOString(), hideEmpty);
 
@@ -144,6 +147,7 @@ export default function Calendar() {
     <div className="calendar">
       <div className="calendar-head">
         <Segmented
+          fill="card"
           ariaLabel="Calendar mode"
           value={mode}
           onChange={setMode}
@@ -153,6 +157,7 @@ export default function Calendar() {
           ]}
         />
         <Segmented
+          fill="card"
           ariaLabel="Color blocks by"
           value={colorBy}
           onChange={setColorByPersist}
@@ -164,18 +169,18 @@ export default function Calendar() {
         <span className="calendar-range">{rangeLabel}</span>
         <div className="calendar-nav">
           <IconButton
-            small
+            fill="card"
             label={mode === 'week' ? 'Previous week' : 'Previous month'}
             tooltip={mode === 'week' ? 'Previous week' : 'Previous month'}
             onClick={() => (mode === 'week' ? jump(-7) : jumpMonth(-1))}
           >
             <ChevronLeftIcon size={16} />
           </IconButton>
-          <Button pill disabled={isCurrentPeriod} onClick={() => setAnchor(new Date())}>
+          <Button fill="card" disabled={isCurrentPeriod} onClick={() => setAnchor(new Date())}>
             {mode === 'week' ? 'This week' : 'This month'}
           </Button>
           <IconButton
-            small
+            fill="card"
             label={mode === 'week' ? 'Next week' : 'Next month'}
             tooltip={mode === 'week' ? 'Next week' : 'Next month'}
             onClick={() => (mode === 'week' ? jump(7) : jumpMonth(1))}
@@ -243,10 +248,7 @@ function WeekGrid({
         const start = new Date(s.startedAt!);
         const end = s.endedAt ? new Date(s.endedAt) : new Date(start.getTime() + 15 * 60_000);
         const startH = start.getHours() + start.getMinutes() / 60;
-        const endH = Math.min(
-          (end.getTime() - startOfDay(start).getTime()) / 3_600_000,
-          24,
-        );
+        const endH = Math.min((end.getTime() - startOfDay(start).getTime()) / 3_600_000, 24);
         return { s, startH, endH: Math.max(endH, startH + 0.25) };
       });
       return placeDay(placed);
@@ -368,7 +370,10 @@ function MonthGrid({
     for (let i = 0; i < grid.weeks * 7; i++) {
       const d = new Date(grid.gridStart.getTime() + i * DAY_MS);
       const list = buckets.get(dayKey(d)) ?? [];
-      m = Math.max(m, list.reduce((n, s) => n + (s.costUsd ?? 0), 0));
+      m = Math.max(
+        m,
+        list.reduce((n, s) => n + (s.costUsd ?? 0), 0),
+      );
     }
     return Math.max(m, 0.01);
   }, [grid, buckets]);
@@ -422,7 +427,11 @@ function MonthGrid({
               content={
                 <>
                   <strong>
-                    {date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                    {date.toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      month: 'short',
+                      day: 'numeric',
+                    })}
                   </strong>
                   <span>
                     {fmtCount(list.length)} session{list.length === 1 ? '' : 's'} ·{' '}

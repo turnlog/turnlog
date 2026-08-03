@@ -104,13 +104,7 @@ function rangeLabel(b: SpendBucket): string {
  */
 const BAR_MAX_PCT = 88;
 
-function SpendChart({
-  data,
-  granularity,
-}: {
-  data: SpendResponse;
-  granularity: 'day' | 'week';
-}) {
+function SpendChart({ data, granularity }: { data: SpendResponse; granularity: 'day' | 'week' }) {
   const buckets = useMemo(() => {
     const filled = fillDays(data.days, chartSpanDays(data));
     return granularity === 'week' ? bucketWeeks(filled) : filled;
@@ -156,7 +150,10 @@ function SpendChart({
                 <div className="spend-bar" style={{ height: `${barPct(d.costUsd)}%` }} />
               )}
               {i === peak && d.costUsd > 0 && (
-                <span className="spend-peak" style={{ bottom: `calc(${barPct(d.costUsd)}% + 5px)` }}>
+                <span
+                  className="spend-peak"
+                  style={{ bottom: `calc(${barPct(d.costUsd)}% + 5px)` }}
+                >
                   {fmtCost(d.costUsd)}
                 </span>
               )}
@@ -195,11 +192,7 @@ function toCsv(data: SpendResponse): string {
 
 /* ── screen ──────────────────────────────────────────────────────── */
 
-export default function Spend({
-  view = 'overview',
-}: {
-  view?: 'overview' | 'calendar' | 'disk';
-}) {
+export default function Spend({ view = 'overview' }: { view?: 'overview' | 'calendar' | 'disk' }) {
   const [days, setDays] = useState<number>(30);
   const [gran, setGran] = useState<'day' | 'week'>('day');
   const [q, setQ] = useState('');
@@ -224,6 +217,7 @@ export default function Spend({
       <div className="spend-head">
         <h1>Spend</h1>
         <Segmented
+          fill="card"
           ariaLabel="Spend view"
           value={view}
           onChange={(v) => navigate(v === 'overview' ? '#/spend' : `#/spend?v=${v}`)}
@@ -235,6 +229,7 @@ export default function Spend({
         />
         {view === 'overview' && (
           <Segmented
+            fill="card"
             ariaLabel="Period"
             value={String(days)}
             onChange={(v) => {
@@ -247,28 +242,25 @@ export default function Spend({
           />
         )}
         {view === 'overview' && (
-        <form
-          className="spend-filter"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setApplied(q);
-          }}
-        >
-          <SearchField
-            value={q}
-            onChange={setQ}
-            placeholder="Only work matching… (e.g. websocket)"
-            ariaLabel="Filter spend by search query"
-          />
-        </form>
+          <form
+            className="spend-filter"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setApplied(q);
+            }}
+          >
+            <SearchField
+              value={q}
+              onChange={setQ}
+              placeholder="Only work matching… (e.g. websocket)"
+              ariaLabel="Filter spend by search query"
+            />
+          </form>
         )}
         {view === 'overview' && d && (
           <div className="spend-actions">
-            <Button pill onClick={() => download('turnlog-spend.csv', 'text/csv', toCsv(d))}>
-              CSV
-            </Button>
+            <Button onClick={() => download('turnlog-spend.csv', 'text/csv', toCsv(d))}>CSV</Button>
             <Button
-              pill
               onClick={() =>
                 download('turnlog-spend.json', 'application/json', JSON.stringify(d, null, 2))
               }
@@ -280,98 +272,97 @@ export default function Spend({
       </div>
 
       <div className="spend-body">
-      {view === 'calendar' ? (
-        <Calendar />
-      ) : view === 'disk' ? (
-        <Disk />
-      ) : d === undefined ? (
-        <SkeletonRows n={7} tile={28} />
-      ) : (
-        <div className="spend-grid-layout">
-          <section className="card spend-chart-card">
-            <div className="spend-chart-head">
-              <div>
-                <strong className="spend-total">{fmtCost(d.totals.costUsd)}</strong>
-                <span className="spend-total-sub">
-                  est. · {periodText(d.sinceDays)} · {fmtCount(d.totals.sessions)} session
-                  {d.totals.sessions === 1 ? '' : 's'} ·{' '}
-                  {fmtTokens(d.totals.inputTokens + d.totals.outputTokens)} tok
-                  {d.query && (
-                    <>
-                      {' '}
-                      matching <em>“{d.query}”</em>
-                    </>
-                  )}
-                  {d.totals.unpricedSessions > 0 && <> · {d.totals.unpricedSessions} unpriced</>}
-                </span>
+        {view === 'calendar' ? (
+          <Calendar />
+        ) : view === 'disk' ? (
+          <Disk />
+        ) : d === undefined ? (
+          <SkeletonRows n={7} tile={28} />
+        ) : (
+          <div className="spend-grid-layout">
+            <section className="card spend-chart-card">
+              <div className="spend-chart-head">
+                <div>
+                  <strong className="spend-total">{fmtCost(d.totals.costUsd)}</strong>
+                  <span className="spend-total-sub">
+                    est. · {periodText(d.sinceDays)} · {fmtCount(d.totals.sessions)} session
+                    {d.totals.sessions === 1 ? '' : 's'} ·{' '}
+                    {fmtTokens(d.totals.inputTokens + d.totals.outputTokens)} tok
+                    {d.query && (
+                      <>
+                        {' '}
+                        matching <em>“{d.query}”</em>
+                      </>
+                    )}
+                    {d.totals.unpricedSessions > 0 && <> · {d.totals.unpricedSessions} unpriced</>}
+                  </span>
+                </div>
+                <Segmented
+                  ariaLabel="Chart granularity"
+                  value={gran}
+                  onChange={setGran}
+                  options={[
+                    { value: 'day', label: 'daily' },
+                    { value: 'week', label: 'weekly' },
+                  ]}
+                />
               </div>
-              <Segmented
-                ariaLabel="Chart granularity"
-                value={gran}
-                onChange={setGran}
-                options={[
-                  { value: 'day', label: 'daily' },
-                  { value: 'week', label: 'weekly' },
-                ]}
-              />
-            </div>
-            <SpendChart data={d} granularity={gran} />
-          </section>
+              <SpendChart data={d} granularity={gran} />
+            </section>
 
-          <section className="card list-card">
-            <div className="list-card-head">
-              <h2>By model</h2>
-            </div>
-            <ul className="split-list">
-              {d.byModel.map((m) => (
-                <li key={m.key}>
-                  <span className={`tile tile-xs ${tileClass(m.key)}`}>
-                    {fmtModel(m.key)[0]?.toUpperCase() ?? '·'}
-                  </span>
-                  <span className="split-name">{fmtModel(m.key)}</span>
-                  <span className="split-meta">
-                    {fmtTokens(m.tokens)} tok · {fmtCount(m.sessions)}s
-                  </span>
-                  <span className="split-cost">{fmtCost(m.costUsd)}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+            <section className="card list-card">
+              <div className="list-card-head">
+                <h2>By model</h2>
+              </div>
+              <ul className="split-list">
+                {d.byModel.map((m) => (
+                  <li key={m.key}>
+                    <span className={`tile tile-xs ${tileClass(m.key)}`}>
+                      {fmtModel(m.key)[0]?.toUpperCase() ?? '·'}
+                    </span>
+                    <span className="split-name">{fmtModel(m.key)}</span>
+                    <span className="split-meta">
+                      {fmtTokens(m.tokens)} tok · {fmtCount(m.sessions)}s
+                    </span>
+                    <span className="split-cost">{fmtCost(m.costUsd)}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
 
-          <section className="card list-card">
-            <div className="list-card-head">
-              <h2>By project</h2>
-            </div>
-            <ul className="split-list">
-              {d.byProject.map((p) => (
-                <li key={p.key}>
-                  <span className={`tile tile-xs ${tileClass(p.key)}`}>
-                    {nameOf(p.key)[0]?.toUpperCase() ?? '·'}
-                  </span>
-                  <span className="split-name">{nameOf(p.key)}</span>
-                  <span className="split-meta">
-                    {fmtTokens(p.tokens)} tok · {fmtCount(p.sessions)}s
-                  </span>
-                  <span className="split-cost">{fmtCost(p.costUsd)}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+            <section className="card list-card">
+              <div className="list-card-head">
+                <h2>By project</h2>
+              </div>
+              <ul className="split-list">
+                {d.byProject.map((p) => (
+                  <li key={p.key}>
+                    <span className={`tile tile-xs ${tileClass(p.key)}`}>
+                      {nameOf(p.key)[0]?.toUpperCase() ?? '·'}
+                    </span>
+                    <span className="split-name">{nameOf(p.key)}</span>
+                    <span className="split-meta">
+                      {fmtTokens(p.tokens)} tok · {fmtCount(p.sessions)}s
+                    </span>
+                    <span className="split-cost">{fmtCost(p.costUsd)}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
 
-          <section className="card dark-card spend-cache-card">
-            <div className="dark-card-head">
-              <h2>Prompt caching</h2>
-              <span className="dark-chip">saved ~{fmtCost(d.totals.cacheSavedUsd)}</span>
-            </div>
-            <p className="spend-cache-note">
-              {fmtTokens(d.totals.cacheReadTokens)} tokens read from cache at ~0.1× the input
-              rate ({fmtTokens(d.totals.cacheWriteTokens)} written). Without caching this
-              period would cost roughly{' '}
-              {fmtCost(d.totals.costUsd + d.totals.cacheSavedUsd)}.
-            </p>
-          </section>
-        </div>
-      )}
+            <section className="card dark-card spend-cache-card">
+              <div className="dark-card-head">
+                <h2>Prompt caching</h2>
+                <span className="dark-badge">saved ~{fmtCost(d.totals.cacheSavedUsd)}</span>
+              </div>
+              <p className="spend-cache-note">
+                {fmtTokens(d.totals.cacheReadTokens)} tokens read from cache at ~0.1× the input rate
+                ({fmtTokens(d.totals.cacheWriteTokens)} written). Without caching this period would
+                cost roughly {fmtCost(d.totals.costUsd + d.totals.cacheSavedUsd)}.
+              </p>
+            </section>
+          </div>
+        )}
       </div>
     </div>
   );

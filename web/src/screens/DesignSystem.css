@@ -1,0 +1,927 @@
+/* Design system reference (#/design-system) — internal only.
+
+   Co-located rather than in app.css on purpose: nothing here styles a real
+   product surface, so it has no business in the shared screen stylesheet.
+   Every rule is `.ds-*`-scoped and only ever draws the *frame* around a
+   specimen — the specimens themselves are the real primitives, unstyled from
+   here, so this page can't drift from what the app actually renders. */
+
+.ds {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  width: 100%;
+}
+.ds-inner {
+  width: 100%;
+  padding: 22px 18px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── page head ─────────────────────────────────────────────────────── */
+
+.ds-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.ds-head h1 {
+  font-size: var(--fs-24);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+.ds-head-note {
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+
+/* Jump links — a plain badge row, not navigation chrome. */
+.ds-toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.ds-toc button {
+  font-size: var(--fs-12);
+  font-weight: 500;
+  color: var(--tx1);
+  background: var(--card);
+  border-radius: 999px;
+  padding: 5px 13px;
+  transition:
+    background 150ms ease,
+    color 150ms ease;
+}
+.ds-toc button:hover {
+  background: var(--bg2);
+  color: var(--tx0);
+}
+
+/* ── section + subsection scaffolding ──────────────────────────────── */
+
+.ds-section {
+  background: var(--card);
+  border-radius: var(--radius-lg);
+  padding: 22px 26px 26px;
+  scroll-margin-top: 12px;
+}
+.ds-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.ds-section-head h2 {
+  font-size: var(--fs-18);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.ds-section-head p {
+  margin: 0;
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+
+.ds-group + .ds-group {
+  margin-top: 24px;
+}
+.ds-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.ds-group-head h3 {
+  font-size: var(--fs-12);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--tx2);
+  margin: 0;
+}
+.ds-group-head span {
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+
+/* ── swatches ──────────────────────────────────────────────────────── */
+
+.ds-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
+  gap: 10px;
+}
+.ds-swatch {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: var(--bg1);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  min-width: 0;
+}
+/* The ring is the only way a white token reads on a white card and a
+   translucent one reads as translucent — a spec affordance, not a shadow. */
+.ds-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  flex: none;
+  box-shadow: inset 0 0 0 1px var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-12);
+  font-weight: 500;
+}
+.ds-swatch-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ds-swatch-name {
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ds-swatch-value {
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+  color: var(--tx2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ds-swatch-use {
+  font-size: var(--fs-12);
+  color: var(--tx1);
+}
+
+/* ── specimen rows (a live component beside its spec) ──────────────── */
+
+.ds-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 11px 12px;
+  border-radius: var(--radius);
+  min-width: 0;
+}
+.ds-row:hover {
+  background: var(--bg1);
+}
+.ds-row-demo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ds-row-spec {
+  flex: none;
+  width: min(46%, 400px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: right;
+}
+.ds-row-name {
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx1);
+}
+.ds-row-note {
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+@media (max-width: 720px) {
+  .ds-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .ds-row-spec {
+    width: 100%;
+    text-align: left;
+  }
+}
+
+/* ── divisions ─────────────────────────────────────────────────────── */
+
+.dsn-division {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 12px;
+  align-items: baseline;
+  padding-top: 24px;
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.dsn-division:first-of-type {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+.dsn-division h2 {
+  margin: 0;
+  font-size: var(--fs-24);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+.dsn-division-count {
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+.dsn-division p {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+
+/* ── palette, both themes at once ──────────────────────────────────── */
+
+.dsn-palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 14px;
+}
+
+.dsn-pane {
+  background: var(--bg0);
+  color: var(--tx0);
+  border-radius: var(--radius-md);
+  padding: 16px 18px 20px;
+  min-width: 0;
+}
+.dsn-pane-label {
+  display: block;
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--tx2);
+  margin-bottom: 14px;
+}
+.dsn-pane-group + .dsn-pane-group {
+  margin-top: 20px;
+}
+.dsn-pane-group h4 {
+  margin: 0 0 2px;
+  font-size: var(--fs-12);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--tx1);
+}
+.dsn-pane-group p {
+  margin: 0 0 10px;
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+
+.dsn-pane .ds-badge {
+  border-radius: 999px;
+}
+
+.dsn-rail-note {
+  display: block;
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+
+/* Role-rail specimens: real .block rows, stacked, each naming its speaker. */
+.dsn-rails {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dsn-rail-name {
+  font-size: var(--fs-12);
+  color: var(--tx1);
+}
+
+/* A collision that has been resolved says so under its job list. */
+.dsn-resolved {
+  margin: 10px 0 0;
+  font-size: var(--fs-12);
+  color: var(--success-tx);
+}
+
+/* ── lede ──────────────────────────────────────────────────────────── */
+
+.dsn-lede {
+  margin: 0 0 4px;
+  max-width: 80ch;
+  font-size: var(--fs-14);
+  line-height: 1.6;
+  color: var(--tx1);
+}
+.dsn-lede code {
+  font-size: var(--fs-12);
+  color: var(--tx0);
+  background: var(--bg2);
+  border-radius: var(--radius-xs);
+  padding: 1px 6px;
+}
+.dsn-lede strong {
+  color: var(--tx0);
+  font-weight: 500;
+}
+.dsn-lede a {
+  color: var(--tx0);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line);
+}
+.dsn-lede a:hover {
+  color: var(--accent);
+}
+
+.dsn-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  flex: none;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+/* ── collisions ────────────────────────────────────────────────────── */
+
+.dsn-collisions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+.dsn-collision {
+  background: var(--bg1);
+  border-radius: var(--radius);
+  padding: 14px 16px 16px;
+}
+.dsn-collision-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.dsn-collision-hue {
+  font-size: var(--fs-14);
+  font-weight: 500;
+  color: var(--tx0);
+}
+.dsn-collision-count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+  color: var(--tx2);
+}
+.dsn-jobs {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dsn-jobs li {
+  font-size: var(--fs-12);
+  color: var(--tx1);
+}
+
+/* ── syntax ────────────────────────────────────────────────────────── */
+
+.dsn-syntax {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-12);
+}
+.dsn-syntax th {
+  text-align: left;
+  font-weight: 500;
+  font-size: var(--fs-10);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--tx2);
+  padding: 0 14px 8px 0;
+}
+.dsn-syntax td {
+  padding: 5px 14px 5px 0;
+  color: var(--tx1);
+  border-top: 1px solid var(--line-soft);
+  white-space: nowrap;
+}
+.dsn-syntax td:first-child,
+.dsn-syntax td:nth-child(2),
+.dsn-syntax td:nth-child(3) {
+  font-family: var(--mono);
+  color: var(--tx0);
+}
+.dsn-syntax td:last-child {
+  color: var(--tx2);
+  white-space: normal;
+}
+.dsn-syntax-badge {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-right: 7px;
+  vertical-align: -1px;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+/* ── typography ────────────────────────────────────────────────────── */
+
+.dsn-faces {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.dsn-face {
+  background: var(--bg1);
+  border-radius: var(--radius);
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dsn-face-sample {
+  margin: 0 0 6px;
+  font-size: var(--fs-24);
+  color: var(--tx0);
+}
+.dsn-face-name {
+  font-size: var(--fs-14);
+  font-weight: 500;
+  color: var(--tx0);
+}
+.dsn-face-weights {
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+  color: var(--tx2);
+}
+
+.dsn-ladder {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dsn-step {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 14px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line-soft);
+}
+.dsn-step-sample {
+  color: var(--tx0);
+  line-height: 1.2;
+}
+.dsn-step-token {
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+  color: var(--tx1);
+  white-space: nowrap;
+}
+.dsn-step-role {
+  grid-column: 1 / -1;
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+
+.dsn-weights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 28px;
+}
+.dsn-weight {
+  font-size: var(--fs-16);
+  color: var(--tx0);
+}
+
+/* ── badges ────────────────────────────────────────────────────────── */
+
+.dsn-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+}
+
+.dsn-agents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+.dsn-agent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dsn-agent-token {
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+  color: var(--tx2);
+}
+
+.dsn-tips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+}
+.dsn-tip-trigger {
+  font-size: var(--fs-12);
+  color: var(--tx1);
+  background: var(--bg2);
+  border-radius: var(--radius-sm);
+  padding: 7px 13px;
+}
+.dsn-tip-trigger:hover {
+  background: var(--bg3);
+  color: var(--tx0);
+}
+
+.dsn-icons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 4px;
+}
+.dsn-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 14px 6px 11px;
+  border-radius: var(--radius-sm);
+  color: var(--tx0);
+}
+.dsn-icon:hover {
+  background: var(--bg1);
+}
+.dsn-icon span {
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+  color: var(--tx2);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.dsn-keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.dsn-key-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 320px;
+}
+.dsn-key-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.dsn-key-label {
+  font-size: var(--fs-12);
+  color: var(--tx1);
+}
+
+.dsn-dots-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+}
+.dsn-dot-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--fs-12);
+  color: var(--tx1);
+}
+.dsn-code {
+  min-width: 0;
+}
+
+.dsn-inline-code {
+  margin: 0;
+  font-size: var(--fs-14);
+  color: var(--tx1);
+}
+
+.dsn-skels {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.dsn-skels-block {
+  min-width: 0;
+}
+
+.dsn-avatars {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+/* On --card, the surface these actually sit on. The app already handles the
+   bare-background case with per-site overrides (.spend-head .pill and friends
+   take --card, because bg2-on-bg0 is near-invisible in light). */
+.dsn-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+
+/* ── families ──────────────────────────────────────────────────────── */
+
+/* One button type, boxed. A section holds several types, and without the box
+   their groups run together into one undifferentiated list. */
+.dsn-family {
+  background: var(--bg1);
+  border-radius: var(--radius-md);
+  padding: 18px 20px 22px;
+}
+.dsn-family + .dsn-family {
+  margin-top: 16px;
+}
+.dsn-family-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 0 10px;
+  margin-bottom: 16px;
+}
+.dsn-family-head h3 {
+  margin: 0;
+  font-size: var(--fs-18);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--tx0);
+}
+.dsn-family-head code {
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+  color: var(--tx2);
+}
+.dsn-family-head p {
+  grid-column: 1 / -1;
+  margin: 5px 0 0;
+  max-width: 88ch;
+  font-size: var(--fs-12);
+  line-height: 1.55;
+  color: var(--tx2);
+}
+/* Inside a family the group heads are the second level, so they step down. */
+.dsn-family .ds-group + .ds-group {
+  margin-top: 20px;
+}
+
+/* ── primary ───────────────────────────────────────────────────────── */
+
+/* The frame's ground: these buttons are drawn for --bg0, not for a card. */
+.dsn-primary-stage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg0);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+.dsn-primary-card,
+.dsn-icon-stage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+
+/* Each icon specimen wears its variant name, so the four sizes can be told
+   apart at a glance — 34 and 34-one-surface-down look alike otherwise. */
+.dsn-icon-spec {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+.dsn-icon-spec em {
+  font-family: var(--mono);
+  font-style: normal;
+  font-size: var(--fs-10);
+  color: var(--tx2);
+}
+
+/* ── shapes & spaces ───────────────────────────────────────────────── */
+
+.dsn-radii {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+}
+.dsn-radius {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dsn-radius-box {
+  width: 100%;
+  height: 56px;
+  background: var(--bg2);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.dsn-radius-token {
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+  color: var(--tx1);
+}
+.dsn-radius-role {
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+
+.dsn-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dsn-metric {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 12px;
+  align-items: baseline;
+  padding: 7px 0;
+  border-top: 1px solid var(--line-soft);
+}
+.dsn-metric-token,
+.dsn-metric-value {
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+}
+.dsn-metric-token {
+  color: var(--tx0);
+}
+.dsn-metric-value {
+  color: var(--tx1);
+}
+.dsn-metric-role {
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+
+/* ── fields & markers ──────────────────────────────────────────────── */
+
+.dsn-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dsn-fields-narrow {
+  max-width: 260px;
+}
+.dsn-markers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  min-height: 32px;
+}
+/* The bookmark toggle is absolutely positioned in the replay gutter and
+   opacity-0 until its row is hovered; pin it in flow so it sits here. */
+.dsn-markers .block-bookmark {
+  position: relative;
+  left: auto;
+  top: auto;
+  opacity: 1;
+}
+.dsn-snippet {
+  margin: 0;
+  font-size: var(--fs-12);
+  color: var(--tx1);
+}
+
+/* ── layout & motion ───────────────────────────────────────────────── */
+
+.dsn-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.dsn-card-demo {
+  flex: 1 1 200px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+.dsn-card-demo strong {
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  color: var(--tx0);
+}
+.dsn-inset {
+  background: var(--bg1);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+.dsn-overlay-panel {
+  max-width: 380px;
+  align-items: flex-start;
+  background: var(--card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+.dsn-overlay-panel strong {
+  font-weight: 500;
+  color: var(--tx0);
+}
+
+.dsn-motion {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dsn-motion-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 14px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line-soft);
+  align-items: baseline;
+}
+.dsn-motion-d {
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx0);
+}
+.dsn-motion-role {
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+
+.dsn-buttons-rails {
+  margin-top: 12px;
+}
+
+/* Both text-only buttons are positioned by their container, so the container
+   is part of the specimen. */
+.dsn-pop-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  min-width: 180px;
+}
+.dsn-pop-demo .pop-label {
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+.dsn-codebar-demo {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+/* A second stage stacked under the first — the same specimen on the other
+   ground, so the fill pair can be compared without leaving the group. */
+.dsn-stage-stacked {
+  margin-top: 8px;
+}

@@ -19,7 +19,7 @@
   transition: width 260ms cubic-bezier(0.25, 0.8, 0.3, 1);
 }
 .sidebar-rail.open {
-  width: calc(var(--sidebar-w) + 14px);
+  width: calc(var(--sidebar-w) + var(--gutter));
 }
 
 .app-main {
@@ -45,15 +45,15 @@
 .header-title {
   display: flex;
   flex-direction: column;
-  font-size: 17px;
-  font-weight: 600;
+  font-size: var(--fs-18);
+  font-weight: 500;
   line-height: 1.25;
   color: var(--tx0);
 }
 .header-title em {
   font-style: normal;
   font-weight: 400;
-  font-size: 13px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 .header-right {
@@ -62,15 +62,8 @@
   align-items: center;
   gap: 10px;
 }
-/* Round icon buttons (circle / dir-toggle / replay-action) live in
+/* Round icon buttons (.icon-btn) live in
    components/IconButton.css; only their screen context stays here. */
-
-/* Stop Turnlog: first click arms (reads as danger), second click kills the CLI. */
-.stop-btn.armed,
-.stop-btn.armed:hover {
-  background: var(--c-error);
-  color: #fff;
-}
 
 /* Post-shutdown farewell: one floating card on the bare app surface. */
 .stopped-screen {
@@ -102,14 +95,14 @@
   margin-bottom: 22px;
 }
 .stopped-card h1 {
-  font-size: 22px;
-  font-weight: 600;
+  font-size: var(--fs-24);
+  font-weight: 500;
   letter-spacing: -0.015em;
   margin: 0 0 10px;
 }
 .stopped-card p {
   color: var(--tx1);
-  font-size: 14px;
+  font-size: var(--fs-14);
   max-width: 42ch;
   margin: 0 0 26px;
 }
@@ -121,7 +114,7 @@
   border-radius: 999px;
   background: var(--bg1);
   border: 1px solid var(--line);
-  font-size: 13px;
+  font-size: var(--fs-14);
 }
 .stopped-cmd:hover {
   border-color: var(--accent);
@@ -132,9 +125,6 @@
 }
 .stopped-cmd span {
   color: var(--tx2);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-size: 11px;
 }
 
 .status-dot {
@@ -143,25 +133,27 @@
   border-radius: 50%;
 }
 .status-dot.idle {
-  background: var(--c-ok);
+  background: var(--success);
 }
 .status-dot.busy {
   background: var(--accent);
   animation: pulse 1s ease-in-out infinite;
 }
 .status-dot.err {
-  background: var(--c-error);
+  background: var(--danger);
 }
 @keyframes pulse {
   50% {
     opacity: 0.3;
   }
 }
-/* Unseen release notes: note-yellow ring until What's New is opened. */
-.circle.news {
+/* Unseen release notes: note-yellow ring until What's New is opened. A state
+   of the status button alone — the ring is not a fill other Primary buttons
+   can pick, which is why it lives here and not in Primary.css. */
+.primary-btn.news {
   box-shadow: inset 0 0 0 1.5px var(--c-note);
 }
-.circle.news .status-dot {
+.primary-btn.news .status-dot {
   background: var(--c-note);
 }
 
@@ -171,8 +163,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  /* Horizontal/bottom gutters match the sidebar's 14px floating inset. */
-  padding: 8px 14px 14px;
+  /* Horizontal/bottom gutters match the sidebar's floating inset. */
+  padding: 8px var(--gutter) var(--gutter);
 }
 
 .fullscreen-note {
@@ -184,8 +176,8 @@
   padding: 40px;
 }
 .fullscreen-note h1 {
-  font-size: 26px;
-  font-weight: 600;
+  font-size: var(--fs-24);
+  font-weight: 500;
   letter-spacing: -0.015em;
   margin: 0 0 12px;
 }
@@ -193,90 +185,100 @@
   color: var(--tx1);
   max-width: 52ch;
   margin: 8px auto;
-  font-size: 14.5px;
-}
-.fullscreen-note code {
-  background: var(--bg2);
-  border-radius: 5px;
-  padding: 1px 7px;
-  font-size: 12.5px;
+  font-size: var(--fs-14);
 }
 
 /* ── shared primitives ─────────────────────────────────────────────── */
+
+/* Uppercase micro-labels — two tiers, one voice. Every uppercase run of text
+   in the app is one of these; the tracking (0.07em) never varies, only the
+   size does, and only because the badge tier lives inside a filled pill where
+   the pill is the frame. Set the type HERE and the color/layout with the
+   component — that is why these are grouped rather than restated ten times
+   (they had drifted to five tracking values across five sizes).
+
+   section — names a block of content
+   badge   — the text inside a small filled pill */
+.stat-label,
+.annotate-label,
+.block-label,
+.tool-result-label,
+.outline-title,
+.pop-label,
+.health-maintain-label,
+.shortcuts-group h3 {
+  font-size: var(--fs-10);
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.wn-current-badge,
+.stopped-cmd span,
+.update-banner-copy {
+  font-size: var(--fs-10);
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+/* Inline <code> — one badge everywhere it appears in chrome. (The five sites
+   below had drifted to four sizes, two grounds, and three paddings.) It shares
+   its 6px radius with <kbd>: both are glyph-scale marks set into a text line.
+   Fenced code is .code-block and is untouched by this.
+
+   --bg3, not --bg2: these land on --card (message bodies, disk notes) AND on
+   --bg0 (the search screen's operator list), and --bg2 is a hair off --bg0 in
+   the light theme — invisible on half its call sites. */
+.fullscreen-note code,
+.md code,
+.search-meta code,
+.search-ops code,
+/* Inline code rounds like every other inline code chip. */
+.disk-note code {
+  background: var(--bg3);
+  border-radius: var(--radius-xs);
+  padding: 1px 6px;
+  font-size: var(--fs-12);
+}
 
 .card {
   background: var(--card);
   border-radius: var(--radius-lg);
 }
 
-.btn-accent {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--accent);
-  color: var(--accent-on);
-  border-radius: 999px;
-  padding: 12px 24px;
-  font-size: 14.5px;
-  font-weight: 600;
-}
-.btn-accent:hover {
-  background: var(--accent-hi);
-}
-/* The .pill action button lives in components/Button.css. */
+/* The .pill action button lives in components/Button.css; the accent call to
+   action is a Primary fill (components/Primary.css). */
 
-/* Chips live in components/Chip.css; layout-only modifiers stay here. */
-.chip-kind {
-  flex: none;
-}
+/* Badges live entirely in components/Badge.css — `flex: none` is on the base,
+   so the layout-only modifiers that used to live here are gone. */
 
 .tile {
   width: 44px;
   height: 44px;
-  border-radius: 14px;
+  border-radius: var(--radius);
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--tile-on);
+  font-size: var(--fs-18);
+  font-weight: 500;
+  /* Inverts with the theme: light block on dark, dark block on light. The
+     letter and name identify; hue survives only where comparing projects is
+     the task (calendar blocks, search timeline). */
+  background: var(--contrast-solid);
+  color: var(--contrast-on);
 }
 .tile-sm {
   width: 36px;
   height: 36px;
-  border-radius: 12px;
-  font-size: 14px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-14);
 }
 .tile-xs {
   width: 28px;
   height: 28px;
-  border-radius: 9px;
-  font-size: 12px;
-}
-.tile-0 {
-  background: var(--tile-0);
-}
-.tile-1 {
-  background: var(--tile-1);
-}
-.tile-2 {
-  background: var(--tile-2);
-}
-.tile-3 {
-  background: var(--tile-3);
-}
-.tile-4 {
-  background: var(--tile-4);
-}
-.tile-5 {
-  background: var(--tile-5);
-}
-.tile-6 {
-  background: var(--tile-6);
-}
-.tile-7 {
-  background: var(--tile-7);
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-12);
 }
 
 .dot {
@@ -285,14 +287,17 @@
   border-radius: 50%;
   display: inline-block;
 }
-.dot-mint {
-  background: var(--mint);
+.dot-diff {
+  background: var(--c-diff);
 }
-.dot-purple {
-  background: var(--purple);
+.dot-cmd {
+  background: var(--c-command);
 }
-.dot-accent {
-  background: var(--accent);
+.dot-error {
+  background: var(--danger);
+}
+.dot-ok {
+  background: var(--success);
 }
 
 /* stat tiles (replay stats panel) */
@@ -303,23 +308,21 @@
 }
 .stat-tile {
   background: var(--bg1);
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   padding: 12px 18px;
   min-width: 140px;
 }
 .stat-value {
-  font-size: 17px;
-  font-weight: 600;
+  font-family: var(--mono);
+  font-size: var(--fs-18);
+  font-weight: 500;
   color: var(--tx0);
 }
 .stat-sub {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 .stat-label {
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   color: var(--tx2);
   margin-top: 2px;
 }
@@ -339,7 +342,7 @@
   flex-direction: column;
   gap: 10px;
   background: var(--card);
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow);
 }
 .share-pop {
@@ -348,22 +351,23 @@
   /* Wide enough that the segment labels ("web page") never wrap. */
   width: 340px;
 }
-.share-row,
+/* One vocabulary for both popovers. The share panel used to spell these
+   .share-row/.share-label and the sidebar filter .pop-row/.pop-label — two
+   names, byte-identical rules, one voice. */
+/* The label sits above its control, not beside it: a fixed label column stole
+   62px from every row, and the controls — dropdowns, segmented tracks, the
+   range inputs — are the part that needs the width. Grid rather than a column
+   flex so a row with two controls (sort + direction) still puts them side by
+   side under one label. */
 .pop-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
+  gap: 6px 8px;
 }
-.share-label,
 .pop-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
+  grid-column: 1 / -1;
   color: var(--tx2);
-  /* Fixed, not min-width: every row's control starts on the same column. */
-  width: 62px;
-  flex: none;
 }
 /* The range row wears the same pill track as the segmented rows above it, so
    every control in the panel starts and ends on the same two columns. */
@@ -377,16 +381,15 @@
   border-radius: 999px;
 }
 .share-range-sep {
-  font-size: 11.5px;
+  font-size: var(--fs-12);
   color: var(--tx2);
   flex: none;
 }
 /* Two classes: .view-toggle sets a header margin and is declared later in this
    file, so a single-class override would lose and the row would sit 12px right
    of the range track. */
-.share-row .share-seg,
 .pop-row .share-seg {
-  flex: 1;
+  width: 100%;
   margin-left: 0;
 }
 .share-seg button {
@@ -400,7 +403,7 @@
   min-width: 0;
   padding: 5px 8px;
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--fs-12);
   font-weight: 500;
   color: var(--tx0);
   background: var(--bg1);
@@ -423,7 +426,7 @@
 }
 .share-hint {
   margin: 0;
-  font-size: 11.5px;
+  font-size: var(--fs-12);
   line-height: 1.45;
   color: var(--tx2);
 }
@@ -431,20 +434,22 @@
   display: flex;
   gap: 8px;
 }
-/* Share/download buttons are components/Button.css; both actions stretch. */
-.share-actions .btn {
+/* Share/download are Primary buttons; both actions stretch to fill the row. */
+.share-actions .primary-btn {
   flex: 1;
 }
 
 /* The custom dropdown lives in components/Dropdown.css. */
 
-/* ── sidebar (sessions) — a zone, not a floating card ─────────────── */
+/* ── sidebar (sessions) — a floating card ──────────────────────────── */
 
-/* Floating card: rounded on all four sides, inset from the edges. */
+/* Rounded on all four sides, inset from the edges. (Superseded the original
+   square-edged "zone" treatment in v0.2.3; this header said "a zone, not a
+   floating card" for a while after the code stopped agreeing.) */
 .sidebar {
   width: var(--sidebar-w);
-  height: calc(100% - 28px);
-  margin: 14px 0 14px 14px;
+  height: calc(100% - var(--gutter) * 2);
+  margin: var(--gutter) 0 var(--gutter) var(--gutter);
   flex: none;
   display: flex;
   flex-direction: column;
@@ -474,6 +479,9 @@
   gap: 14px;
   padding: 14px 16px 2px;
 }
+/* The toggle here stands on the sidebar card, so it takes the quiet fill —
+   see components/Primary.tsx. It used to be a --card button with an override
+   at this selector; the fill says the same thing where the button is written. */
 
 .sidebar-controls {
   flex: none;
@@ -515,16 +523,16 @@
 /* On the card-toned popover the bg1 controls of the sidebar would vanish —
    step them up one surface. */
 .filter-pop .dd-trigger,
-.filter-pop .dir-toggle {
+.filter-pop .icon-btn {
   background: var(--bg2);
 }
-.filter-pop .dir-toggle:hover {
+.filter-pop .icon-btn:hover {
   background: var(--bg3);
 }
 .filter-reset {
   align-self: flex-end;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: 500;
   color: var(--tx1);
 }
 .filter-reset:hover {
@@ -532,7 +540,7 @@
 }
 .sidebar-count {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 
@@ -541,7 +549,7 @@
 }
 .sidebar-empty {
   padding: 20px 16px;
-  font-size: 13px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 
@@ -553,21 +561,24 @@
   margin: 0 8px;
   text-align: left;
   padding: 11px 12px;
-  border-radius: 12px;
-  transition: background 80ms;
+  border-radius: var(--radius-sm);
+  /* Motion lives in the micro-interactions block at the foot of this file. */
   cursor: pointer; /* a div since the pin button nests inside */
   user-select: none;
 }
 .side-item:hover {
   background: var(--bg1);
 }
-/* Pinned rows carry a quiet note-yellow wash so the pinned block on top
-   reads at a glance. The active row (below, same specificity) wins the tie. */
+/* Pinned rows carry a quiet neutral ground so the pinned block on top reads
+   at a glance. Neutral, not the note yellow: yellow means "there is a note
+   here", and a pinned session usually has no note — the filled pin in the
+   row is what says it is pinned. The active row (below, same specificity)
+   wins the tie. */
 .side-item.pinned {
-  background: color-mix(in srgb, var(--c-note) 12%, transparent);
+  background: var(--bg1);
 }
 .side-item.pinned:not(.active):hover {
-  background: color-mix(in srgb, var(--c-note) 20%, transparent);
+  background: var(--bg2);
 }
 .side-item.active {
   background: var(--bg2);
@@ -581,19 +592,20 @@
   align-items: baseline;
   gap: 8px;
 }
-/* "running now" pulse — same green as the header's idle status dot */
+/* "running now" pulse — same green as the header's idle status dot, but a
+   calmer 1.6s: this one is ambient, the header's 1s beat means "working". */
 .side-item-live {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--c-ok);
+  background: var(--success);
   animation: pulse 1.6s ease-in-out infinite;
   flex: none;
   align-self: center;
 }
 .side-item-project {
-  font-weight: 600;
-  font-size: 13.5px;
+  font-weight: 500;
+  font-size: var(--fs-14);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -601,7 +613,7 @@
 .side-item-cost {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx1);
   flex: none;
 }
@@ -619,41 +631,23 @@
   opacity: 1;
 }
 .side-item-sub {
+  font-family: var(--mono);
   display: flex;
   align-items: center;
   gap: 6px;
   margin-top: 2px;
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx2);
   white-space: nowrap;
   overflow: hidden;
 }
-/* Model Chip, toned down for the dense sidebar row. */
-.side-item .side-item-model {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--tx2);
-  background: var(--bg1);
-  padding: 2px 8px;
-  flex: none;
-}
-/* Resume chain tip Chip: the row stands for N session files, not one. */
+/* Resume chain tip: the row stands for N session files, not one. The count
+   is a figure, so it takes the mono family; everything else is the badge. */
 .side-item .chain-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 11px;
-  color: var(--tx2);
-  background: var(--bg1);
-  padding: 2px 7px;
-  flex: none;
+  font-family: var(--mono);
 }
-.side-item.active .chain-badge {
-  background: var(--card);
-}
-.side-item.active .side-item-model {
-  background: var(--card);
-}
+/* (No ground rule here any more: every badge is a solid fill, so none of them
+   vanish into the active-row or pinned wash.) */
 
 /* ── home: hero + bento ────────────────────────────────────────────── */
 
@@ -673,8 +667,8 @@
   padding: 26px 4px 30px;
 }
 .hero h1 {
-  font-size: 38px;
-  font-weight: 600;
+  font-size: var(--fs-40);
+  font-weight: 500;
   letter-spacing: -0.02em;
   line-height: 1.12;
   margin: 0;
@@ -683,7 +677,7 @@
   display: block;
   font-style: normal;
   font-weight: 500;
-  font-size: 19px;
+  font-size: var(--fs-18);
   letter-spacing: -0.01em;
   color: var(--tx2);
   margin-top: 8px;
@@ -732,13 +726,13 @@
   margin-bottom: 34px;
 }
 .dark-card-head h2 {
-  font-size: 19px;
-  font-weight: 600;
+  font-size: var(--fs-18);
+  font-weight: 500;
   letter-spacing: -0.01em;
   margin: 0;
 }
-.dark-chip {
-  font-size: 12px;
+.dark-badge {
+  font-size: var(--fs-12);
   font-weight: 500;
   color: var(--contrast-on);
   background: color-mix(in srgb, var(--contrast-on) 12%, transparent);
@@ -753,14 +747,14 @@
 .dark-col em {
   display: block;
   font-style: normal;
-  font-size: 13px;
+  font-size: var(--fs-12);
   color: var(--contrast-dim);
   margin: 8px 0 4px;
 }
 .dark-col strong {
-  font-size: 34px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-family: var(--mono);
+  font-size: var(--fs-32);
+  font-weight: 500;
 }
 
 /* the vermilion card */
@@ -779,19 +773,19 @@
   margin-bottom: 10px;
 }
 .accent-card-head h2 {
-  font-size: 17px;
-  font-weight: 600;
+  font-size: var(--fs-18);
+  font-weight: 500;
   margin: 0;
 }
 .accent-big {
-  font-size: 40px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-family: var(--mono);
+  font-size: var(--fs-40);
+  font-weight: 500;
   margin: 8px 0 6px;
 }
 .accent-card p {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.75);
+  font-size: var(--fs-12);
+  color: var(--accent-on-dim);
   margin: 0 0 4px;
 }
 /* list cards (recent sessions / projects) */
@@ -806,8 +800,8 @@
   margin-bottom: 4px;
 }
 .list-card-head h2 {
-  font-size: 19px;
-  font-weight: 600;
+  font-size: var(--fs-18);
+  font-weight: 500;
   letter-spacing: -0.01em;
   margin: 0;
 }
@@ -823,15 +817,16 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--fs-12);
   color: var(--tx1);
   white-space: nowrap;
 }
 .health-state.warn {
-  color: var(--c-error);
+  color: var(--warning-tx);
 }
 .health-facts {
-  font-size: 13.5px;
+  font-family: var(--mono);
+  font-size: var(--fs-14);
   color: var(--tx1);
 }
 .health-unknown {
@@ -839,15 +834,15 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  font-size: 12.5px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 .health-unknown-lead {
   margin-right: 2px;
 }
-.health-chip {
+.health-badge {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-10);
   padding: 3px 9px;
 }
 .health-skipped {
@@ -862,7 +857,7 @@
   display: flex;
   align-items: baseline;
   gap: 10px;
-  font-size: 12.5px;
+  font-size: var(--fs-12);
 }
 .health-skipped code {
   font-family: var(--mono);
@@ -870,7 +865,7 @@
   overflow-wrap: anywhere;
 }
 .health-skipped span {
-  color: var(--c-error);
+  color: var(--warning-tx);
   flex: none;
 }
 .health-maintain {
@@ -881,14 +876,10 @@
   margin-top: 2px;
 }
 .health-maintain-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
   color: var(--tx2);
 }
 .health-action {
-  font-size: 12.5px;
+  font-size: var(--fs-12);
   padding: 6px 12px;
 }
 .health-action:disabled {
@@ -896,7 +887,7 @@
   cursor: default;
 }
 .health-maintain-note {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 
@@ -913,12 +904,12 @@
   margin: 0 -12px;
   text-align: left;
   padding: 13px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
 }
 .recent-btn:hover {
   background: var(--bg1);
 }
-.recent-btn:hover .circle-sm {
+.recent-btn:hover .icon-btn {
   background: var(--contrast-solid);
   color: var(--contrast-on);
 }
@@ -930,13 +921,14 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14.5px;
-  font-weight: 600;
+  font-size: var(--fs-14);
+  font-weight: 500;
   overflow: hidden;
 }
 .recent-sub {
+  font-family: var(--mono);
   display: block;
-  font-size: 12.5px;
+  font-size: var(--fs-12);
   color: var(--tx1);
   margin-top: 2px;
   white-space: nowrap;
@@ -957,14 +949,14 @@
   margin: 0 -12px;
   text-align: left;
   padding: 11px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
 }
 .project-row:hover {
   background: var(--bg1);
 }
 .project-name {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--fs-14);
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -972,7 +964,7 @@
 .project-count {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 
@@ -1020,7 +1012,8 @@
   gap: 2px;
 }
 .chain-nav-label {
-  font-size: 12px;
+  font-family: var(--mono);
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 /* Ghost chevron links, sized down for the meta line. */
@@ -1041,21 +1034,34 @@
   gap: 12px;
 }
 /* Lens icon buttons carry the legend colors; the active lens reads as the
-   contrast surface (rule lives after .replay-action so it wins the tie). */
-.lens-action.lens-diffs {
-  color: var(--mint-tx);
+   contrast surface (rule lives after .icon-btn so it wins the tie). */
+/* Each lens wears its legend color as a wash — the same four hues the dots,
+   spine counts and tool dots use. Set the two custom properties the action
+   variant reads; it does the rest. Prompts is ink, which has no wash, so it
+   only takes the darker foreground. */
+/* A lens wears its category as the fill, with the glyph reversed out of it —
+   the hue is the button, not a tint on the icon. --c-on carries the reversal:
+   it flips with the theme because the category hues do. Hover is spelled out
+   on each so the base .icon-btn:hover can't take the fill back. */
+.lens-action.lens-diffs,
+.lens-action.lens-diffs:hover {
+  background: var(--c-diff);
+  color: var(--c-on);
 }
-.lens-action.lens-commands {
-  color: var(--purple-tx);
+.lens-action.lens-commands,
+.lens-action.lens-commands:hover {
+  background: var(--c-command);
+  color: var(--c-on);
 }
-.lens-action.lens-errors {
-  color: var(--accent);
+.lens-action.lens-errors,
+.lens-action.lens-errors:hover {
+  background: var(--danger);
+  color: var(--c-on);
 }
-.lens-action.lens-prompts {
-  color: var(--tx0);
-}
-.lens-action:disabled {
-  opacity: 0.35;
+.lens-action.lens-prompts,
+.lens-action.lens-prompts:hover {
+  background: var(--c-user);
+  color: var(--c-on);
 }
 .lens-actions {
   display: flex;
@@ -1072,14 +1078,14 @@
   justify-content: center;
   background: var(--bg2);
   color: var(--tx1);
-  font-size: 15px;
+  font-size: var(--fs-16);
 }
 .back-link:hover {
   color: var(--tx0);
 }
 .replay-project {
-  font-weight: 600;
-  font-size: 15px;
+  font-weight: 500;
+  font-size: var(--fs-16);
   /* Custom names can run long — one line, ellipsized, never a stacked column. */
   white-space: nowrap;
   overflow: hidden;
@@ -1089,28 +1095,30 @@
 }
 .replay-id {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
+/* Machine-measured — mono, like every other timestamp. */
 .replay-date {
-  font-size: 12.5px;
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx1);
+  white-space: nowrap;
+  flex: none;
+}
+/* Human-named — sans. Same size and tone, different family, because a repo
+   name is not a measurement. */
+.replay-project-sub {
+  font-size: var(--fs-12);
   color: var(--tx1);
   white-space: nowrap;
   flex: none;
 }
 /* Segmented toggles live in components/Segmented.css. */
 
-/* Toggles that sit on the bare background (screen headers, the search
-   cheat-line) take the card tone — bg2-on-bg0 is nearly invisible in the
-   light theme. Inside cards the inset bg2 stays. Same figure/ground as the
-   header pills. */
-.spend-head .view-toggle,
-.calendar-head .view-toggle,
-.calendar-head .circle-sm,
-.calendar-head .pill,
-.search-view {
-  background: var(--card);
-}
+/* Controls that sit on the bare background take the card tone — bg2-on-bg0 is
+   nearly invisible in the light theme. Every type now says this with
+   fill="card" at the call site instead of an override here. */
 /* replay-header action cluster: icon-only copy · download · stats */
 .replay-actions {
   margin-left: auto;
@@ -1137,26 +1145,20 @@
   gap: 6px;
 }
 .annotate-label {
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   color: var(--tx2);
 }
-.annotate-field input,
-.annotate-field textarea {
+/* The note field is components/TextArea.tsx; only the name input is local. */
+.annotate-field input {
   background: var(--bg1);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   padding: 10px 14px;
-  /* Form fields don't inherit the app font — the textarea falls back to the
-     browser's monospace default without this. */
+  /* Form controls do not inherit the app font. */
   font-family: var(--sans);
-  font-size: 13.5px;
+  font-size: var(--fs-14);
   line-height: 1.5;
   color: var(--tx0);
-  resize: vertical;
 }
-.annotate-field input:focus-visible,
-.annotate-field textarea:focus-visible {
+.annotate-field input:focus-visible {
   outline: 2px solid var(--accent-dim);
 }
 .annotate-actions {
@@ -1165,15 +1167,13 @@
   justify-content: flex-end;
 }
 .annotate-actions .pill,
-.annotate-save {
-  padding: 8px 18px;
-  font-size: 13px;
-}
 
-/* Active lens = the contrast surface, same statement as the sidebar's
-   hide-empty eye; the legend color yields to legibility while pressed. */
-.lens-action.active,
-.lens-action.active:hover {
+/* Active lens = the contrast surface, same statement every other IconButton
+   makes; the category fill yields to legibility while pressed. Three classes
+   deep on purpose: it has to outrank both the category fill above and the
+   component's own .icon-btn.on, which are each two. */
+.icon-btn.lens-action.on,
+.icon-btn.lens-action.on:hover {
   background: var(--contrast-solid);
   color: var(--contrast-on);
 }
@@ -1195,7 +1195,7 @@
   padding: 16px;
 }
 .load-earlier button {
-  font-size: 12.5px;
+  font-size: var(--fs-12);
   font-weight: 500;
   color: var(--tx1);
   background: var(--bg2);
@@ -1217,7 +1217,11 @@
    Bookmarks share the note-yellow language — marked things are yellow. */
 .block-bookmark {
   position: absolute;
-  left: -8px; /* log view: the empty gutter left of the block rail */
+  /* The slot's own 24px left padding IS the gutter, and the slot starts at
+     the card's edge — so a negative offset puts the toggle outside the card,
+     where the viewport clips it. 0 lands it flush in the gutter, left of the
+     block rail. */
+  left: 0;
   top: 8px;
   width: 24px;
   height: 24px;
@@ -1227,7 +1231,7 @@
   border-radius: 50%;
   color: var(--tx2);
   opacity: 0;
-  transition: opacity 120ms ease;
+  transition: opacity 150ms ease;
 }
 .block-slot:hover .block-bookmark,
 .block-bookmark:focus-visible {
@@ -1256,7 +1260,7 @@
 .match-current > .block {
   outline: 1.5px solid var(--blue);
   outline-offset: -1px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   animation: flash 1.2s ease-out;
 }
 @keyframes flash {
@@ -1293,14 +1297,14 @@
   margin: 2px 0;
 }
 .block-summary {
-  border-left-color: var(--c-side);
+  border-left-color: var(--c-assistant);
   display: flex;
   gap: 10px;
   align-items: baseline;
 }
 .summary-text {
   color: var(--tx1);
-  font-size: 13px;
+  font-size: var(--fs-12);
   font-style: italic;
 }
 .block-attachment {
@@ -1308,7 +1312,7 @@
 }
 .attach-detail {
   color: var(--tx1);
-  font-size: 12.5px;
+  font-size: var(--fs-12);
   font-family: var(--mono);
   overflow-wrap: anywhere;
 }
@@ -1323,10 +1327,10 @@
   color: var(--tx2);
   font-style: italic;
 }
+/* Not an uppercase label — a mode marker reads as running text. */
 .mode-text {
-  font-size: 12px;
+  font-size: var(--fs-12);
   font-weight: 500;
-  letter-spacing: 0.04em;
   color: var(--tx2);
 }
 
@@ -1337,22 +1341,18 @@
   margin-bottom: 4px;
 }
 .block-label {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: var(--tx2);
 }
 .block-user .block-label {
   color: var(--tx0);
 }
 .block-assistant .block-label {
-  color: var(--c-side);
+  color: var(--c-assistant);
 }
 .block-ts {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: var(--fs-12);
   color: var(--tx2);
   flex: none;
 }
@@ -1362,7 +1362,7 @@
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
-  font-size: 12.5px;
+  font-size: var(--fs-14);
   line-height: 1.55;
   color: var(--tx0);
 }
@@ -1373,7 +1373,7 @@
 .raw-toggle,
 .code-highlight-anyway,
 .diff-expand {
-  font-size: 12px;
+  font-size: var(--fs-12);
   font-weight: 500;
   color: var(--tx2);
   padding: 3px 0;
@@ -1397,9 +1397,9 @@
 
 .caret {
   display: inline-block;
-  transition: transform 100ms;
+  transition: transform 150ms ease;
   color: var(--tx2);
-  font-size: 11px;
+  font-size: var(--fs-10);
   width: 12px;
 }
 .caret.open {
@@ -1410,19 +1410,19 @@
   margin-bottom: 6px;
 }
 .thinking-toggle {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx2);
   font-style: italic;
 }
 .thinking .clamped {
-  border-left: 1px dotted var(--line);
+  border-left: 2px dotted var(--line);
   padding-left: 10px;
   margin-top: 4px;
 }
 .thinking .clamped pre {
   color: var(--tx1);
   font-style: italic;
-  font-size: 12px;
+  font-size: var(--fs-12);
 }
 
 /* tool blocks */
@@ -1434,7 +1434,7 @@
   width: 100%;
   text-align: left;
   padding: 3px 0;
-  font-size: 12.5px;
+  font-size: var(--fs-12);
 }
 .tool-head:hover .tool-name {
   color: var(--accent-hi);
@@ -1446,9 +1446,8 @@
   background: var(--c-tool);
   flex: none;
 }
-.tool-dot.failed {
-  background: var(--c-error);
-}
+/* Its category colors (diff / cmd / failed) live with the lens legend below,
+   which owns those four hues everywhere they appear. */
 .tool-name {
   font-family: var(--mono);
   font-weight: 500;
@@ -1457,15 +1456,15 @@
 }
 .tool-summary {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .tool-pending {
-  font-size: 12px;
-  color: var(--c-error);
+  font-size: var(--fs-12);
+  color: var(--warning-tx);
   opacity: 0.75;
   flex: none;
 }
@@ -1477,7 +1476,7 @@
 }
 .tool-note {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx1);
   word-break: break-all;
 }
@@ -1486,22 +1485,18 @@
   padding-top: 6px;
 }
 .tool-result-label {
-  font-size: 11.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: var(--tx2);
   margin-bottom: 4px;
 }
 .tool-result.error .tool-result-label {
-  color: var(--c-error);
+  color: var(--danger);
 }
 .tool-result.error .clamped pre {
-  color: var(--c-error);
+  color: var(--danger);
 }
 .tool-result .clamped pre {
   color: var(--tx1);
-  font-size: 12px;
+  font-size: var(--fs-12);
   max-height: 480px;
   overflow-y: auto;
 }
@@ -1510,17 +1505,22 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  font-size: 12.5px;
+  font-size: var(--fs-12);
 }
 .todo-list li {
   padding: 1px 0;
   color: var(--tx1);
 }
+/* The glyph (☑ ◐ ☐) carries the state; color is the second encoding, and it
+   rides the ink hierarchy rather than a hue of its own — done fades out, the
+   live one is full ink. (Was var(--orange), a token that never existed, so
+   in-progress rendered identically to pending.) */
 .todo-list li[data-status='completed'] {
   color: var(--tx2);
 }
 .todo-list li[data-status='in_progress'] {
-  color: var(--orange);
+  color: var(--tx0);
+  font-weight: 500;
 }
 
 .system-head {
@@ -1529,28 +1529,49 @@
   gap: 8px;
   width: 100%;
   text-align: left;
-  font-size: 12px;
+  font-size: var(--fs-12);
 }
 .system-preview {
   color: var(--tx2);
-  font-size: 12px;
+  font-size: var(--fs-12);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* A raw event type is data, not a label — so it keeps its own case and drops
+   the uppercase tracking entirely rather than inventing a third value. */
 .block-unknown .block-label {
   text-transform: none;
-  letter-spacing: 0.02em;
+  letter-spacing: normal;
   font-weight: 500;
 }
 
 /* sidechain runs */
 
+/* The nested content gets NO tint: --blue-dim is semi-transparent, so a wash
+   over the region would recolour every diff and code block inside it. */
 .sidechain {
+  position: relative;
   margin: 6px 0 4px 20px;
-  border-left: var(--rail-w) solid var(--c-side);
-  border-radius: 0 14px 14px 0;
-  background: var(--blue-dim);
+  border-left: var(--rail-w) solid var(--c-assistant);
+    padding-left: 10px;
+}
+/* Beside the content, never behind it. Hard colour stops, not a fade — a
+   gradient interpolating to `transparent` leaves a dark fringe. */
+.sidechain::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 10px;
+  pointer-events: none;
+  background-color: color-mix(in srgb, var(--c-assistant) 16%, transparent);
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--c-assistant) 48%, transparent) 0 1px,
+    transparent 1px 6px
+  );
 }
 .sidechain-head {
   display: flex;
@@ -1561,13 +1582,13 @@
   padding: 8px 12px;
 }
 .sidechain-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--c-side);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  color: var(--c-assistant);
 }
 .sidechain-count {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 .sidechain-body {
@@ -1581,7 +1602,7 @@
 
 .code-block {
   position: relative;
-  border-radius: 14px;
+  border-radius: var(--radius);
   background: var(--bg1);
   overflow: hidden;
 }
@@ -1589,7 +1610,7 @@
   margin: 0;
   padding: 12px 14px;
   overflow-x: auto;
-  font-size: 12px;
+  font-size: var(--fs-12);
   line-height: 1.55;
   background: transparent !important;
 }
@@ -1602,7 +1623,7 @@
 }
 
 .diff {
-  border-radius: 14px;
+  border-radius: var(--radius);
   overflow: hidden;
   background: var(--bg1);
 }
@@ -1610,7 +1631,7 @@
   width: 100%;
   border-collapse: collapse;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-12);
   line-height: 1.5;
 }
 .diff-no {
@@ -1635,25 +1656,25 @@
   padding-right: 8px;
 }
 .diff-add {
-  background: var(--diff-add-bg);
+  background: var(--success-dim);
 }
 .diff-add .diff-text,
 .diff-add .diff-sign {
-  color: var(--diff-add-tx);
+  color: var(--success-tx);
 }
 .diff-del {
-  background: var(--diff-del-bg);
+  background: var(--danger-dim);
 }
 .diff-del .diff-text,
 .diff-del .diff-sign {
-  color: var(--diff-del-tx);
+  color: var(--danger-tx);
 }
 .diff-ctx .diff-text {
   color: var(--tx1);
 }
 .diff-hunk td {
   color: var(--tx2);
-  font-size: 11.5px;
+  font-size: var(--fs-12);
   padding: 2px 8px;
   background: var(--bg2);
 }
@@ -1666,20 +1687,20 @@
 }
 .diff-stats {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-12);
 }
 .diff-stat-add {
-  color: var(--diff-add-tx);
+  color: var(--success-tx);
 }
 .diff-stat-del {
-  color: var(--diff-del-tx);
+  color: var(--danger-tx);
   margin-left: 6px;
 }
 
 /* markdown */
 
 .md {
-  font-size: 13.5px;
+  font-size: var(--fs-14);
   line-height: 1.6;
   overflow-wrap: break-word;
 }
@@ -1696,13 +1717,13 @@
 .md h2,
 .md h3,
 .md h4 {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--fs-14);
+  font-weight: 500;
   margin: 14px 0 6px;
   color: var(--tx0);
 }
 .md h1 {
-  font-size: 15px;
+  font-size: var(--fs-16);
 }
 .md ul,
 .md ol {
@@ -1711,12 +1732,6 @@
 }
 .md li {
   margin: 2px 0;
-}
-.md code {
-  background: var(--bg2);
-  border-radius: 5px;
-  padding: 1px 5px;
-  font-size: 12px;
 }
 .md .code-block {
   margin: 8px 0;
@@ -1735,7 +1750,7 @@
 .md table {
   border-collapse: collapse;
   margin: 8px 0;
-  font-size: 12.5px;
+  font-size: var(--fs-12);
 }
 .md th,
 .md td {
@@ -1767,7 +1782,7 @@
   border-radius: 999px;
   padding: 10px 18px;
   box-shadow: var(--shadow);
-  font-size: 13px;
+  font-size: var(--fs-12);
   font-weight: 500;
 }
 .match-query {
@@ -1780,13 +1795,13 @@
 .match-count {
   color: var(--contrast-on);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-12);
 }
 /* Ghost buttons inverted for the contrast pill. */
-.match-bar .icon-ghost {
+.match-bar .icon-btn.ghost {
   color: var(--contrast-dim);
 }
-.match-bar .icon-ghost:hover {
+.match-bar .icon-btn.ghost:hover {
   color: var(--contrast-on);
   background: var(--contrast-line);
 }
@@ -1816,10 +1831,6 @@
   }
 }
 .outline-title {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: var(--tx2);
   padding: 15px 16px 10px;
 }
@@ -1835,8 +1846,8 @@
   width: 100%;
   text-align: left;
   padding: 6px 9px;
-  border-radius: 10px;
-  font-size: 12px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-12);
   color: var(--tx1);
 }
 .outline-item:hover {
@@ -1852,15 +1863,15 @@
 }
 .outline-n {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-10);
   color: var(--tx2);
   min-width: 16px;
   text-align: right;
   flex: none;
 }
 .outline-item.has-error .outline-n {
-  color: var(--c-error);
-  font-weight: 600;
+  color: var(--danger);
+  font-weight: 500;
 }
 .outline-text {
   overflow: hidden;
@@ -1880,7 +1891,7 @@
      The 8px inset is the pill edge: the open-turn wash below shares it, so
      an expanded turn never bulges past its neighbors' hover pills. */
   margin: 0 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
 }
 .turn-head {
   display: flex;
@@ -1889,12 +1900,13 @@
   width: 100%;
   text-align: left;
   padding: 12px 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
 }
 .turn:not(.open) > .turn-head:hover {
   background: var(--bg1);
 }
 .turn-n {
+  font-family: var(--mono);
   /* the reference's day circles: quiet gray, dark when active */
   width: 30px;
   height: 30px;
@@ -1905,8 +1917,8 @@
   justify-content: center;
   background: var(--bg2);
   color: var(--tx1);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: 500;
 }
 .turn.open .turn-n {
   background: var(--contrast-solid);
@@ -1916,8 +1928,8 @@
   display: none;
 }
 .turn-text {
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: var(--fs-14);
+  font-weight: 500;
   color: var(--tx0);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1936,17 +1948,17 @@
   gap: 11px;
   flex: none;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: var(--fs-12);
   color: var(--tx2);
   white-space: nowrap;
 }
 .turn-meta-error {
-  color: var(--c-error);
+  color: var(--danger);
   font-weight: 500;
 }
 .turn-ts {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: var(--fs-12);
   color: var(--tx2);
   flex: none;
 }
@@ -1961,7 +1973,7 @@
 }
 .turn-loading {
   padding: 18px 36px;
-  font-size: 13px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 
@@ -1980,17 +1992,12 @@
 }
 /* The query box is a components/SearchField.css lg field. */
 .search-meta {
-  font-size: 13px;
+  font-size: var(--fs-12);
   color: var(--tx1);
   margin: 12px 6px 6px;
 }
 .search-meta kbd {
   margin: 0 1px;
-}
-.search-meta code {
-  background: var(--bg2);
-  border-radius: 5px;
-  padding: 0 5px;
 }
 
 .search-results {
@@ -2019,8 +2026,8 @@
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 .search-group-title {
-  font-weight: 600;
-  font-size: 15px;
+  font-weight: 500;
+  font-size: var(--fs-16);
   color: var(--tx0);
 }
 .search-group-title:hover {
@@ -2028,12 +2035,14 @@
   text-underline-offset: 4px;
 }
 .search-group-meta {
-  font-size: 12px;
+  font-family: var(--mono);
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 .search-group-count {
+  font-family: var(--mono);
   margin-left: auto;
-  font-size: 12px;
+  font-size: var(--fs-12);
   font-weight: 500;
   color: var(--tx1);
   background: var(--bg2);
@@ -2048,14 +2057,14 @@
   width: 100%;
   text-align: left;
   padding: 8px 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
 }
 .search-hit.active {
   background: var(--bg1);
 }
 .snippet {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx1);
   overflow: hidden;
   display: -webkit-box;
@@ -2063,6 +2072,8 @@
   -webkit-box-orient: vertical;
   word-break: break-word;
 }
+/* A search hit wraps a few characters of running text — off both ladders on
+   purpose, like the keycap and the note-dot fold. */
 .snippet mark {
   background: var(--mark);
   color: var(--tx0);
@@ -2072,7 +2083,7 @@
 .search-hit-ts {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: var(--fs-12);
   color: var(--tx2);
   flex: none;
 }
@@ -2081,7 +2092,9 @@
 
 .skel {
   display: inline-block;
-  background: linear-gradient(90deg, var(--bg2) 25%, var(--bg1) 42%, var(--bg2) 60%);
+  /* --bg3/--bg2, not --bg2/--bg1: skeletons land on --card (sidebar, replay)
+     AND on --bg0 (the screen), and the lighter pair is invisible on --bg0. */
+  background: linear-gradient(90deg, var(--bg3) 25%, var(--bg2) 42%, var(--bg3) 60%);
   background-size: 300% 100%;
   animation: skel-shimmer 1.4s ease-in-out infinite;
 }
@@ -2135,32 +2148,32 @@
      prompts=ink — anywhere those dimensions appear ────────────────── */
 
 .turn-meta .m-edits {
-  color: var(--mint-tx);
+  color: var(--c-diff-tx);
 }
 .turn-meta .m-cmds {
-  color: var(--purple-tx);
+  color: var(--c-command-tx);
 }
 .turn-meta .m-errors {
-  color: var(--c-error);
+  color: var(--danger);
   font-weight: 500;
 }
 
 .tool-dot.cat-diff {
-  background: var(--mint);
+  background: var(--c-diff);
 }
 .tool-dot.cat-cmd {
-  background: var(--purple);
+  background: var(--c-command);
 }
 .tool-dot.failed {
-  background: var(--c-error);
+  background: var(--danger);
 }
 
 .skel-onaccent {
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.25) 25%,
-    rgba(255, 255, 255, 0.4) 42%,
-    rgba(255, 255, 255, 0.25) 60%
+    color-mix(in srgb, var(--accent-on) 25%, transparent) 25%,
+    color-mix(in srgb, var(--accent-on) 40%, transparent) 42%,
+    color-mix(in srgb, var(--accent-on) 25%, transparent) 60%
   );
   background-size: 300% 100%;
 }
@@ -2187,7 +2200,7 @@
 }
 .find-count {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx1);
 }
 
@@ -2212,13 +2225,13 @@
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 4px 14px 4px 5px;
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx1);
 }
 .you-are-here .turn-n {
   width: 24px;
   height: 24px;
-  font-size: 11.5px;
+  font-size: var(--fs-12);
 }
 .yah-text {
   overflow: hidden;
@@ -2241,23 +2254,23 @@
   align-items: center;
   gap: 8px;
   background: var(--card);
-  border: 1px solid color-mix(in srgb, var(--c-error) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
   border-radius: 999px;
   padding: 8px 13px;
   box-shadow: var(--shadow);
-  font-size: 12.5px;
+  font-size: var(--fs-12);
 }
 .error-nav-count {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-12);
   font-weight: 500;
-  color: var(--c-error);
+  color: var(--danger);
 }
-.error-nav .icon-ghost {
+.error-nav .icon-btn.ghost {
   color: var(--tx1);
 }
-.error-nav .icon-ghost:hover {
-  color: var(--c-error);
+.error-nav .icon-btn.ghost:hover {
+  color: var(--danger);
   background: var(--bg1);
 }
 /* Bookmark rail: the error pill's sibling, in the note-yellow language. */
@@ -2270,7 +2283,7 @@
 .bookmark-nav-count {
   color: var(--c-note);
 }
-.bookmark-nav .icon-ghost:hover {
+.bookmark-nav .icon-btn.ghost:hover {
   color: var(--tx0);
 }
 
@@ -2286,8 +2299,8 @@
   justify-content: center;
 }
 .outline-item.has-error.current .outline-n {
-  background: var(--c-error);
-  color: var(--accent-on);
+  background: var(--danger-fill);
+  color: var(--tile-on);
 }
 
 /* ── files view (per-file diffs pivot) ─────────────────────────────── */
@@ -2319,7 +2332,7 @@
   width: 100%;
   text-align: left;
   padding: 9px 11px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   gap: 1px;
 }
 .file-item:hover {
@@ -2330,7 +2343,7 @@
 }
 .file-item-name {
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: var(--fs-12);
   font-weight: 500;
   color: var(--tx0);
   overflow: hidden;
@@ -2339,7 +2352,7 @@
 }
 .file-item-dir {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-10);
   color: var(--tx2);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2349,7 +2362,7 @@
   display: flex;
   gap: 10px;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: var(--fs-12);
   color: var(--tx2);
   margin-top: 3px;
 }
@@ -2366,12 +2379,15 @@
 }
 .file-diffs-head {
   flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
   padding: 14px 22px;
   border-bottom: 1px solid var(--line-soft);
 }
 .file-diffs-path {
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: var(--fs-12);
   color: var(--tx1);
   word-break: break-all;
 }
@@ -2392,14 +2408,11 @@
 .file-entry-head .turn-n {
   width: 24px;
   height: 24px;
-  font-size: 11.5px;
+  font-size: var(--fs-12);
 }
-.chip-failed {
-  background: var(--accent-dim);
-  color: var(--c-error);
-}
+/* (.badge-failed lives in components/Badge.css — it was duplicated here.) */
 .file-entry-jump {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 .file-entry-jump:hover {
@@ -2408,25 +2421,23 @@
 .file-entry-ts {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 
 /* Operators cheat-line — always visible under the search meta; the bottom
    margin is the breathing room before the results. */
 .search-ops {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
   margin: 0 6px 20px;
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
-.search-ops code {
-  background: var(--bg1);
-  border-radius: 5px;
-  padding: 1px 6px;
-  font-size: 11px;
-}
 
-/* ── saved searches (chips under the search box) ───────────────────── */
+/* ── saved searches (badges under the search box) ───────────────────── */
 
 .saved-row {
   display: flex;
@@ -2435,16 +2446,16 @@
   flex-wrap: wrap;
   margin-top: 10px;
 }
-.saved-chip {
+.saved-badge {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
   background: var(--bg1);
   overflow: hidden;
 }
-.saved-chip-run {
+.saved-badge-run {
   padding: 5px 4px 5px 12px;
-  font-size: 12.5px;
+  font-size: var(--fs-12);
   font-weight: 500;
   color: var(--tx1);
   max-width: 260px;
@@ -2452,24 +2463,24 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.saved-chip:hover {
+.saved-badge:hover {
   background: var(--bg2);
 }
-.saved-chip:hover .saved-chip-run {
+.saved-badge:hover .saved-badge-run {
   color: var(--tx0);
 }
-/* Ghost ✕ sized into the chip; delete reads accent on hover. */
-.saved-chip .saved-chip-x {
+/* Ghost ✕ sized into the badge; delete reads accent on hover. */
+.saved-badge .saved-badge-x {
   width: 22px;
   height: 22px;
   margin-right: 3px;
 }
-.saved-chip .saved-chip-x:hover {
+.saved-badge .saved-badge-x:hover {
   color: var(--accent);
   background: none;
 }
 .saved-add {
-  font-size: 12.5px;
+  font-size: var(--fs-12);
   color: var(--tx2);
   padding: 5px 10px;
   border-radius: 999px;
@@ -2485,13 +2496,13 @@
 }
 .saved-name-form input {
   padding: 5px 12px;
-  font-size: 12.5px;
+  font-size: var(--fs-12);
   border-radius: 999px;
   background: var(--bg1);
   width: 220px;
 }
 .saved-name-form button {
-  font-size: 12.5px;
+  font-size: var(--fs-12);
   color: var(--tx1);
   padding: 5px 10px;
   border-radius: 999px;
@@ -2510,7 +2521,7 @@
 .fh-search input {
   width: 100%;
   background: var(--bg1);
-  font-size: 13px;
+  font-size: var(--fs-14);
 }
 .file-list .outline-title {
   padding: 10px 16px 4px;
@@ -2519,11 +2530,6 @@
   margin-left: auto;
   flex: none;
   white-space: nowrap;
-}
-.file-diffs-head {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
 }
 .fh-session {
   /* Rows separate by spacing, not hairlines — per-row rules read as a table
@@ -2537,14 +2543,14 @@
   width: 100%;
   text-align: left;
   padding: 11px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
 }
 .fh-session-head:hover {
   background: var(--bg1);
 }
 .fh-session-name {
-  font-weight: 600;
-  font-size: 13.5px;
+  font-weight: 500;
+  font-size: var(--fs-14);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2555,7 +2561,7 @@
   display: flex;
   gap: 12px;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 .fh-session-body {
@@ -2574,13 +2580,16 @@
   gap: 10px;
   margin: 4px 6px 14px;
 }
+/* The same display number as .spend-total — it answers the same question one
+   view over, and sits under the same 26px screen title. (Was 22px/650: off
+   both the size tier and the 400/500/600 weight scale.) */
 .disk-total strong {
-  font-size: 22px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  font-family: var(--mono);
+  font-size: var(--fs-32);
+  font-weight: 500;
 }
 .disk-total span {
-  font-size: 13px;
+  font-size: var(--fs-12);
   color: var(--tx1);
 }
 .disk-list {
@@ -2592,7 +2601,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 /* Relative-size bar behind each row — magnitude at a glance. */
@@ -2600,7 +2609,9 @@
   position: absolute;
   inset: 2px auto 2px 0;
   background: color-mix(in srgb, var(--blue) 10%, transparent);
-  border-radius: 10px;
+  /* Derived from the row it sits inside, not a scale step: the row's radius
+     less the 2px inset, so the bar's corners stay concentric with it. */
+  border-radius: calc(var(--radius-sm) - 2px);
   pointer-events: none;
 }
 .disk-row-main {
@@ -2612,41 +2623,36 @@
   gap: 11px;
   text-align: left;
   padding: 9px 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
 }
 .disk-row-main:hover {
   background: var(--bg1);
 }
 .disk-row-name {
-  font-weight: 600;
-  font-size: 13.5px;
+  font-weight: 500;
+  font-size: var(--fs-14);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .disk-row-date {
+  font-family: var(--mono);
   flex: none;
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 .disk-row-bytes {
   margin-left: auto;
   flex: none;
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: var(--fs-12);
   color: var(--tx0);
 }
 /* The reveal button is a plain ghost IconButton. */
 .disk-note {
   margin: 0 6px 30px;
-  font-size: 12.5px;
+  font-size: var(--fs-12);
   color: var(--tx2);
-}
-.disk-note code {
-  background: var(--bg2);
-  border-radius: 5px;
-  padding: 1px 6px;
-  font-size: 11.5px;
 }
 
 /* ── what's new (bundled release notes — nothing fetched) ──────────── */
@@ -2657,9 +2663,12 @@
   overflow-y: auto;
   width: 100%;
 }
+/* .screen already applies the shared --gutter; this only adds the vertical
+   room the notes want. It used to add 18px of its own horizontally, so this
+   screen sat inset further than every other one. */
 .whatsnew-inner {
   width: 100%;
-  padding: 22px 18px 64px;
+  padding: 6px 0 64px;
 }
 .whatsnew-head {
   display: flex;
@@ -2668,38 +2677,38 @@
   margin-bottom: 18px;
 }
 .whatsnew-head h1 {
-  font-size: 24px;
-  font-weight: 600;
+  font-size: var(--fs-24);
+  font-weight: 500;
   letter-spacing: -0.015em;
   margin: 0;
 }
 .whatsnew-current {
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 .wn-release {
   background: var(--card);
   border-radius: var(--radius-lg);
-  padding: 22px 26px 18px;
+  padding: 22px 26px 24px;
   margin-bottom: 14px;
 }
+/* A card header, which is one of the two places a hairline is allowed. */
 .wn-release-head {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-soft);
 }
 .wn-release-head h2 {
-  font-size: 16px;
-  font-weight: 600;
+  /* --fs-18 is the card-title step; this one had been at 16 alone. */
+  font-size: var(--fs-18);
+  font-weight: 500;
   margin: 0;
 }
-.wn-current-chip {
-  font-size: 10.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.wn-current-badge {
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--contrast-solid);
@@ -2708,7 +2717,20 @@
 .wn-release-date {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+/* One heading per kind instead of a badge on every row: with the rows
+   grouped, saying "added" eleven times down the left edge is noise. */
+.wn-group + .wn-group {
+  margin-top: 22px;
+}
+.wn-group-title {
+  margin: 0 0 8px;
+  font-size: var(--fs-10);
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
   color: var(--tx2);
 }
 .wn-notes {
@@ -2716,36 +2738,28 @@
   margin: 0;
   padding: 0;
 }
+/* Release notes are prose, and prose needs a measure — the full-bleed rule
+   governs lists and screens, not a paragraph. Without one these ran the whole
+   window, ~200 characters a line. */
 .wn-note {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 6px 0;
-  font-size: 13.5px;
+  position: relative;
+  max-width: 78ch;
+  padding: 5px 0 5px 20px;
+  font-size: var(--fs-14);
+  line-height: 1.6;
   color: var(--tx0);
 }
-.wn-kind {
-  flex: none;
-  width: 74px;
-  text-align: center;
-  font-size: 10.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 2px 0;
-  border-radius: 999px;
-}
-.wn-added {
-  background: var(--diff-add-bg);
-  color: var(--mint-tx);
-}
-.wn-improved {
-  background: var(--blue-dim);
-  color: var(--blue);
-}
-.wn-fixed {
-  background: var(--accent-dim);
-  color: var(--accent);
+/* The badge used to anchor the left edge of every row; with it gone the notes
+   ran together, so each keeps a mark at the smallest size the system has. */
+.wn-note::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 13px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tx2);
 }
 
 /* ── spend screen ──────────────────────────────────────────────────── */
@@ -2772,8 +2786,8 @@
   overflow-y: auto;
 }
 .spend-head h1 {
-  font-size: 26px;
-  font-weight: 600;
+  font-size: var(--fs-24);
+  font-weight: 500;
   letter-spacing: -0.015em;
   margin: 0;
   margin-right: 6px;
@@ -2796,7 +2810,7 @@
 }
 .spend-actions .pill {
   padding: 8px 15px;
-  font-size: 12.5px;
+  font-size: var(--fs-12);
 }
 
 .spend-grid-layout {
@@ -2823,20 +2837,21 @@
   margin-bottom: 18px;
 }
 .spend-total {
-  font-size: 36px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-family: var(--mono);
+  font-size: var(--fs-32);
+  font-weight: 500;
 }
 .spend-total-sub {
+  font-family: var(--mono);
   display: block;
-  font-size: 13px;
+  font-size: var(--fs-12);
   color: var(--tx1);
   margin-top: 2px;
 }
 .spend-total-sub em {
   font-style: normal;
   color: var(--tx0);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .spend-chart {
@@ -2875,8 +2890,8 @@
   width: 100%;
   min-height: 2px;
   background: var(--tx0);
-  border-radius: 4px 4px 0 0;
-  transition: background 80ms;
+  border-radius: var(--radius-mark) var(--radius-mark) 0 0;
+  transition: background 150ms ease;
 }
 .spend-col:hover .spend-bar {
   background: var(--accent);
@@ -2886,12 +2901,12 @@
   left: 50%;
   transform: translateX(-50%);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-12);
   font-weight: 500;
   color: var(--tx1);
   white-space: nowrap;
   pointer-events: none;
-  transition: opacity 80ms;
+  transition: opacity 150ms ease;
 }
 .spend-plot:hover .spend-peak {
   opacity: 0;
@@ -2906,7 +2921,7 @@
   min-width: 0;
   text-align: center;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-10);
   color: var(--tx2);
   white-space: nowrap;
 }
@@ -2923,8 +2938,8 @@
   padding: 11px 2px;
 }
 .split-name {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--fs-14);
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2932,13 +2947,13 @@
 .split-meta {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx2);
   flex: none;
 }
 .split-cost {
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: var(--fs-12);
   font-weight: 500;
   min-width: 74px;
   text-align: right;
@@ -2952,7 +2967,7 @@
   margin-bottom: 10px;
 }
 .spend-cache-note {
-  font-size: 13.5px;
+  font-size: var(--fs-14);
   color: var(--contrast-dim);
   max-width: 72ch;
   margin: 0;
@@ -2973,13 +2988,14 @@
   padding: 12px 4px 18px;
 }
 .calendar-head h1 {
-  font-size: 26px;
-  font-weight: 600;
+  font-size: var(--fs-24);
+  font-weight: 500;
   letter-spacing: -0.015em;
   margin: 0;
 }
 .calendar-range {
-  font-size: 14px;
+  font-family: var(--mono);
+  font-size: var(--fs-14);
   color: var(--tx1);
 }
 .calendar-nav {
@@ -2990,10 +3006,10 @@
 }
 .calendar-nav .pill {
   padding: 8px 15px;
-  font-size: 12.5px;
+  font-size: var(--fs-12);
 }
 .calendar-nav .pill:disabled,
-.calendar-nav .circle:disabled {
+.calendar-nav .icon-btn:disabled {
   opacity: 0.4;
   cursor: default;
 }
@@ -3019,7 +3035,7 @@
   top: 2px;
   transform: translateX(-50%);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-10);
   color: var(--tx2);
 }
 .calendar-week-row {
@@ -3035,13 +3051,13 @@
   gap: 8px;
 }
 .calendar-dow {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: 500;
   color: var(--tx1);
 }
 .calendar-date {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 .calendar-date.today {
@@ -3059,7 +3075,7 @@
   min-width: 0;
   position: relative;
   background: var(--bg1);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
 }
 .calendar-week-row.today .calendar-row-track {
   background: var(--bg2);
@@ -3072,14 +3088,14 @@
 }
 .calendar-block {
   position: absolute;
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 6px;
   text-align: left;
-  transition: filter 80ms;
+  transition: filter 150ms ease;
   box-shadow: 0 0 0 1.5px var(--card);
 }
 .calendar-block:hover {
@@ -3095,60 +3111,41 @@
 }
 .calendar-block.tier-bar {
   padding: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-mark);
 }
 .calendar-block-name {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: 500;
   line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .tier-compact .calendar-block-name {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: 500;
 }
 .calendar-block-meta {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-10);
   opacity: 0.8;
   overflow: hidden;
   white-space: nowrap;
 }
 /* labeled header pill (Spend) */
-.header-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 44px;
-  padding: 0 18px;
-  border-radius: 999px;
-  background: var(--card);
-  color: var(--tx1);
-  font-size: 14px;
-  font-weight: 600;
-}
-.header-pill:hover {
-  color: var(--tx0);
-}
-.header-pill.active {
-  background: var(--contrast-solid);
-  color: var(--contrast-on);
-}
-
 /* update-available strip, under the header, full width */
 .update-banner {
   flex: none;
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 0 28px 4px;
+  /* Lines up with the screen below it — both use the shared gutter. */
+  margin: 0 var(--gutter) 4px;
   padding: 9px 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: var(--accent-dim);
   border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  font-size: 13px;
+  font-size: var(--fs-12);
   color: var(--tx0);
 }
 .update-banner-dot {
@@ -3163,32 +3160,30 @@
 }
 .update-banner-text strong {
   color: var(--tx0);
-  font-weight: 600;
+  font-weight: 500;
 }
+/* The copy-this-command affordance, same shape as the farewell screen's
+   .stopped-cmd — both are a pill with a hairline that warms to the accent. */
 .update-banner-cmd {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 4px 10px;
-  border-radius: 8px;
+  border-radius: 999px;
   background: var(--card);
   border: 1px solid var(--line);
   color: var(--tx1);
-  font-size: 12px;
+  font-size: var(--fs-12);
 }
 .update-banner-cmd:hover {
   color: var(--tx0);
   border-color: var(--accent);
 }
 .update-banner-cmd code {
-  font-family: var(--mono, ui-monospace, monospace);
   color: var(--tx0);
 }
 .update-banner-copy {
   color: var(--tx2);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-size: 11px;
 }
 .update-banner .update-banner-x {
   margin-left: auto;
@@ -3218,8 +3213,8 @@
 }
 .month-dow {
   text-align: center;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: 500;
   color: var(--tx2);
 }
 .month-grid {
@@ -3235,10 +3230,10 @@
   gap: 4px;
   min-height: 84px;
   padding: 8px 9px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: var(--bg1);
   text-align: left;
-  transition: filter 80ms;
+  transition: filter 150ms ease;
 }
 .month-cell.has {
   cursor: pointer;
@@ -3251,7 +3246,7 @@
 }
 .month-date {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: var(--tx1);
 }
 .month-date.today {
@@ -3267,8 +3262,8 @@
 .month-cost {
   margin-top: auto;
   font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-14);
+  font-weight: 500;
   color: var(--tx0);
 }
 .month-dots {
@@ -3277,38 +3272,15 @@
   gap: 4px;
 }
 .tile-dot {
+  background: var(--contrast-solid);
   width: 8px;
   height: 8px;
   border-radius: 50%;
 }
-.tile-dot.tile-0 {
-  background: var(--tile-0);
-}
-.tile-dot.tile-1 {
-  background: var(--tile-1);
-}
-.tile-dot.tile-2 {
-  background: var(--tile-2);
-}
-.tile-dot.tile-3 {
-  background: var(--tile-3);
-}
-.tile-dot.tile-4 {
-  background: var(--tile-4);
-}
-.tile-dot.tile-5 {
-  background: var(--tile-5);
-}
-.tile-dot.tile-6 {
-  background: var(--tile-6);
-}
-.tile-dot.tile-7 {
-  background: var(--tile-7);
-}
 .month-count {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-10);
   color: var(--tx2);
 }
 
@@ -3319,16 +3291,25 @@
 /* export control (replay header) */
 
 /* ── micro-interactions ────────────────────────────────────────────────
-   One motion voice: 150ms ease color/background shifts on hover, a small
-   press-down scale on activation, a lift on round buttons. Transform-only
-   where possible so nothing reflows. */
+   One motion voice, five durations — each with a job, and nothing in
+   between them (this had sprawled to eleven values):
 
-.circle,
-.circle-sm,
-.dir-toggle,
+     70ms          press-down scale on activation
+     140ms  soft   overlay entrances (tooltip, the lifted note)
+     150ms  ease   THE default — every hover: color, background, opacity,
+                   filter, and the small transforms that ride them
+     200ms  soft   a control's own transform (the sort-direction flip) and
+                   the sidebar's opacity, which lands before its slide does
+     260ms  soft   the sidebar slide
+
+   "soft" is cubic-bezier(0.25, 0.8, 0.3, 1). Transform-only where possible
+   so nothing reflows. */
+
+/* Primary carries its own hover/press in components/Primary.css — the type
+   owns its motion the way it owns its metrics. */
+.icon-btn,
 .pill,
 .back-link,
-.header-pill,
 .view-toggle button,
 .dd-trigger,
 .update-banner-cmd {
@@ -3338,42 +3319,31 @@
     border-color 150ms ease,
     transform 150ms ease;
 }
-.circle:hover,
-.dir-toggle:hover,
+.icon-btn:hover,
 .back-link:hover {
   transform: translateY(-1px);
 }
-.circle:active,
-.circle-sm:active,
-.dir-toggle:active,
+.icon-btn:active,
 .back-link:active {
   transform: scale(0.92);
   transition-duration: 70ms;
 }
 .pill:active,
-.header-pill:active,
 .view-toggle button:active,
 .update-banner-cmd:active {
   transform: scale(0.96);
   transition-duration: 70ms;
 }
-.circle:disabled,
 .pill:disabled {
   transform: none;
 }
 .side-item {
-  transition: background 130ms ease;
+  transition: background 150ms ease;
 }
 
 /* ── search-anchored timeline (#/search?v=timeline) ─────────────────── */
 
 /* The hits|timeline toggle rides the cheat-line row, right-aligned. */
-.search-ops {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-wrap: wrap;
-}
 .search-view {
   margin-left: auto;
 }
@@ -3402,7 +3372,7 @@
   overflow: hidden;
   white-space: nowrap;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-10);
   color: var(--tx2);
 }
 .tl-strip {
@@ -3419,12 +3389,16 @@
   align-items: center;
   gap: 3px;
   padding: 4px 0 3px;
-  border-radius: 6px 6px 0 0;
+  /* A timeline column is the same kind of object as a spend bar; it used to
+     cap at 6px and they read as two different marks. */
+  border-radius: var(--radius-mark) var(--radius-mark) 0 0;
 }
 .tl-col.weekend {
   background: var(--bg1);
 }
+/* One colour for every project: the same emphasis surface the tiles use. */
 .tl-dot {
+  background: var(--contrast-solid);
   width: 11px;
   height: 11px;
   border-radius: 999px;
@@ -3446,7 +3420,7 @@
 .tl-foot {
   margin-top: 10px;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 
@@ -3455,7 +3429,7 @@
 .ctx-strip {
   margin: 4px 6px 14px;
   background: var(--bg1);
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 12px 16px 14px;
 }
 .ctx-head {
@@ -3466,20 +3440,20 @@
   margin-bottom: 8px;
 }
 .ctx-title {
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: var(--fs-12);
+  font-weight: 500;
   color: var(--tx1);
 }
 .ctx-meta {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-10);
   color: var(--tx2);
 }
 .ctx-svg {
   display: block;
   width: 100%;
   height: 84px;
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
 }
 .ctx-area {
   fill: var(--blue);
@@ -3501,16 +3475,16 @@
   gap: 6px;
   margin-top: 10px;
 }
-.ctx-compact-chip {
+.ctx-compact-badge {
   border: none;
   cursor: pointer;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-10);
 }
 
 /* The spine's "compacted" marker stays quiet next to the tally text. */
 .turn-compact {
-  font-size: 10.5px;
+  font-size: var(--fs-10);
 }
 
 /* ── command palette (⌘K) ───────────────────────────────────────────── */
@@ -3519,7 +3493,7 @@
 .palette {
   width: min(580px, 100%);
   background: var(--card);
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow);
   overflow: hidden;
 }
@@ -3537,7 +3511,7 @@
   outline: none;
   background: none;
   font: inherit;
-  font-size: 14.5px;
+  font-size: var(--fs-16);
   color: var(--tx0);
 }
 .palette-input::placeholder {
@@ -3548,7 +3522,7 @@
   gap: 16px;
   padding: 9px 16px;
   border-top: 1px solid var(--line-soft);
-  font-size: 11.5px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 .palette-foot span {
@@ -3568,13 +3542,16 @@
   width: 100%;
   border: none;
   background: none;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   padding: 8px 10px;
   cursor: pointer;
   text-align: left;
   font: inherit;
   color: var(--tx0);
 }
+/* The row the keyboard is on — the same statement the sidebar's current
+   session makes, because it is the same idea. Not the contrast fill: that
+   says "you are here" about a destination, and this is a cursor. */
 .palette-item.active {
   background: var(--bg2);
 }
@@ -3582,21 +3559,27 @@
   flex: none;
   width: 28px;
   height: 28px;
-  border-radius: 9px;
+  border-radius: var(--radius-xs);
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--bg1);
   color: var(--tx1);
   font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-14);
+  font-weight: 500;
+}
+/* On the selected row the chip would otherwise sit *below* its own ground —
+   bg1 inside bg2 — so it steps up and keeps reading as a raised chip. */
+.palette-item.active .palette-glyph {
+  background: var(--card);
+  color: var(--tx0);
 }
 .palette-item .tile-xs {
   flex: none;
 }
 .palette-label {
-  font-size: 13.5px;
+  font-size: var(--fs-14);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -3606,13 +3589,13 @@
   margin-left: auto;
   flex: none;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-10);
   color: var(--tx2);
 }
 .palette-empty {
   padding: 18px;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--fs-12);
   color: var(--tx2);
 }
 
@@ -3626,13 +3609,15 @@ kbd {
   min-width: 20px;
   padding: 2px 6px 3px;
   text-align: center;
-  background: var(--bg2);
+  background: var(--key-bg);
+  /* Off both ladders on purpose: a 20px cap at --radius-xs is nearly a pill,
+     and a key is a raised object, not a control surface. */
   border-radius: 6px;
-  box-shadow: inset 0 -2px 0 var(--bg3);
+  box-shadow: inset 0 -2px 0 var(--key-edge);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-10);
   line-height: 1.35;
-  color: var(--tx1);
+  color: var(--key-tx);
 }
 
 /* Keycap rows — shortcut-sheet combos and palette items (the tooltip's own
@@ -3647,7 +3632,7 @@ kbd {
 .shortcuts {
   width: min(440px, 100%);
   background: var(--card);
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow);
   overflow: hidden;
 }
@@ -3659,8 +3644,8 @@ kbd {
   border-bottom: 1px solid var(--line-soft);
 }
 .shortcuts-title {
-  font-size: 14.5px;
-  font-weight: 600;
+  font-size: var(--fs-16);
+  font-weight: 500;
 }
 .shortcuts-groups {
   padding: 8px 18px 16px;
@@ -3669,10 +3654,6 @@ kbd {
 }
 .shortcuts-group h3 {
   margin: 14px 0 4px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   color: var(--tx2);
 }
 .shortcuts-row {
@@ -3683,7 +3664,7 @@ kbd {
   padding: 6px 0;
 }
 .shortcuts-label {
-  font-size: 13px;
+  font-size: var(--fs-14);
   color: var(--tx0);
 }
 .shortcuts-keys {
@@ -3698,44 +3679,37 @@ kbd {
 .health-missing {
   color: var(--accent);
 }
-.disk-row .chip-failed {
-  flex: none;
-}
-
 
 /* Third row of a sidebar item: which agent + which model, wrapped under the
-   meta line so they never truncate against the right edge. The tool chip
-   keeps its contrast colors in every row state — the active-row wash only
-   restyles .side-item-model. */
-.side-item-chips {
+   meta line so they never truncate against the right edge. Both badges are
+   the primitive at `sm`; the brand-filled tool badge keeps its own colors in
+   every row state, so only the neutral ones take the ground adaptation. */
+.side-item-badges {
   display: flex;
   align-items: center;
   gap: 5px;
   margin-top: 4px;
 }
-.side-item-chips .side-item-model {
-  margin-left: 0;
-}
 
 /* ── agent identity (web/src/agents.ts registry) ────────────────────── */
 
-/* Uppercase chip in the agent's brand hue (white text — the tokens are
+/* Uppercase badge in the agent's brand hue (white text — the tokens are
    tuned to clear 3.5:1 like the tile palette). Unknown agents keep the
    neutral contrast look. Same in every row state. */
-/* Agent + model chips live in components/Chip.css. */
-
-/* Pinned rows: the note-yellow wash eats the faint metadata — lift it. */
-.side-item.pinned .side-item-sub {
-  color: var(--tx1);
-}
-.side-item.pinned .side-item-model {
-  background: var(--card);
-}
+/* Agent + model badges live in components/Badge.css. */
 
 /* Calendar week blocks carry BOTH dimensions: the fill is the chosen one
    (projects by default, agents via the calendar's color toggle) and the
    left edge stripe is the other. Bars are too thin for a stripe — the
-   tooltip carries the missing dimension there. */
+   tooltip carries the missing dimension there. Projects are one colour, so
+   that dimension reads as "which session", not "which project". */
+.calendar-block:not(.mode-agent) {
+  background: var(--contrast-solid);
+  color: var(--contrast-on);
+}
+.calendar-block.mode-agent:not(.tier-bar) {
+  box-shadow: inset 3px 0 0 var(--contrast-solid);
+}
 .calendar-block:not(.mode-agent).agent-claude:not(.tier-bar) {
   box-shadow: inset 3px 0 0 var(--agent-claude);
 }
@@ -3751,14 +3725,6 @@ kbd {
 .calendar-block.mode-agent.agent-unknown {
   background: var(--bg3);
 }
-.calendar-block.mode-agent.tile-0:not(.tier-bar) { box-shadow: inset 3px 0 0 var(--tile-0); }
-.calendar-block.mode-agent.tile-1:not(.tier-bar) { box-shadow: inset 3px 0 0 var(--tile-1); }
-.calendar-block.mode-agent.tile-2:not(.tier-bar) { box-shadow: inset 3px 0 0 var(--tile-2); }
-.calendar-block.mode-agent.tile-3:not(.tier-bar) { box-shadow: inset 3px 0 0 var(--tile-3); }
-.calendar-block.mode-agent.tile-4:not(.tier-bar) { box-shadow: inset 3px 0 0 var(--tile-4); }
-.calendar-block.mode-agent.tile-5:not(.tier-bar) { box-shadow: inset 3px 0 0 var(--tile-5); }
-.calendar-block.mode-agent.tile-6:not(.tier-bar) { box-shadow: inset 3px 0 0 var(--tile-6); }
-.calendar-block.mode-agent.tile-7:not(.tier-bar) { box-shadow: inset 3px 0 0 var(--tile-7); }
 
 /* Month-cell dots follow the same color-by choice. */
 .tile-dot.agent-claude {

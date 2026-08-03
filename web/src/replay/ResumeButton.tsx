@@ -37,7 +37,6 @@ export default function ResumeButton({ session }: { session: SessionMeta }) {
 
   return (
     <IconButton
-      variant="action"
       label="Copy the resume command for this session"
       tooltip={
         copied

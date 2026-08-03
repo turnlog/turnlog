@@ -62,7 +62,7 @@ export default function FindBar({
       <span className="find-count">
         {query ? `${fmtCount(hitIdxs.length)} hit${hitIdxs.length === 1 ? '' : 's'}` : ''}
       </span>
-      <IconButton variant="ghost" label="Close find" onClick={onClose}>
+      <IconButton fill="ghost" label="Close find" onClick={onClose}>
         <CloseIcon size={14} />
       </IconButton>
     </div>

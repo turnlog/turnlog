@@ -12,6 +12,9 @@ export const APP_EVENT = {
   stopKey: 'turnlog:stop-key',
   /** Open the keyboard cheat sheet (palette action). */
   shortcuts: 'turnlog:shortcuts',
+  /** Open the command palette without ⌘K — the design-system specimen uses
+   *  this so the page can show the real overlay instead of a drawing. */
+  palette: 'turnlog:palette',
 } as const;
 
 export type AppEvent = (typeof APP_EVENT)[keyof typeof APP_EVENT];

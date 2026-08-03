@@ -3,35 +3,35 @@ import Tooltip from './Tooltip';
 import './IconButton.css';
 
 /**
- * The one component behind every round icon-only button. Three variants map
- * to the three surfaces the app puts round buttons on:
+ * The one component behind every round icon-only button inside the app — on
+ * cards, in sidebars, along toolbar rows. One size, 34px, and four fills
+ * chosen by the ground underneath rather than by importance:
  *
- *   header  — 44px on the app background (class `circle`, `circle-sm` at 34px)
- *   control — 34px inside sidebars/cards   (class `dir-toggle`)
- *   action  — 32px toolbar rows            (class `replay-action`)
- *   ghost   — 26px quiet inline button     (class `icon-ghost`): transparent
- *             at rest, for row hovers and floating nav pills. Dense contexts
- *             may shrink it with an ancestor-scoped size override.
+ *   quiet   — --bg2, the default, on a card
+ *   card    — --card, on the bare app background, where --bg2 all but
+ *             disappears in the light theme. The same pairing Primary makes
+ *   inset   — --bg1, one surface down, for controls already on --bg2 ground
+ *   ghost   — transparent until hovered, and the one exception to the size:
+ *             26px, because it rides inside list rows and floating nav pills
+ *             where a 34 crowds the row
+ *
+ * `active` is the contrast fill, the same statement Primary makes — a toggle
+ * that is on should look like the one thing on the surface that is on, not
+ * like a slightly darker version of hover.
+ *
+ * The 44px buttons in the app frame are a different type: they share their
+ * metrics with the header's nav pills and the hero CTA, so they all live in
+ * components/Primary.tsx.
  *
  * `label` is mandatory: an icon-only button without an accessible name is a
  * defect, not an option. Pass `tooltip` (and optionally `shortcut`) to get
  * the standard hover pill without hand-wrapping in <Tooltip>.
  */
-const VARIANT_CLASS = {
-  header: 'circle',
-  control: 'dir-toggle',
-  action: 'replay-action',
-  ghost: 'icon-ghost',
-} as const;
-
-/** Each family spells its pressed state differently — normalize behind one prop. */
-const ACTIVE_CLASS = { header: 'active', control: 'on', action: 'active', ghost: 'on' } as const;
+export type IconFill = 'quiet' | 'card' | 'inset' | 'ghost';
 
 interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   label: string;
-  variant?: keyof typeof VARIANT_CLASS;
-  /** header only: the 34px version. */
-  small?: boolean;
+  fill?: IconFill;
   active?: boolean;
   tooltip?: ReactNode;
   shortcut?: string[];
@@ -40,8 +40,7 @@ interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 export default function IconButton({
   label,
-  variant = 'header',
-  small,
+  fill = 'quiet',
   active,
   tooltip,
   shortcut,
@@ -49,12 +48,7 @@ export default function IconButton({
   children,
   ...rest
 }: IconButtonProps) {
-  const cls = [
-    VARIANT_CLASS[variant],
-    small && variant === 'header' ? 'circle-sm' : '',
-    active ? ACTIVE_CLASS[variant] : '',
-    className ?? '',
-  ]
+  const cls = ['icon-btn', fill === 'quiet' ? '' : fill, active ? 'on' : '', className ?? '']
     .filter(Boolean)
     .join(' ');
   const btn = (

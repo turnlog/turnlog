@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 import { createHighlighterCore, type HighlighterCore } from 'shiki/core';
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript';
+import { SYNTAX_DARK, SYNTAX_LIGHT, toTextmate } from './syntax';
 
 /**
  * Highlighting runs off the main thread; language grammars load lazily the
@@ -26,54 +27,8 @@ const LANG_LOADERS: Record<string, () => Promise<unknown>> = {
   markdown: () => import('shiki/langs/markdown.mjs'),
 };
 
-/** Turnlog's palettes as textmate themes — match theme.css. */
-const turnlogLight = {
-  name: 'turnlog-light',
-  type: 'light' as const,
-  colors: {
-    'editor.background': '#00000000',
-    'editor.foreground': '#212530',
-  },
-  settings: [
-    { settings: { foreground: '#212530' } },
-    { scope: ['comment', 'punctuation.definition.comment'], settings: { foreground: '#8a92a0', fontStyle: 'italic' } },
-    { scope: ['string', 'string.quoted', 'string.template'], settings: { foreground: '#1d6b3d' } },
-    { scope: ['constant.numeric', 'constant.language', 'constant.character.escape'], settings: { foreground: '#b06f10' } },
-    { scope: ['keyword', 'keyword.control', 'storage.type', 'storage.modifier'], settings: { foreground: '#4a5f96' } },
-    { scope: ['entity.name.function', 'support.function', 'meta.function-call.generic'], settings: { foreground: '#0f6e5f' } },
-    { scope: ['entity.name.type', 'entity.name.class', 'support.type', 'support.class'], settings: { foreground: '#8a5606' } },
-    { scope: ['variable.parameter', 'variable.other.property'], settings: { foreground: '#3c414d' } },
-    { scope: ['entity.name.tag'], settings: { foreground: '#4a5f96' } },
-    { scope: ['entity.other.attribute-name'], settings: { foreground: '#0f6e5f' } },
-    { scope: ['markup.inserted'], settings: { foreground: '#1d6b3d' } },
-    { scope: ['markup.deleted'], settings: { foreground: '#a33325' } },
-    { scope: ['markup.heading'], settings: { foreground: '#8a5606', fontStyle: 'bold' } },
-  ],
-};
-
-const turnlogDark = {
-  name: 'turnlog-dark',
-  type: 'dark' as const,
-  colors: {
-    'editor.background': '#00000000',
-    'editor.foreground': '#e9e4d8',
-  },
-  settings: [
-    { settings: { foreground: '#e9e4d8' } },
-    { scope: ['comment', 'punctuation.definition.comment'], settings: { foreground: '#67737d', fontStyle: 'italic' } },
-    { scope: ['string', 'string.quoted', 'string.template'], settings: { foreground: '#9fd8b4' } },
-    { scope: ['constant.numeric', 'constant.language', 'constant.character.escape'], settings: { foreground: '#f0a848' } },
-    { scope: ['keyword', 'keyword.control', 'storage.type', 'storage.modifier'], settings: { foreground: '#8f9ec4' } },
-    { scope: ['entity.name.function', 'support.function', 'meta.function-call.generic'], settings: { foreground: '#8fd0c3' } },
-    { scope: ['entity.name.type', 'entity.name.class', 'support.type', 'support.class'], settings: { foreground: '#ffc46e' } },
-    { scope: ['variable.parameter', 'variable.other.property'], settings: { foreground: '#d8d2c4' } },
-    { scope: ['entity.name.tag'], settings: { foreground: '#8f9ec4' } },
-    { scope: ['entity.other.attribute-name'], settings: { foreground: '#8fd0c3' } },
-    { scope: ['markup.inserted'], settings: { foreground: '#9fd8b4' } },
-    { scope: ['markup.deleted'], settings: { foreground: '#eba9a0' } },
-    { scope: ['markup.heading'], settings: { foreground: '#ffc46e', fontStyle: 'bold' } },
-  ],
-};
+const turnlogDark = toTextmate('turnlog-dark', 'dark', SYNTAX_DARK);
+const turnlogLight = toTextmate('turnlog-light', 'light', SYNTAX_LIGHT);
 
 let highlighterPromise: Promise<HighlighterCore> | null = null;
 const loadedLangs = new Set<string>();

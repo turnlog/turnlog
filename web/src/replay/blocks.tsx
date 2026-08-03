@@ -3,7 +3,7 @@ import { useChildRows } from '../api';
 import { AgentLabelContext } from './agentContext';
 import CodeBlock from '../code/CodeBlock';
 import { langFromPath } from '../code/highlighter';
-import Chip from '../components/Chip';
+import Badge from '../components/Badge';
 import { SkeletonLines } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
 import { fmtCount, fmtTime } from '../format';
@@ -74,7 +74,7 @@ const PromptBlock = memo(function PromptBlock({ row }: { row: MessageRow }) {
       </div>
       {command ? (
         <div className="prompt-command">
-          <Chip kind="cmd">{command}</Chip>
+          <Badge kind="cmd">{command}</Badge>
           {stdout && stdout !== '' && <ClampedText text={stdout} />}
         </div>
       ) : (
@@ -420,7 +420,7 @@ const ToolBlockView = memo(function ToolBlockView({
 function SummaryBlock({ row }: { row: MessageRow }) {
   return (
     <div className="block block-summary">
-      <Chip kind="summary">summary</Chip>
+      <Badge kind="summary">summary</Badge>
       <span className="summary-text">{row.text}</span>
     </div>
   );
@@ -445,13 +445,13 @@ const SystemBlock = memo(function SystemBlock({ row }: { row: MessageRow }) {
 function TitleBlock({ row }: { row: MessageRow }) {
   return (
     <div className="block block-summary">
-      <Chip kind="summary">title</Chip>
+      <Badge kind="summary">title</Badge>
       <span className="summary-text">{row.text}</span>
     </div>
   );
 }
 
-/** Attachment payloads worth a visible chip; everything else is bookkeeping. */
+/** Attachment payloads worth a visible badge; everything else is bookkeeping. */
 const ATTACH_LABEL: Record<string, string> = {
   file: 'file attached',
   directory: 'directory attached',
@@ -481,7 +481,7 @@ const AttachmentBlock = memo(function AttachmentBlock({ row }: { row: MessageRow
     const detail = row.text || str(att?.prompt) || str(att?.planFilePath) || '';
     return (
       <div className="block block-summary block-attachment">
-        <Chip kind="attach">{label}</Chip>
+        <Badge>{label}</Badge>
         {detail && <span className="attach-detail">{shortPath(detail)}</span>}
         <Ts iso={row.ts} />
       </div>

@@ -1,5 +1,4 @@
-/* Segmented — pill track, contrast surface on the pressed segment. Context
-   tones (card track on bare-background screen headers) stay in app.css. */
+/* Segmented — pill track, contrast surface on the pressed segment. */
 
 .view-toggle {
   display: flex;
@@ -8,11 +7,17 @@
   padding: 3px;
   margin-left: 12px;
 }
+/* On the bare app background --bg2 all but disappears in the light theme, so
+   the track steps up to the card tone — the same card/quiet pair Primary and
+   IconButton make, chosen by the ground rather than by importance. */
+.view-toggle.on-bg {
+  background: var(--card);
+}
 .view-toggle button {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 12.5px;
+  font-size: var(--fs-12);
   font-weight: 500;
   padding: 5px 14px;
   border-radius: 999px;

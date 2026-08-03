@@ -8,14 +8,15 @@ import {
   useStatus,
   type SessionsQuery,
 } from './api';
-import Chip from './components/Chip';
+import Badge from './components/Badge';
 import Dropdown from './components/Dropdown';
 import IconButton from './components/IconButton';
 import NoteDot from './components/NoteDot';
+import Primary from './components/Primary';
 import SearchField from './components/SearchField';
 import Segmented from './components/Segmented';
 import { SkeletonRows } from './components/Skeleton';
-import AgentChip from './components/AgentChip';
+import AgentBadge from './components/AgentBadge';
 import Tooltip from './components/Tooltip';
 import { SHORTCUTS } from './keys';
 import {
@@ -86,7 +87,7 @@ function Item({
           )}
           {s.note && <NoteDot note={s.note} />}
           <IconButton
-            variant="ghost"
+            fill="ghost"
             label={s.pinned ? 'Unpin session' : 'Pin session to top'}
             tooltip={s.pinned ? 'Unpin' : 'Pin to top'}
             className="side-item-pin"
@@ -104,23 +105,19 @@ function Item({
         <span className="side-item-sub">
           {s.chainLen > 1 && (
             <Tooltip content={`Resumed conversation — ${s.chainLen} session files`}>
-              <Chip className="chain-badge">
-                <HistoryIcon size={11} />
+              <Badge className="chain-badge">
+                <HistoryIcon />
                 {s.chainLen}
-              </Chip>
+              </Badge>
             </Tooltip>
           )}
           <span>{fmtDate(s.startedAt)}</span>
           <span>· {fmtCount(s.turnCount)}t</span>
           <span>· {fmtTokens(s.inputTokens + s.outputTokens)} tok</span>
         </span>
-        <span className="side-item-chips">
-          <AgentChip tool={s.tool} />
-          {s.model && (
-            <Chip kind="model" className="side-item-model">
-              {fmtModel(s.model)}
-            </Chip>
-          )}
+        <span className="side-item-badges">
+          <AgentBadge tool={s.tool} />
+          {s.model && <Badge kind="model">{fmtModel(s.model)}</Badge>}
         </span>
       </span>
     </div>
@@ -202,15 +199,15 @@ export default function Sidebar({
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <IconButton
+        {/* quiet, not card: this one stands on the sidebar card. */}
+        <Primary
+          fill="quiet"
           label="Hide sessions"
           tooltip="Hide sessions"
           shortcut={SHORTCUTS.sidebar}
-          className="circle-active"
           onClick={onToggle}
-        >
-          <SidebarIcon size={17} />
-        </IconButton>
+          icon={<SidebarIcon />}
+        />
         <a href="#/" className="header-brand" aria-label="Turnlog — overview">
           <Brandmark />
           <span className="header-title">
@@ -230,7 +227,7 @@ export default function Sidebar({
             clearable
           />
           <IconButton
-            variant="control"
+            fill="inset"
             label="Session filters and sort"
             tooltip={activeCount > 0 ? `Filters & sort — ${activeCount} active` : 'Filters & sort'}
             className="filter-btn"
@@ -271,7 +268,7 @@ export default function Sidebar({
                 options={SORTS.map((s) => ({ value: s.value, label: `by ${s.label}` }))}
               />
               <IconButton
-                variant="control"
+                fill="inset"
                 label={`Direction: ${dir}`}
                 tooltip={dir === 'desc' ? 'Newest first' : 'Oldest first'}
                 className={dir === 'asc' ? 'asc' : ''}

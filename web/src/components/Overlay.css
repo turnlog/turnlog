@@ -5,7 +5,7 @@
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--scrim);
   display: flex;
   justify-content: center;
   align-items: flex-start;

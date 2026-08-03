@@ -112,18 +112,19 @@ function toolBodyHtml(name: string, input: Record<string, unknown>, red: Red): s
   }
 }
 
-/** The design tokens the app uses, inlined — dark default, light on request. */
+/** The design tokens the app uses, inlined — dark default, light on request.
+    A hand-copy of web/src/theme.css, so it drifts silently: only the tokens
+    this file actually references are here, and their names match theme.css so
+    a mismatch is greppable. */
 const STYLE = `
 :root{color-scheme:dark;--bg0:#0f1115;--card:#181b21;--bg1:#1e222a;--bg2:#262b34;
---tx0:#eceef2;--tx1:#9aa1ad;--tx2:#626977;--accent:#f0663f;--blue:#6b93f7;
---c-error:#f0663f;--c-ok:#8fe0a8;
---diff-add-bg:rgba(143,224,168,.13);--diff-add-tx:#a5e6ba;
---diff-del-bg:rgba(240,102,63,.12);--diff-del-tx:#f2a48c}
+--tx0:#eceef2;--tx1:#9aa1ad;--tx2:#626977;--c-assistant:#8091c4;
+--danger:#ff5f6d;--danger-tx:#ff8a94;--danger-dim:rgba(255,95,109,.13);
+--success-tx:#7fe0a5;--success-dim:rgba(95,209,141,.13)}
 @media (prefers-color-scheme: light){:root{color-scheme:light;--bg0:#edeff3;--card:#ffffff;
---bg1:#f4f5f8;--bg2:#e9ebf0;--tx0:#16181d;--tx1:#5f6572;--tx2:#9aa0ab;--accent:#e8542f;
---blue:#3e6df5;--c-error:#d9432a;--c-ok:#4cba74;
---diff-add-bg:rgba(76,186,116,.12);--diff-add-tx:#23744a;
---diff-del-bg:rgba(217,67,42,.1);--diff-del-tx:#b23a20}}
+--bg1:#f4f5f8;--bg2:#e9ebf0;--tx0:#16181d;--tx1:#5f6572;--tx2:#9aa0ab;--c-assistant:#5b6cae;
+--danger:#e03a4e;--danger-tx:#c02036;--danger-dim:rgba(224,58,78,.11);
+--success-tx:#1c7a4a;--success-dim:rgba(42,151,96,.13)}}
 *{box-sizing:border-box}
 body{margin:0;padding:36px 16px;background:var(--bg0);color:var(--tx0);
 font:14px/1.55 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
@@ -137,7 +138,7 @@ code,pre{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
 .label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
 color:var(--tx2);margin-bottom:8px}
 .you .label{color:var(--tx0)}
-.claude .label{color:var(--blue)}
+.claude .label{color:var(--c-assistant)}
 .prose{white-space:pre-wrap;overflow-wrap:anywhere}
 .prose+.prose,.prose+pre,pre+.prose{margin-top:10px}
 .chip{display:inline-block;background:var(--tx0);color:var(--bg0);border-radius:999px;
@@ -145,18 +146,18 @@ padding:3px 12px;font-size:12px;font-family:ui-monospace,Menlo,monospace}
 pre.code{background:var(--bg1);border-radius:10px;padding:12px 14px;margin:10px 0 0;
 font-size:12.5px;line-height:1.5;overflow-x:auto}
 .dl{display:block}
-.dl-add{background:var(--diff-add-bg);color:var(--diff-add-tx)}
-.dl-del{background:var(--diff-del-bg);color:var(--diff-del-tx)}
+.dl-add{background:var(--success-dim);color:var(--success-tx)}
+.dl-del{background:var(--danger-dim);color:var(--danger-tx)}
 details{background:var(--bg1);border-radius:10px;padding:9px 14px;margin-top:10px}
 details summary{cursor:pointer;color:var(--tx1);font-size:13px;user-select:none}
 details summary:hover{color:var(--tx0)}
 details[open]>summary{margin-bottom:8px}
 .tdot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--tx2);
 margin-right:8px;vertical-align:1px}
-.tdot.err{background:var(--c-error)}
+.tdot.err{background:var(--danger)}
 .result-label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;
 color:var(--tx2);margin-top:10px}
-.result-label.err{color:var(--c-error)}
+.result-label.err{color:var(--danger-tx)}
 blockquote.task{margin:10px 0 0;padding:2px 0 2px 14px;border-left:3px solid var(--bg2);
 color:var(--tx1);white-space:pre-wrap;overflow-wrap:anywhere}
 .summary-row{color:var(--tx1);font-style:italic;padding:0 26px}

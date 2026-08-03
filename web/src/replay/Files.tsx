@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { openFileInEditor, useLensRows, useStatus } from '../api';
-import Chip from '../components/Chip';
+import Badge from '../components/Badge';
 import IconButton from '../components/IconButton';
 import { SkeletonRows } from '../components/Skeleton';
 import { fmtTime } from '../format';
@@ -186,7 +186,6 @@ export default function FilesView({ sessionId }: { sessionId: string }) {
           <span className="file-diffs-path">{current.path}</span>
           {status.data?.editorConfigured && (
             <IconButton
-              variant="action"
               label="Open this file in your editor"
               tooltip="Open this file in your editor"
               onClick={() => openFileInEditor(current.path)}
@@ -207,10 +206,10 @@ export default function FilesView({ sessionId }: { sessionId: string }) {
             <section key={edit.idx} className="file-entry">
               <header className="file-entry-head">
                 <span className="turn-n">{i + 1}</span>
-                <Chip kind={edit.failed ? 'failed' : 'default'}>
+                <Badge kind={edit.failed ? 'failed' : 'default'}>
                   {edit.tool}
                   {edit.failed ? ' · failed' : ''}
-                </Chip>
+                </Badge>
                 <button
                   className="file-entry-jump"
                   onClick={() => navigate(sessionHash(sessionId, { m: edit.idx }))}

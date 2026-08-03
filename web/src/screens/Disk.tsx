@@ -1,5 +1,5 @@
 import { revealSession, useDisk } from '../api';
-import Chip from '../components/Chip';
+import Badge from '../components/Badge';
 import IconButton from '../components/IconButton';
 import { SkeletonRows } from '../components/Skeleton';
 import { fmtBytes, fmtDate, projectName, sessionName, tileClass } from '../format';
@@ -44,12 +44,12 @@ export default function Disk() {
                 {projectName(s)[0]?.toUpperCase() ?? '·'}
               </span>
               <span className="disk-row-name">{sessionName(s)}</span>
-              {s.missing && <Chip kind="failed">file gone</Chip>}
+              {s.missing && <Badge kind="failed">file gone</Badge>}
               <span className="disk-row-date">{fmtDate(s.startedAt)}</span>
               <span className="disk-row-bytes">{fmtBytes(s.bytes)}</span>
             </button>
             <IconButton
-              variant="ghost"
+              fill="ghost"
               label="Show session file in file manager"
               tooltip="Show the session file in your file manager"
               onClick={() => revealSession(s.id)}

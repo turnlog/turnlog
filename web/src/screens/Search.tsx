@@ -7,7 +7,7 @@ import {
   useSearchTimeline,
 } from '../api';
 import { agentInfo } from '../agents';
-import Chip from '../components/Chip';
+import Badge from '../components/Badge';
 import IconButton from '../components/IconButton';
 import SearchField from '../components/SearchField';
 import Segmented from '../components/Segmented';
@@ -55,7 +55,9 @@ function Snippet({ text }: { text: string }) {
 
   return (
     <span className="snippet">
-      {parts.map((p, i) => (p.mark ? <mark key={i}>{p.text}</mark> : <span key={i}>{p.text}</span>))}
+      {parts.map((p, i) =>
+        p.mark ? <mark key={i}>{p.text}</mark> : <span key={i}>{p.text}</span>,
+      )}
     </span>
   );
 }
@@ -100,7 +102,11 @@ function buildBuckets(sessions: TimelineSession[]): { buckets: TimelineBucket[];
 
   const buckets: TimelineBucket[] = [];
   const byKey = new Map<string, TimelineBucket>();
-  for (const d = new Date(start); d.getTime() <= last.getTime(); d.setDate(d.getDate() + (weekly ? 7 : 1))) {
+  for (
+    const d = new Date(start);
+    d.getTime() <= last.getTime();
+    d.setDate(d.getDate() + (weekly ? 7 : 1))
+  ) {
     const bucket = { key: dayKey(d), date: new Date(d), sessions: [] };
     buckets.push(bucket);
     byKey.set(bucket.key, bucket);
@@ -214,7 +220,7 @@ function TimelineView({ query }: { query: string }) {
   );
 }
 
-/** Saved-search chips + the save control for the current query. */
+/** Saved-search badges + the save control for the current query. */
 function SavedSearches({ query }: { query: string }) {
   const saved = useSavedSearches();
   const save = useSaveSearch();
@@ -234,23 +240,23 @@ function SavedSearches({ query }: { query: string }) {
   return (
     <div className="saved-row">
       {saved.data?.map((s) => (
-        <span key={s.id} className="saved-chip">
+        <span key={s.id} className="saved-badge">
           <button
-            className="saved-chip-run"
+            className="saved-badge-run"
             onClick={() => navigate(searchHash(s.query))}
             title={s.query}
           >
             {s.name}
           </button>
           <IconButton
-            variant="ghost"
+            fill="ghost"
             label={`Delete saved search ${s.name}`}
             tooltip="Delete saved search"
-            className="saved-chip-x"
+            className="saved-badge-x"
             onClick={() => remove.mutate(s.id)}
           >
             <CloseIcon size={11} />
-            </IconButton>
+          </IconButton>
         </span>
       ))}
       {query !== '' && !alreadySaved && !naming && (
@@ -313,7 +319,11 @@ export default function Search({
   const flat = useMemo(
     () =>
       groups.flatMap((g) =>
-        g.hits.map((h) => ({ sessionId: g.session.id, idx: h.idx, key: `${g.session.id}:${h.uuid}` })),
+        g.hits.map((h) => ({
+          sessionId: g.session.id,
+          idx: h.idx,
+          key: `${g.session.id}:${h.uuid}`,
+        })),
       ),
     [groups],
   );
@@ -342,9 +352,7 @@ export default function Search({
   };
 
   useEffect(() => {
-    document
-      .querySelector(`[data-hit="${active}"]`)
-      ?.scrollIntoView({ block: 'nearest' });
+    document.querySelector(`[data-hit="${active}"]`)?.scrollIntoView({ block: 'nearest' });
   }, [active]);
 
   let flatPos = 0;
@@ -364,8 +372,8 @@ export default function Search({
         <div className="search-meta">
           {query === '' ? (
             <span>
-              Matches identifiers too: try <code>useWebSocket</code> or a trailing{' '}
-              <code>*</code> for prefixes.
+              Matches identifiers too: try <code>useWebSocket</code> or a trailing <code>*</code>{' '}
+              for prefixes.
             </span>
           ) : search.isLoading ? (
             <span>searching…</span>
@@ -376,7 +384,8 @@ export default function Search({
               {groups.length === 1 ? '' : 's'}
               {search.data?.aggregates && search.data.aggregates.matchedSessions > 0 && (
                 <>
-                  {' · '}this work cost <strong>{fmtCost(search.data.aggregates.totalCostUsd)}</strong> est.
+                  {' · '}this work cost{' '}
+                  <strong>{fmtCost(search.data.aggregates.totalCostUsd)}</strong> est.
                   {' across '}
                   {fmtCount(search.data.aggregates.totalTurns)} turns
                 </>
@@ -394,6 +403,7 @@ export default function Search({
           <code>before:2026-07</code> <code>after:7d</code> <code>after:yesterday</code>
           {query !== '' && (
             <Segmented
+              fill="card"
               className="search-view"
               ariaLabel="Result view"
               value={view}
@@ -410,57 +420,57 @@ export default function Search({
       {view === 'timeline' ? (
         <TimelineView query={query} />
       ) : (
-      <div className="search-results">
-        {search.isLoading && groups.length === 0 && query !== '' && (
-          <SkeletonRows n={6} tile={28} />
-        )}
-        {groups.map((g) => (
-          <section key={g.session.id} className="search-group">
-            <header className="search-group-head">
-              <button
-                className="search-group-title"
-                onClick={() => navigate(sessionHash(g.session.id))}
-              >
-                {sessionName(g.session)}
-              </button>
-              <span className="search-group-meta">
-                {fmtDate(g.session.startedAt)} · {fmtCount(g.session.turnCount)} turns ·{' '}
-                {fmtCost(g.session.costUsd)}
-              </span>
-              <span className="search-group-count">
-                {g.hits.length} hit{g.hits.length === 1 ? '' : 's'}
-              </span>
-            </header>
-            {g.hits.map((h) => {
-              const pos = flatPos++;
-              return (
+        <div className="search-results">
+          {search.isLoading && groups.length === 0 && query !== '' && (
+            <SkeletonRows n={6} tile={28} />
+          )}
+          {groups.map((g) => (
+            <section key={g.session.id} className="search-group">
+              <header className="search-group-head">
                 <button
-                  key={h.uuid}
-                  data-hit={pos}
-                  className={`search-hit ${pos === active ? 'active' : ''}`}
-                  onClick={() => openHit(g.session.id, h.idx)}
-                  onMouseEnter={() => setActive(pos)}
+                  className="search-group-title"
+                  onClick={() => navigate(sessionHash(g.session.id))}
                 >
-                  <Chip className="chip-kind">{kindLabel(h, g.session.tool)}</Chip>
-                  <Snippet text={h.snippet} />
-                  <span className="search-hit-ts">{fmtTime(h.ts)}</span>
+                  {sessionName(g.session)}
                 </button>
-              );
-            })}
-          </section>
-        ))}
-        {query !== '' && !search.isLoading && groups.length === 0 && (
-          <div className="fullscreen-note">
-            <div>
-              <h1>No matches</h1>
-              <p>
-                Words are matched whole (with <code>_</code> <code>$</code> <code>.</code>{' '}
-                counting as word characters). Add <code>*</code> for prefix search.
-              </p>
+                <span className="search-group-meta">
+                  {fmtDate(g.session.startedAt)} · {fmtCount(g.session.turnCount)} turns ·{' '}
+                  {fmtCost(g.session.costUsd)}
+                </span>
+                <span className="search-group-count">
+                  {g.hits.length} hit{g.hits.length === 1 ? '' : 's'}
+                </span>
+              </header>
+              {g.hits.map((h) => {
+                const pos = flatPos++;
+                return (
+                  <button
+                    key={h.uuid}
+                    data-hit={pos}
+                    className={`search-hit ${pos === active ? 'active' : ''}`}
+                    onClick={() => openHit(g.session.id, h.idx)}
+                    onMouseEnter={() => setActive(pos)}
+                  >
+                    <Badge>{kindLabel(h, g.session.tool)}</Badge>
+                    <Snippet text={h.snippet} />
+                    <span className="search-hit-ts">{fmtTime(h.ts)}</span>
+                  </button>
+                );
+              })}
+            </section>
+          ))}
+          {query !== '' && !search.isLoading && groups.length === 0 && (
+            <div className="fullscreen-note">
+              <div>
+                <h1>No matches</h1>
+                <p>
+                  Words are matched whole (with <code>_</code> <code>$</code> <code>.</code>{' '}
+                  counting as word characters). Add <code>*</code> for prefix search.
+                </p>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
       )}
     </div>
   );

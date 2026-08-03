@@ -12,8 +12,8 @@ import {
   useTurns,
 } from '../api';
 import { agentInfo } from '../agents';
-import AgentChip from '../components/AgentChip';
-import Chip from '../components/Chip';
+import AgentBadge from '../components/AgentBadge';
+import Badge from '../components/Badge';
 import IconButton from '../components/IconButton';
 import NoteDot from '../components/NoteDot';
 import Segmented from '../components/Segmented';
@@ -204,12 +204,14 @@ export default function Replay({
             </span>
             <span className="replay-meta">
               <span className="replay-id">{shortId(sessionId)}</span>
-              {/* A title displaces the project from the heading — keep it here. */}
+              {/* A title displaces the project from the heading — keep it here.
+                  Its own class: a project is human-named (sans), the date
+                  beside it is machine-measured (mono). */}
               {s && sessionName(s) !== projectName(s) && (
-                <span className="replay-date">{projectName(s)}</span>
+                <span className="replay-project-sub">{projectName(s)}</span>
               )}
-              {s && <AgentChip tool={s.tool} />}
-              {s?.model && <Chip kind="model">{fmtModel(s.model)}</Chip>}
+              {s && <AgentBadge tool={s.tool} />}
+              {s?.model && <Badge kind="model">{fmtModel(s.model)}</Badge>}
               <span className="replay-date">{s ? fmtDate(s.startedAt) : ''}</span>
               {s && s.chainLen > 1 && <ChainNav sessionId={sessionId} />}
               {s?.note && <NoteDot note={s.note} />}
@@ -235,7 +237,6 @@ export default function Replay({
                 return (
                   <IconButton
                     key={value}
-                    variant="action"
                     label={`${label} lens`}
                     tooltip={
                       count ? (
@@ -268,7 +269,6 @@ export default function Replay({
             </div>
             <div className="replay-actions">
             <IconButton
-              variant="action"
               label="Find in session"
               tooltip="Find in session"
               shortcut={SHORTCUTS.find}
@@ -279,7 +279,6 @@ export default function Replay({
               <MagniferIcon size={16} />
             </IconButton>
             <IconButton
-              variant="action"
               label={s?.pinned ? 'Unpin session' : 'Pin session'}
               tooltip={s?.pinned ? 'Unpin from sidebar top' : 'Pin to sidebar top'}
               active={s?.pinned ?? false}
@@ -289,7 +288,6 @@ export default function Replay({
               {s?.pinned ? <PinFilledIcon size={16} /> : <PinIcon size={16} />}
             </IconButton>
             <IconButton
-              variant="action"
               label="Edit session name and note"
               tooltip={editOpen ? 'Close editor' : 'Name & note'}
               active={editOpen}
@@ -299,7 +297,6 @@ export default function Replay({
               <PenIcon size={16} />
             </IconButton>
             <IconButton
-              variant="action"
               label="Show session file in file manager"
               tooltip="Show the session file in your file manager"
               onClick={() => revealSession(sessionId)}
@@ -309,7 +306,6 @@ export default function Replay({
             {s && <ResumeButton session={s} />}
             <SharePanel sessionId={sessionId} />
             <IconButton
-              variant="action"
               label="Session stats"
               tooltip={statsOpen ? 'Hide stats' : 'Session stats'}
               active={statsOpen}
@@ -369,7 +365,7 @@ export default function Replay({
             <BookmarkFilledIcon size={13} className="bookmark-nav-ico" />
             <span className="error-nav-count bookmark-nav-count">{bookmarkIdxs.length}</span>
             <IconButton
-              variant="ghost"
+              fill="ghost"
               label="Previous bookmark"
               tooltip="Previous bookmark"
               onClick={() => jumpBookmark(-1)}
@@ -377,7 +373,7 @@ export default function Replay({
               <ChevronUpIcon size={16} />
             </IconButton>
             <IconButton
-              variant="ghost"
+              fill="ghost"
               label="Next bookmark"
               tooltip="Next bookmark"
               onClick={() => jumpBookmark(1)}
@@ -388,10 +384,10 @@ export default function Replay({
         )}
         {(errorIdxs.data?.length ?? 0) > 0 && (
           <div className="error-nav">
-            <span className="dot dot-accent" />
+            <span className="dot dot-error" />
             <span className="error-nav-count">{errorIdxs.data!.length}</span>
             <IconButton
-              variant="ghost"
+              fill="ghost"
               label="Previous error"
               tooltip="Previous error"
               onClick={() => jumpError(-1)}
@@ -399,7 +395,7 @@ export default function Replay({
               <ChevronUpIcon size={16} />
             </IconButton>
             <IconButton
-              variant="ghost"
+              fill="ghost"
               label="Next error"
               tooltip="Next error"
               onClick={() => jumpError(1)}
@@ -417,7 +413,7 @@ export default function Replay({
             {hitPos === -1 ? '–' : hitPos + 1}/{hitIdxs.length}
           </span>
           <IconButton
-            variant="ghost"
+            fill="ghost"
             label="Previous match"
             tooltip="Previous match"
             onClick={() => goToHit(hitIdxs[(hitPos - 1 + hitIdxs.length) % hitIdxs.length]!)}
@@ -425,7 +421,7 @@ export default function Replay({
             <ChevronUpIcon size={16} />
           </IconButton>
           <IconButton
-            variant="ghost"
+            fill="ghost"
             label="Next match"
             tooltip="Next match"
             onClick={() => goToHit(hitIdxs[(hitPos + 1) % hitIdxs.length]!)}
@@ -433,7 +429,7 @@ export default function Replay({
             <ChevronDownIcon size={16} />
           </IconButton>
           <IconButton
-            variant="ghost"
+            fill="ghost"
             label="Clear match navigation"
             tooltip="Clear search"
             onClick={() => navigate(sessionHash(sessionId))}

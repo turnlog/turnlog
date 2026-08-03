@@ -15,7 +15,7 @@ import {
 } from '../icons';
 import { navigate, searchHash, sessionHash } from '../router';
 import { SHORTCUTS } from '../keys';
-import { APP_EVENT, emitAppEvent } from '../events';
+import { APP_EVENT, emitAppEvent, onAppEvent } from '../events';
 import { getTheme, setTheme } from '../theme';
 import Overlay from './Overlay';
 import type { SessionMeta } from '../types';
@@ -149,7 +149,11 @@ export default function Palette() {
       }
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const offOpen = onAppEvent(APP_EVENT.palette, () => setOpen(true));
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      offOpen();
+    };
   }, []);
 
   useEffect(() => {
@@ -198,9 +202,7 @@ export default function Palette() {
   useEffect(() => setActive(0), [query]);
 
   useEffect(() => {
-    listRef.current
-      ?.querySelector(`[data-pi="${active}"]`)
-      ?.scrollIntoView({ block: 'nearest' });
+    listRef.current?.querySelector(`[data-pi="${active}"]`)?.scrollIntoView({ block: 'nearest' });
   }, [active]);
 
   if (!open) return null;

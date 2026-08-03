@@ -32,10 +32,10 @@
   border-radius: 0;
 }
 .search-field-sm input {
-  font-size: 13px;
+  font-size: var(--fs-14);
 }
 .search-field-lg input {
-  font-size: 15px;
+  font-size: var(--fs-16);
 }
 .search-field input:focus-visible {
   outline: none; /* the wrapper carries the ring */

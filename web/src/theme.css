@@ -1,26 +1,41 @@
 /* ── Turnlog design tokens ─────────────────────────────────────────────
    Full-bleed bento system: cool light-gray app background, flat white
    radius-24 cards separated by tone, one near-black stat card, vermilion
-   as the single hot accent, blue/mint/purple as small data accents.
+   as the single hot accent, blue/teal/purple as small data accents.
    No floating frame, no shadows on cards — overlays only.
-   Geist for chrome, Geist Mono for content — variable latin woff2,
-   the same pairing as turnlog.dev. Fonts are bundled — nothing loads
-   from the network, ever. */
+   Plus Jakarta Sans for chrome, Space Mono for content. Fonts are
+   bundled — nothing loads from the network, ever. */
 
+/* Plus Jakarta Sans (sans) and Space Mono (mono), latin subsets, bundled —
+   nothing loads from the network, ever. Licenses in fonts/LICENSE.txt.
+
+   Jakarta is variable (200–800), so 400 and 500 are both real weights.
+   Space Mono is NOT: it ships 400 and 700 only, so mono text asking for 500
+   renders at 400 — CSS matching looks down from 500 before it looks up. That
+   affects the identity pills and every mono label; see the note on the weight
+   scale below. */
 @font-face {
-  font-family: 'Geist';
-  src: url('/fonts/geist-var.woff2') format('woff2');
-  font-weight: 100 900;
+  font-family: 'Plus Jakarta Sans';
+  src: url('/fonts/jakarta-var.woff2') format('woff2');
+  font-weight: 200 800;
   font-display: swap;
 }
 @font-face {
-  font-family: 'Geist Mono';
-  src: url('/fonts/geist-mono-var.woff2') format('woff2');
-  font-weight: 100 900;
+  font-family: 'Space Mono';
+  src: url('/fonts/space-mono-400.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Space Mono';
+  src: url('/fonts/space-mono-700.woff2') format('woff2');
+  font-weight: 700;
   font-display: swap;
 }
 
-:root {
+/* The class selectors let a subtree opt into a theme (design-system pages). */
+:root,
+.theme-dark {
   color-scheme: dark;
 
   /* app background → cards → inset surfaces */
@@ -42,39 +57,70 @@
   --accent-hi: #ff7d55;
   --accent-dim: rgba(240, 102, 63, 0.14);
   --accent-on: #ffffff;
+  /* …and what sits ON the accent surface. Theme-invariant like the surface
+     itself (the accent card is vermilion in both themes), which is why these
+     three are not repeated in the light block — mirrors --contrast-*. */
+  --accent-on-dim: rgba(255, 255, 255, 0.75);
+  --accent-on-line: rgba(255, 255, 255, 0.22);
 
   /* data accents */
   --blue: #6b93f7;
   --blue-dim: rgba(107, 147, 247, 0.15);
-  --mint: #8fe0a8;
-  --mint-tx: #8fe0a8;
-  --purple: #b6a7f5;
-  --purple-tx: #b6a7f5;
   --mark: rgba(107, 147, 247, 0.28);
 
-  /* project tile palette — theme-invariant. 8 categorical hues assigned by
-     project-key hash (tileClass in format.ts), white glyph on each. Validated
-     with the data-viz palette checker: all-pairs CVD ΔE 11.8 (protan/deutan),
-     chroma & lightness bands pass, white-text ≥ 3.49:1. Fixed order — never
-     reordered (the letter + name are the always-present secondary encoding). */
-  --tile-0: #3e6df5; /* blue    */
-  --tile-1: #0d7ec0; /* azure   */
-  --tile-2: #0f97a6; /* teal    */
-  --tile-3: #1f9d57; /* green   */
-  --tile-4: #e8542f; /* orange  */
-  --tile-5: #db3b4a; /* red     */
-  --tile-6: #c43d8c; /* magenta */
-  --tile-7: #8b34d4; /* purple  */
+  /* Activity categories — lenses, tool dots, spine counts. Prompts take
+     --c-user and errors --danger, so only these two need a hue. Diffs are teal
+     because green now means success; Lab ΔE 36.5 from --success under CVD,
+     24.8 from --c-command. */
+  --c-diff: #4fd6d6;
+  --c-diff-tx: #4fd6d6;
+  --c-command: #b6a7f5;
+  --c-command-tx: #b6a7f5;
+  --c-command-fill: #7861e4; /* white 4.54:1 */
+
+  /* Diff add/remove resolve here — there is no separate --diff-* set. Danger
+     is deliberately NOT --accent: Lab ΔE 22.1 apart under CVD (22.5 light).
+     Red vs green clears ΔE 14.2 / 18.8; the +/− signs stay primary. */
+  --success: #5fd18d;
+  --success-tx: #7fe0a5;
+  --success-dim: rgba(95, 209, 141, 0.13);
+
+  --danger: #ff5f6d;
+  --danger-tx: #ff8a94;
+  --danger-dim: rgba(255, 95, 109, 0.13);
+
+  /* Degraded, not failed. Deliberately the note yellow: one yellow in the
+     system, so a warning and an annotation cannot be mistaken for two things. */
+  --warning: #e5c04d;
+  --warning-tx: #e5c04d;
+  --warning-dim: rgba(229, 192, 77, 0.15);
+
+  /* Green and red take --tile-on (white). Yellow takes --warning-on and is
+     the one fill that inverts — the pair always travels together. */
+  --success-fill: #217a4c;
+  --warning-fill: #f9eda9;
+  --warning-on: #4a3d10;
+  --danger-fill: #c62339;
+
+  /* White glyph on any theme-invariant fill. */
   --tile-on: #ffffff; /* the glyph on every hue — theme-invariant like them */
 
-  /* agent identity — each adapter's own brand hue, theme-invariant like the
-     tiles. Fills the agent chips and (optionally) calendar blocks, stripes
-     the calendar edges — values darkened from the raw brand hues so white
-     text clears 3.5:1, same bar as the tile palette. Registry:
-     web/src/agents.ts — a new adapter adds one token here + one entry
-     there. */
-  --agent-claude: #c96442; /* Anthropic clay */
-  --agent-codex: #0e8c6d; /* OpenAI green */
+  /* The glyph on a CATEGORY fill, which is a different problem: the category
+     hues are not theme-invariant. Dark's are pastel and take dark ink; light's
+     are saturated and take white. So this flips with the theme where --tile-on
+     never does — one token rather than an -on beside every category. */
+  --c-on: #14161b;
+
+  /* Registry: web/src/agents.ts — true brand hues, one per adapter. */
+  --agent-claude: #de7356; /* Anthropic clay */
+  --agent-codex: #10a37f; /* OpenAI green */
+
+  /* Keycaps. Their own tokens even though the values match --bg2/--bg3/--tx1:
+     a key is a raised object, not a control surface, and the pressed edge has
+     no equivalent anywhere else. */
+  --key-bg: #262b34;
+  --key-edge: #313743;
+  --key-tx: #9aa1ad;
 
   /* the near-black surface — inverts to white on dark */
   --contrast-solid: #eceef2;
@@ -82,39 +128,95 @@
   --contrast-dim: rgba(20, 22, 27, 0.55);
   --contrast-line: rgba(20, 22, 27, 0.12);
 
-  /* role rails */
-  --c-user: #eceef2;
-  --c-assistant: #6b93f7;
+  /* The user speaks in the accent — aliased, not copied, so the rail and the
+     CTA can never drift apart. Decided 2026-08-03 over the alternative (a
+     warm rose short of the accent). Two consequences to know about: the
+     "one hot accent per screen" rule no longer holds in the replay, where
+     every user turn carries it; and the prompts lens, which borrows this
+     token, now sits beside the errors lens in --danger — two reds in one
+     legend. The agent is a DESATURATED slate: the blue region is full, so it
+     clears the vivid --blue (search) by chroma rather than hue. No subagent
+     hue — it takes --c-assistant and separates by texture (.sidechain in
+     app.css). No failure rail: a failed turn takes --danger. */
+  --c-user: var(--accent);
+  --c-assistant: #8091c4;
   --c-tool: #454c5b;
-  --c-side: #8fb0f5;
-  --c-error: #f0663f;
   --c-dim: #333947;
-  --c-ok: #8fe0a8;
-
-  /* diff — semantic, toned to the palette */
-  --diff-add-bg: rgba(143, 224, 168, 0.13);
-  --diff-add-tx: #a5e6ba;
-  --diff-del-bg: rgba(240, 102, 63, 0.12);
-  --diff-del-tx: #f2a48c;
 
   /* session notes — the dot marker and its sticky-note paper. The paper
      stays yellow in both themes: a sticky note is an artifact, not a surface. */
   --c-note: #e5c04d;
+  --note-dim: rgba(229, 192, 77, 0.15);
   --note-paper: #f9eda9;
   --note-ink: #4a3d10;
 
   --shadow: 0 16px 44px rgba(0, 0, 0, 0.5);
+  /* Backdrop behind centered overlays. One value for both themes: a scrim
+     darkens whatever is under it — it is not a surface. */
+  --scrim: rgba(0, 0, 0, 0.3);
 
-  --sans: 'Geist', system-ui, sans-serif;
-  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --mono: 'Space Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
+  /* ── the type ladder ────────────────────────────────────────────────
+     Every font-size in the app is one of these eight, and every one of the
+     eight is in use. There are no reserve steps: an unused token is an
+     invitation to reach for it, and the whole point is that adding a size
+     should be a deliberate act, not a shrug. If you need 20px, add 20px —
+     and say why.
+
+     The token set is also the whitelist: there is no --fs-13, so an
+     off-scale value can't resolve, where a bare 13px used to work silently.
+     The name carries the value so a rule reads without a lookup.
+
+       10  micro — badges, axis ticks, keycaps, dense mono
+       12  metadata — timestamps, counts, ids, costs, code, badges,
+           sub-lines, compact controls, uppercase section labels
+       14  body — message text, list-row titles, buttons, inputs, forms
+       16  prominent — session title, search group title, sheet titles
+       18  card titles, the wordmark, stat values, tile initials
+       24  screen titles — every h1
+       32  display numbers — indexed history, spend total, disk total
+       40  the two headline figures — the home hero and the accent card
+
+     (Trimmed from fourteen steps on 2026-08-02: 8/20/22/28/48 were never
+     used, and 36 held the hero alone one notch under the accent figure it
+     had no reason to differ from.)                                       */
+  --fs-10: 10px;
+  --fs-12: 12px;
+  --fs-14: 14px;
+  --fs-16: 16px;
+  --fs-18: 18px;
+  --fs-24: 24px;
+  --fs-32: 32px;
+  --fs-40: 40px;
+
+  /* Role rail (replay speakers). Content rails — blockquotes, thinking —
+     are 2px and use --line; they are quoting, not speaking. */
   --rail-w: 3px;
-  --radius: 14px;
-  --radius-lg: 24px;
+
+  /* The radius ladder. Every rounded CONTROL or SURFACE lands on one of these
+     five steps or on 999px (pills and circles); nothing in between.
+
+     Data marks are the one exception, and they are not controls: a chart bar
+     rounded to 9px stops reading as a measurement. They take --radius-mark
+     below. Two glyph-scale artifacts sit outside both ladders and say so
+     where they are declared — the keycap (6px, a raised object with its own
+     --key-* tokens) and the note-dot fold (2px on an 11px square). */
+  --radius-mark: 4px; /* spend bars, calendar blocks, timeline columns */
+  --radius-xs: 9px; /* tile-xs, inline code */
+  --radius-sm: 12px; /* list rows, controls, inset fields, tile-sm */
+  --radius: 14px; /* tiles, code blocks, diffs, sidechain runs */
+  --radius-md: 16px; /* panels, popovers, stat tiles, menus */
+  --radius-lg: 24px; /* cards */
+
   --sidebar-w: 356px;
+  /* The gutter the screen, sidebar, and any full-width band share. */
+  --gutter: 14px;
 }
 
-:root[data-theme='light'] {
+:root[data-theme='light'],
+.theme-light {
   color-scheme: light;
 
   --bg0: #edeff3;
@@ -136,31 +238,51 @@
 
   --blue: #3e6df5;
   --blue-dim: rgba(62, 109, 245, 0.11);
-  --mint: #4cba74;
-  --mint-tx: #27874f;
-  --purple: #8a76e8;
-  --purple-tx: #6a51d8;
   --mark: rgba(62, 109, 245, 0.2);
+
+  /* --c-command-fill is theme-invariant and stays at its dark-block value. */
+  --c-diff: #12909e;
+  --c-diff-tx: #087682;
+  --c-command: #8a76e8;
+  --c-command-tx: #6a51d8;
+
+  /* Flipped: these category hues are saturated, so the glyph on them is white
+     where the dark theme's pastels take near-black. */
+  --c-on: #ffffff;
+
+  /* --danger-fill is theme-invariant and stays at its dark-block value. */
+  --success: #2a9760;
+  --success-tx: #1c7a4a;
+  --success-dim: rgba(42, 151, 96, 0.13);
+
+  --danger: #e03a4e;
+  --danger-tx: #c02036;
+  --danger-dim: rgba(224, 58, 78, 0.11);
+
+  /* Two rungs, unlike dark: no yellow clears 3:1 on white, so the dot sits as
+     light as it can (4.04:1) and text goes darker to clear 4.5:1 (5.02:1).
+     Both are only deutan ΔE 14 off --accent — don't place them side by side.
+     The fill inverts dark here, under white ink. */
+  --warning: #d9a921;
+  --warning-tx: #d9a921;
+  --warning-dim: rgba(217, 169, 33, 0.18);
+
+  --key-bg: #e9ebf0;
+  --key-edge: #dee1e8;
+  --key-tx: #5f6572;
 
   --contrast-solid: #17191f;
   --contrast-on: #ffffff;
   --contrast-dim: rgba(255, 255, 255, 0.55);
   --contrast-line: rgba(255, 255, 255, 0.14);
 
-  --c-user: #16181d;
-  --c-assistant: #3e6df5;
+  --c-user: var(--accent);
+  --c-assistant: #5b6cae;
   --c-tool: #ccd0d8;
-  --c-side: #3358c4;
-  --c-error: #d9432a;
   --c-dim: #dde0e6;
-  --c-ok: #4cba74;
-
-  --diff-add-bg: rgba(76, 186, 116, 0.12);
-  --diff-add-tx: #23744a;
-  --diff-del-bg: rgba(217, 67, 42, 0.1);
-  --diff-del-tx: #b23a20;
 
   --c-note: #d9a921;
+  --note-dim: rgba(217, 169, 33, 0.18);
   --note-paper: #f9eda9;
   --note-ink: #4a3d10;
 
@@ -183,7 +305,7 @@ body {
   background: var(--bg0);
   color: var(--tx0);
   font-family: var(--sans);
-  font-size: 14px;
+  font-size: var(--fs-14);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
