@@ -3727,19 +3727,8 @@ kbd {
   width: 16px;
   height: 16px;
 }
-/* One fact per line inside the tooltip: label in the pill's dim ink, figure
-   in mono, because every one of them is a measurement. */
-.side-facts {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  text-align: left;
-}
-.side-facts em {
-  font-family: var(--mono);
-  font-style: normal;
-  color: var(--contrast-on);
-}
+/* Fact lists are components/Facts.css — one presentation for every set of
+   measurements, in tooltips and on cards alike. */
 
 /* ── agent identity (web/src/agents.ts registry) ────────────────────── */
 

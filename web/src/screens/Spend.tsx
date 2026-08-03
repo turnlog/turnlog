@@ -7,6 +7,7 @@ import Button from '../components/Button';
 import SearchField from '../components/SearchField';
 import Segmented from '../components/Segmented';
 import { Skel, SkeletonRows } from '../components/Skeleton';
+import Facts from '../components/Facts';
 import Tooltip from '../components/Tooltip';
 import { fmtCost, fmtCount, fmtModel, fmtTokens, projectName, tileClass } from '../format';
 import type { SpendDay, SpendResponse } from '../types';
@@ -136,11 +137,14 @@ function SpendChart({ data, granularity }: { data: SpendResponse; granularity: '
             key={d.date}
             content={
               <>
-                <strong>{fmtCost(d.costUsd)}</strong>
-                <span>
-                  {rangeLabel(d)} · {fmtCount(d.sessions)} session
-                  {d.sessions === 1 ? '' : 's'} · {fmtTokens(d.tokens)} tok
-                </span>
+                <strong>{rangeLabel(d)}</strong>
+                <Facts
+                  rows={[
+                    { label: 'cost', value: fmtCost(d.costUsd) },
+                    { label: 'sessions', value: fmtCount(d.sessions) },
+                    { label: 'tokens', value: `${fmtTokens(d.tokens)} tok` },
+                  ]}
+                />
               </>
             }
           >

@@ -63,15 +63,22 @@
   white-space: nowrap;
 }
 
-/* Measurements, so mono — and pushed to the right edge as a strip. */
+/* Measurements, so mono — and pushed to the right edge as a strip. Each
+   carries its label the way the fact lists do, because three bare numbers in
+   a row is a puzzle. */
 .now-figures {
   margin-left: auto;
   flex: none;
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: baseline;
+  gap: 14px;
   font-family: var(--mono);
   font-size: var(--fs-12);
+  color: var(--tx1);
+}
+.now-figures em {
+  font-style: normal;
+  margin-right: 4px;
   color: var(--tx2);
 }
 

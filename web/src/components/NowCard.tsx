@@ -47,13 +47,21 @@ export default function NowCard() {
                   {s.name || projectName({ projectPath: s.projectPath ?? '', projectKey: s.projectKey })}
                 </span>
                 <span className="now-figures">
+                  {/* Labelled, like every other set of measurements in the
+                      app — three bare numbers in a row is a puzzle. */}
                   {s.contextTokens !== null && (
                     <Tooltip content="Tokens in the context window at the last response">
-                      <span>{fmtTokens(s.contextTokens)} ctx</span>
+                      <span>
+                        <em>ctx</em> {fmtTokens(s.contextTokens)}
+                      </span>
                     </Tooltip>
                   )}
-                  <span>{fmtCount(s.turnCount)}t</span>
-                  <span>{fmtCost(s.costUsd)}</span>
+                  <span>
+                    <em>turns</em> {fmtCount(s.turnCount)}
+                  </span>
+                  <span>
+                    <em>cost</em> {fmtCost(s.costUsd)}
+                  </span>
                 </span>
               </span>
               {s.lastPrompt && <span className="now-prompt">{s.lastPrompt}</span>}

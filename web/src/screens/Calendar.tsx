@@ -6,6 +6,7 @@ import Button from '../components/Button';
 import IconButton from '../components/IconButton';
 import Segmented from '../components/Segmented';
 import { SkeletonRows } from '../components/Skeleton';
+import Facts from '../components/Facts';
 import Tooltip from '../components/Tooltip';
 import {
   DAY_MS,
@@ -72,12 +73,18 @@ function BlockTip({ s }: { s: SessionMeta }) {
   return (
     <>
       <strong>{sessionName(s)}</strong>
-      <span>
-        {fmtTime(s.startedAt)}
-        {s.endedAt ? `–${fmtTime(s.endedAt)}` : ''} · {fmtCount(s.turnCount)} turns ·{' '}
-        {fmtTokens(s.inputTokens + s.outputTokens)} tok · {fmtCost(s.costUsd)} ·{' '}
-        {agentInfo(s.tool).label}
-      </span>
+      <Facts
+        rows={[
+          {
+            label: 'when',
+            value: `${fmtTime(s.startedAt)}${s.endedAt ? `–${fmtTime(s.endedAt)}` : ''}`,
+          },
+          { label: 'turns', value: fmtCount(s.turnCount) },
+          { label: 'tokens', value: `${fmtTokens(s.inputTokens + s.outputTokens)} tok` },
+          { label: 'cost', value: fmtCost(s.costUsd) },
+          { label: 'agent', value: agentInfo(s.tool).label },
+        ]}
+      />
     </>
   );
 }
@@ -433,13 +440,19 @@ function MonthGrid({
                       day: 'numeric',
                     })}
                   </strong>
-                  <span>
-                    {fmtCount(list.length)} session{list.length === 1 ? '' : 's'} ·{' '}
-                    {fmtTokens(tokens)} tok · {fmtCost(cost)} ·{' '}
-                    {[...new Set(list.map((s) => s.projectKey))]
-                      .map((p) => projectName({ projectKey: p, projectPath: null }))
-                      .join(', ')}
-                  </span>
+                  <Facts
+                    rows={[
+                      { label: 'sessions', value: fmtCount(list.length) },
+                      { label: 'tokens', value: `${fmtTokens(tokens)} tok` },
+                      { label: 'cost', value: fmtCost(cost) },
+                      {
+                        label: 'projects',
+                        value: [...new Set(list.map((s) => s.projectKey))]
+                          .map((p) => projectName({ projectKey: p, projectPath: null }))
+                          .join(', '),
+                      },
+                    ]}
+                  />
                 </>
               }
             >

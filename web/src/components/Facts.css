@@ -1,0 +1,23 @@
+/* Facts — label/value pairs, stacked. Lives inside contrast surfaces
+   (tooltips) and on cards alike, so its ink comes from currentColor rather
+   than a fixed token: the pill sets --contrast-on, a card sets --tx0, and
+   the same component reads correctly on both. */
+
+.facts {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 3px 10px;
+  text-align: left;
+}
+.facts-row {
+  display: contents;
+}
+/* The same word on every row, so it recedes. */
+.facts-label {
+  opacity: 0.62;
+}
+/* Measurements, so mono — and the column that matters, so full strength. */
+.facts-value {
+  font-family: var(--mono);
+  justify-self: end;
+}

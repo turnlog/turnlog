@@ -11,6 +11,7 @@ import {
 } from './api';
 import Badge from './components/Badge';
 import Dropdown from './components/Dropdown';
+import Facts from './components/Facts';
 import IconButton from './components/IconButton';
 import NoteDot from './components/NoteDot';
 import Primary from './components/Primary';
@@ -151,15 +152,7 @@ function Item({
           {/* The figures the sort is not showing, one hover away — the row
               stays one number wide however many facts a session has. */}
           <Tooltip
-            content={
-              <span className="side-facts">
-                {rest.map((f) => (
-                  <span key={f.label}>
-                    {f.label} <em>{f.value}</em>
-                  </span>
-                ))}
-              </span>
-            }
+            content={<Facts rows={rest} />}
           >
             <IconButton fill="ghost" className="side-item-info" label="Session details">
               <InfoIcon />
