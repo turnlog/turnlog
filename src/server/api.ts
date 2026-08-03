@@ -1240,7 +1240,12 @@ function searchFacets(
        WHERE 1=1 ${f.sql}`;
   const params = match ? [match, ...f.params] : f.params;
 
-  const facet = (expr: string, operator: string, distinctSessions: boolean): SearchFacet[] => {
+  const facet = (
+    expr: string,
+    operator: string,
+    distinctSessions: boolean,
+    label?: (value: string) => string,
+  ): SearchFacet[] => {
     const counted = distinctSessions ? 'COUNT(DISTINCT COALESCE(s.parent_session_id, s.id))' : 'COUNT(*)';
     try {
       const rows = db
@@ -1253,6 +1258,7 @@ function searchFacets(
       return rows.map((r) => ({
         value: r.value,
         count: r.n,
+        ...(label ? { label: label(r.value) } : {}),
         operator: `${operator}:${/\s/.test(r.value) ? `"${r.value}"` : r.value}`,
       }));
     } catch {
@@ -1266,7 +1272,12 @@ function searchFacets(
   return {
     tools: facet('m.tool_name', 'tool', false),
     kinds: facet('m.kind', 'kind', false),
-    projects: facet('s.project_key', 'project', true),
+    // Keys are path-derived; the chip shows the folder, the operator keeps
+    // the exact key so the count it promises is the count you get.
+    projects: facet('s.project_key', 'project', true, (key) => {
+      const segs = key.split('-').filter(Boolean);
+      return segs.length > 0 ? segs[segs.length - 1]! : key;
+    }),
     // One agent is not a choice — offering it would be a chip that filters
     // nothing away.
     agents: agents.length > 1 ? agents : [],

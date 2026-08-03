@@ -1,10 +1,21 @@
 /* NowCard — what is running this minute. Renders only while something is,
    so it costs nothing when idle. */
 
+/* .card carries no padding of its own — every variant brings the ladder's
+   own, and this one sits with .list-card and .health-card. The bottom is
+   tighter because the last row's own padding finishes the box. */
 .now-card {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding: 20px 26px 12px;
+  /* Clears the bento below it by the same 20 the bento uses between cards. */
+  margin-bottom: 20px;
+}
+/* The rows are inset from the card's text column, so pull them back level
+   with the heading above them. */
+.now-list {
+  margin: 0 -12px;
 }
 
 /* The one moving thing on the home screen, and it earns it: the card means
@@ -30,7 +41,6 @@
 
 .now-list {
   list-style: none;
-  margin: 0;
   padding: 0;
 }
 

@@ -3798,7 +3798,9 @@ kbd {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 10px;
+  /* Its own band: the count sits above, the operator cheat line below, and
+     without both margins the three run together as one wall of chips. */
+  margin: 10px 0 12px;
 }
 .facet-chip {
   display: inline-flex;

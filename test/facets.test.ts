@@ -51,6 +51,20 @@ describe('search facets', () => {
     expect(one.facets!.agents).toEqual([]);
   });
 
+  it('shows the folder but filters on the exact key', () => {
+    const { facets } = searchMessages(db, { query: 'the' });
+    const project = facets!.projects[0]!;
+    // Keys are path-derived and unreadable as a chip.
+    expect(project.label).toBeTruthy();
+    expect(project.label!.length).toBeLessThan(project.value.length);
+    // The operator keeps the full key: project: is a substring match, so a
+    // shortened one would over-match a sibling (turnlog / turnlog-landing)
+    // and the chip would not deliver the count it promised.
+    expect(project.operator).toContain(project.value);
+    const refined = searchMessages(db, { query: `the ${project.operator}` });
+    expect(refined.aggregates!.matchedSessions).toBe(project.count);
+  });
+
   it('is null for a session-scoped find — nothing to refine', () => {
     const scoped = searchMessages(db, { query: 'the', sessionId: 'anything' });
     expect(scoped.facets).toBeNull();

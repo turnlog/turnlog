@@ -422,7 +422,7 @@ export default function Search({
                   navigate(searchHash(next, view));
                 }}
               >
-                {f.value}
+                {f.label ?? f.value}
                 <em>{fmtCount(f.count)}</em>
               </button>
             ))}

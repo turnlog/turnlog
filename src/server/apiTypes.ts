@@ -139,6 +139,14 @@ export interface SearchGroup {
 export interface SearchFacet {
   value: string;
   count: number;
+  /**
+   * What to show, when the raw value is not what a human calls it — project
+   * keys are path-derived (`-Users-me-code-turnlog`) and unreadable as chips.
+   * The operator still carries the exact value, because `project:` is a
+   * substring match and a shortened one would over-match a sibling
+   * (`turnlog` would also catch `turnlog-landing`).
+   */
+  label?: string;
   /** The token to append to the query — e.g. `tool:Bash`. */
   operator: string;
 }
