@@ -396,6 +396,11 @@ export interface IndexFacts {
   missingFiles: number;
   /** SQLite database size on disk. */
   dbBytes: number;
+  /**
+   * Whether the opt-in trigram index is built. Off by default: it costs
+   * several times the word index's space, so the user asks for it.
+   */
+  deepSearch: boolean;
 }
 
 /**
@@ -413,11 +418,12 @@ export interface HealthResponse extends IndexFacts {
 /**
  * `POST /api/maintenance` — housekeeping on Turnlog's own index (never on
  * `~/.claude`, which stays read-only): `prune` drops rows for session files
- * that no longer exist, `vacuum` repacks the database. Returns the action's
- * result plus fresh index facts.
+ * that no longer exist, `vacuum` repacks the database, `deep-build` and
+ * `deep-drop` turn substring search on and off. Returns the action's result
+ * plus fresh index facts.
  */
 export interface MaintenanceResponse extends IndexFacts {
-  action: 'prune' | 'vacuum';
+  action: 'prune' | 'vacuum' | 'deep-build' | 'deep-drop';
   /** Sessions removed from the index (prune only). */
   pruned?: number;
   /** Bytes reclaimed by repacking (vacuum only). */

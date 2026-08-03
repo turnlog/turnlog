@@ -6,8 +6,13 @@ import {
   dropDeepIndex,
   hasDeepIndex,
 } from '../src/indexer/deepSearch.js';
-import { pruneMissingSessions } from '../src/server/api.js';
-import { copyCorpus, testDb, tmpDir } from './helpers.js';
+import {
+  getIndexHealth,
+  pruneMissingSessions,
+  searchMessages,
+  toTrigramQuery,
+} from '../src/server/api.js';
+import { copyCodexCorpus, copyCorpus, testDb, tmpDir } from './helpers.js';
 
 /**
  * The trigram index is kept in step by triggers rather than by the four write
@@ -35,11 +40,15 @@ function integrity(db: Database.Database): { indexed: number; messages: number }
 
 let db: Database.Database;
 let projectsDir: string;
+let codexDir: string;
 
+// Both agents in every fixture: a deep index that quietly covered only the
+// agent that wrote most sessions would pass a Claude-only corpus.
 beforeEach(async () => {
   db = testDb(tmpDir('turnlog-deep-'));
   projectsDir = copyCorpus();
-  await new Indexer(db, { projectsDir }).scanAll();
+  codexDir = copyCodexCorpus();
+  await new Indexer(db, { projectsDir, codexDir }).scanAll();
 });
 
 describe('deep search', () => {
@@ -103,7 +112,7 @@ describe('deep search', () => {
 
   it('survives a rebuild without drifting', async () => {
     buildDeepIndex(db);
-    await new Indexer(db, { projectsDir }).rebuild();
+    await new Indexer(db, { projectsDir, codexDir }).rebuild();
     const { indexed, messages } = integrity(db);
     expect(messages).toBeGreaterThan(0);
     expect(indexed).toBe(messages);
@@ -121,5 +130,75 @@ describe('deep search', () => {
     buildDeepIndex(db);
     dropDeepIndex(db);
     expect(wordHits()).toBe(before);
+  });
+});
+
+describe('toTrigramQuery', () => {
+  it('quotes tokens so FTS syntax cannot leak through', () => {
+    expect(toTrigramQuery('foo bar')).toBe('"foo" "bar"');
+    expect(toTrigramQuery('NEAR(abc def)')).toBe('"NEAR(abc" "def)"');
+  });
+
+  it('strips a trailing * — every trigram match is already a substring', () => {
+    expect(toTrigramQuery('useWeb*')).toBe('"useWeb"');
+  });
+
+  it('drops tokens too short for a trigram index to hold', () => {
+    expect(toTrigramQuery('ab')).toBeNull();
+    expect(toTrigramQuery('ab session')).toBe('"session"');
+  });
+});
+
+describe('deep search through searchMessages', () => {
+  it('finds a mid-word fragment only when asked and built', () => {
+    // Not built yet: asking for deep search falls back to word matching
+    // rather than failing, so a stale UI toggle degrades instead of erroring.
+    expect(searchMessages(db, { query: 'eWebSock', deep: true }).totalHits).toBe(0);
+
+    buildDeepIndex(db);
+    expect(searchMessages(db, { query: 'eWebSock', deep: true }).totalHits).toBeGreaterThan(0);
+    // Still invisible to the default index — this is opt-in, not a silent
+    // change to how every search behaves.
+    expect(searchMessages(db, { query: 'eWebSock' }).totalHits).toBe(0);
+  });
+
+  it('keeps filters working alongside substring matching', () => {
+    buildDeepIndex(db);
+    const all = searchMessages(db, { query: 'eWebSock', deep: true });
+    const filtered = searchMessages(db, { query: 'eWebSock kind:prompt', deep: true });
+    expect(all.totalHits).toBeGreaterThan(0);
+    expect(filtered.totalHits).toBeLessThanOrEqual(all.totalHits);
+  });
+
+  it('indexes every agent, not just the one that wrote most sessions', () => {
+    buildDeepIndex(db);
+    // Guard the guard: this assertion is vacuous unless the corpus really
+    // holds more than one agent.
+    const toolCount = (
+      db.prepare(`SELECT COUNT(DISTINCT tool) c FROM sessions`).get() as { c: number }
+    ).c;
+    expect(toolCount).toBeGreaterThan(1);
+    // The twin is built from the normalized `messages` table, so it covers
+    // whatever adapters produced those rows — including ones added later.
+    const tools = db
+      .prepare(
+        `SELECT DISTINCT s.tool FROM sessions s
+           JOIN messages m ON m.session_id = s.id
+           JOIN messages_trigram t ON t.rowid = m.rowid`,
+      )
+      .all() as { tool: string | null }[];
+    const indexedTools = new Set(tools.map((t) => t.tool ?? 'claude'));
+    const allTools = new Set(
+      (db.prepare(`SELECT DISTINCT tool FROM sessions`).all() as { tool: string | null }[]).map(
+        (t) => t.tool ?? 'claude',
+      ),
+    );
+    expect(indexedTools).toEqual(allTools);
+  });
+
+  it('reports itself on the health facts', () => {
+    expect(getIndexHealth(db).deepSearch).toBe(false);
+    buildDeepIndex(db);
+    expect(getIndexHealth(db).deepSearch).toBe(true);
   });
 });

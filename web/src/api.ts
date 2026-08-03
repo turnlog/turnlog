@@ -234,12 +234,15 @@ export function useHealth() {
 export function useMaintenance() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (action: 'prune' | 'vacuum') =>
+    mutationFn: (action: 'prune' | 'vacuum' | 'deep-build' | 'deep-drop') =>
       apiPost<MaintenanceResponse>('/api/maintenance', { action }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['health'] });
       void queryClient.invalidateQueries({ queryKey: ['sessions'] });
       void queryClient.invalidateQueries({ queryKey: ['stats'] });
+      // Building or dropping the trigram index changes what a search can
+      // find, so anything already fetched is stale.
+      void queryClient.invalidateQueries({ queryKey: ['search'] });
     },
   });
 }
@@ -337,13 +340,13 @@ export function fetchMessages(
   );
 }
 
-export function useSearch(q: string, sessionId?: string) {
+export function useSearch(q: string, sessionId?: string, deep?: boolean) {
   const scope = sessionId ? `&session=${encodeURIComponent(sessionId)}` : '';
   return useQuery({
-    queryKey: ['search', q, sessionId ?? ''],
+    queryKey: ['search', q, sessionId ?? '', deep ?? false],
     queryFn: () =>
       apiFetch<SearchResponse>(
-        `/api/search?q=${encodeURIComponent(q)}&limit=${sessionId ? 500 : 200}${scope}`,
+        `/api/search?q=${encodeURIComponent(q)}&limit=${sessionId ? 500 : 200}${scope}${deep ? '&deep=1' : ''}`,
       ),
     enabled: q.trim().length > 0,
     placeholderData: keepPreviousData,

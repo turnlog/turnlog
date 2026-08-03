@@ -81,10 +81,20 @@ function HealthCard() {
   if (!h) return null;
   const skipped = h.skipped.length;
 
-  const run = (action: 'prune' | 'vacuum') => {
+  const run = (action: 'prune' | 'vacuum' | 'deep-build' | 'deep-drop') => {
     setDone(null);
     maintain.mutate(action, {
       onSuccess: (r) => {
+        if (r.action === 'deep-build') {
+          setDone(
+            `Deep search is on — searches can now match inside words. The index grew to ${fmtBytes(r.dbBytes)}.`,
+          );
+          return;
+        }
+        if (r.action === 'deep-drop') {
+          setDone(`Deep search is off. Back to ${fmtBytes(r.dbBytes)}.`);
+          return;
+        }
         setDone(
           r.action === 'prune'
             ? r.pruned === 0
@@ -162,8 +172,23 @@ function HealthCard() {
         >
           repack index
         </Button>
+        {/* Substring search. Off by default because the trigram index costs
+            several times the word index's space — the copy says so, since the
+            cost is the whole reason it is a choice. */}
+        <Button
+          className="health-action"
+          onClick={() => run(h.deepSearch ? 'deep-drop' : 'deep-build')}
+          disabled={maintain.isPending}
+        >
+          {h.deepSearch ? 'drop deep search' : 'build deep search'}
+        </Button>
         <span className="health-maintain-note">
-          {maintain.isPending ? 'working…' : (done ?? 'Turnlog only ever writes to its own index.')}
+          {maintain.isPending
+            ? 'working…'
+            : (done ??
+              (h.deepSearch
+                ? 'Deep search is on — searches can match inside words.'
+                : 'Turnlog only ever writes to its own index.'))}
         </span>
       </div>
     </section>

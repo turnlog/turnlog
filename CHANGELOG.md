@@ -4,6 +4,22 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Deep search: an opt-in index that matches **inside** words. The normal
+  search matches whole words, so a fragment like `eWebSock`, half an error
+  string, or part of a UUID finds nothing — the one thing grep still did
+  better than Turnlog. Turn it on from the health card's Maintain row
+  ("build deep search"); it costs several times the index's usual size, which
+  is why it is a choice rather than the default, and the button tells you the
+  new size when it finishes. Once built, a **words | inside words** toggle
+  appears on the search screen. Everything else still works alongside it —
+  `tool:`, `is:error`, `project:` and the rest narrow a deep search the same
+  way. Drop it any time from the same button; nothing else about your index
+  changes. Works across every indexed agent, and any added later.
+
 ## [0.9.1] — 2026-08-03
 
 ### Changed

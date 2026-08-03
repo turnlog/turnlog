@@ -3352,6 +3352,14 @@
 .search-view {
   margin-left: auto;
 }
+/* Rides the same row; the view toggle keeps the right edge, so this one only
+   needs to clear the operator list. */
+.search-deep {
+  margin-left: auto;
+}
+.search-deep + .search-view {
+  margin-left: 0;
+}
 
 .tl-card {
   background: var(--card);

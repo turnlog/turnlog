@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import type Database from 'better-sqlite3';
+import { DEEP_MIN_CHARS, hasDeepIndex } from '../indexer/deepSearch.js';
 import { pricingForModel, type ModelPricing } from '../cost/pricing.js';
 import { sessionToHtml } from '../export/html.js';
 import { sessionToJson } from '../export/json.js';
@@ -972,27 +973,50 @@ export function toFtsQuery(input: string): string | null {
   return parts.length > 0 ? parts.join(' ') : null;
 }
 
+/**
+ * The same job for the trigram index, which matches substrings rather than
+ * words. Each token becomes a quoted phrase — FTS5 finds it anywhere inside
+ * the text, so `eWebSock` reaches `useWebSocket` — and several tokens AND
+ * together. Trailing `*` is meaningless here (every match is already a
+ * substring) and is stripped rather than passed through as a literal.
+ *
+ * Tokens under three characters cannot be served: a trigram index stores
+ * three-character sequences, so there is nothing shorter to look up. They are
+ * dropped, and a query made only of them returns null — the caller then says
+ * so rather than silently searching for something else.
+ */
+export function toTrigramQuery(input: string): string | null {
+  const parts: string[] = [];
+  for (const token of input.split(/\s+/).filter(Boolean).slice(0, 16)) {
+    const core = token.replace(/\*+$/, '').replace(/"/g, '""');
+    if (core.length < DEEP_MIN_CHARS) continue;
+    parts.push(`"${core}"`);
+  }
+  return parts.length > 0 ? parts.join(' ') : null;
+}
+
 // Matches resolve to the ROOT session: a hit inside a subagent transcript
 // counts as its parent, whose row carries the family's rolled-up totals —
 // summing both parent and child rows would double count.
-const MATCHED_SESSIONS_SQL = `SELECT DISTINCT COALESCE(ms.parent_session_id, ms.id)
-  FROM messages_fts
-  JOIN messages m ON m.rowid = messages_fts.rowid
+const matchedSessionsSql = (fts: FtsTable) => `SELECT DISTINCT COALESCE(ms.parent_session_id, ms.id)
+  FROM ${fts}
+  JOIN messages m ON m.rowid = ${fts}.rowid
   JOIN sessions ms ON ms.id = m.session_id
-  WHERE messages_fts MATCH ?`;
+  WHERE ${fts} MATCH ?`;
 
 function searchAggregates(
   db: Database.Database,
   match: string | null,
   filters: SearchFilters,
+  fts: FtsTable,
 ): SearchAggregates | null {
   const f = filterSql(filters, 'ms');
   const matched = match
     ? `SELECT DISTINCT COALESCE(ms.parent_session_id, ms.id)
-       FROM messages_fts
-       JOIN messages m ON m.rowid = messages_fts.rowid
+       FROM ${fts}
+       JOIN messages m ON m.rowid = ${fts}.rowid
        JOIN sessions ms ON ms.id = m.session_id
-       WHERE messages_fts MATCH ? ${f.sql}`
+       WHERE ${fts} MATCH ? ${f.sql}`
     : `SELECT DISTINCT COALESCE(ms.parent_session_id, ms.id)
        FROM messages m
        JOIN sessions ms ON ms.id = m.session_id
@@ -1033,21 +1057,42 @@ const SESSION_JOIN_COLUMNS = `s.id, s.project_path, s.project_key, s.parent_sess
  * Shared front half of every search entry point: operators parsed out, the
  * remainder sanitized for FTS. `empty` = nothing searchable at all.
  */
-function parseForSearch(query: string): {
+/** The two FTS tables a search can run against. Never user input. */
+type FtsTable = 'messages_fts' | 'messages_trigram';
+
+/**
+ * Parse once and decide which index answers. Deep search is only used when it
+ * is asked for AND built — a request for it on an index without one falls
+ * back to word matching rather than failing, so a stale UI toggle degrades
+ * instead of erroring.
+ */
+function parseForSearch(
+  query: string,
+  db?: Database.Database,
+  deep?: boolean,
+): {
   parsed: ParsedQuery;
   match: string | null;
   empty: boolean;
+  fts: FtsTable;
 } {
   const parsed = parseSearchQuery(query);
-  const match = parsed.terms !== '' ? toFtsQuery(parsed.terms) : null;
-  return { parsed, match, empty: match === null && !parsed.hasFilters };
+  const useDeep = deep === true && db !== undefined && hasDeepIndex(db);
+  const fts: FtsTable = useDeep ? 'messages_trigram' : 'messages_fts';
+  const match =
+    parsed.terms !== ''
+      ? useDeep
+        ? toTrigramQuery(parsed.terms)
+        : toFtsQuery(parsed.terms)
+      : null;
+  return { parsed, match, empty: match === null && !parsed.hasFilters, fts };
 }
 
 export function searchMessages(
   db: Database.Database,
-  q: { query: string; limit?: number; sessionId?: string },
+  q: { query: string; limit?: number; sessionId?: string; deep?: boolean },
 ): SearchResponse {
-  const { parsed, match, empty: nothing } = parseForSearch(q.query);
+  const { parsed, match, empty: nothing, fts } = parseForSearch(q.query, db, q.deep);
   const empty: SearchResponse = { query: q.query, groups: [], totalHits: 0, aggregates: null };
   if (nothing) return empty;
   const limit = Math.min(Math.max(q.limit ?? 100, 1), 500);
@@ -1060,19 +1105,19 @@ export function searchMessages(
   let rows: any[];
   try {
     if (match !== null) {
-      const order = q.sessionId !== undefined ? 'm.idx' : 'bm25(messages_fts)';
+      const order = q.sessionId !== undefined ? 'm.idx' : `bm25(${fts})`;
       const params: unknown[] = [SNIPPET_OPEN, SNIPPET_CLOSE, match];
       if (q.sessionId !== undefined) params.push(q.sessionId);
       params.push(...f.params, limit);
       rows = db
         .prepare(
           `SELECT m.uuid, m.session_id, m.idx, m.kind, m.tool_name, m.ts,
-                  snippet(messages_fts, 0, ?, ?, '…', 12) AS snip,
+                  snippet(${fts}, 0, ?, ?, '…', 12) AS snip,
                   ${SESSION_JOIN_COLUMNS}
-           FROM messages_fts
-           JOIN messages m ON m.rowid = messages_fts.rowid
+           FROM ${fts}
+           JOIN messages m ON m.rowid = ${fts}.rowid
            JOIN sessions s ON s.id = m.session_id
-           WHERE messages_fts MATCH ? ${sessionWhere} ${f.sql}
+           WHERE ${fts} MATCH ? ${sessionWhere} ${f.sql}
            ORDER BY ${order}
            LIMIT ?`,
         )
@@ -1124,7 +1169,7 @@ export function searchMessages(
     totalHits: rows.length,
     // Session-scoped find doesn't need money attached to it.
     aggregates:
-      q.sessionId === undefined ? searchAggregates(db, match, parsed.filters) : null,
+      q.sessionId === undefined ? searchAggregates(db, match, parsed.filters, fts) : null,
   };
 }
 
@@ -1141,9 +1186,9 @@ const TIMELINE_MAX_SESSIONS = 1000;
  */
 export function searchTimeline(
   db: Database.Database,
-  q: { query: string },
+  q: { query: string; deep?: boolean },
 ): SearchTimelineResponse {
-  const { parsed, match, empty: nothing } = parseForSearch(q.query);
+  const { parsed, match, empty: nothing, fts } = parseForSearch(q.query, db, q.deep);
   const empty: SearchTimelineResponse = { query: q.query, sessions: [] };
   if (nothing) return empty;
   const f = filterSql(parsed.filters, 'ms');
@@ -1153,10 +1198,10 @@ export function searchTimeline(
   // transcript is meaningless as a jump target in the parent's replay.
   const hitsFrom =
     match !== null
-      ? `FROM messages_fts
-         JOIN messages m ON m.rowid = messages_fts.rowid
+      ? `FROM ${fts}
+         JOIN messages m ON m.rowid = ${fts}.rowid
          JOIN sessions ms ON ms.id = m.session_id
-         WHERE messages_fts MATCH ? ${f.sql}`
+         WHERE ${fts} MATCH ? ${f.sql}`
       : `FROM messages m
          JOIN sessions ms ON ms.id = m.session_id
          WHERE 1=1 ${f.sql}`;
@@ -1289,7 +1334,7 @@ export function deleteSavedSearch(db: Database.Database, id: number): boolean {
  */
 export function searchFiles(
   db: Database.Database,
-  q: { query?: string; limit?: number; find?: string },
+  q: { query?: string; limit?: number; find?: string; deep?: boolean },
 ): FileSummary[] {
   const limit = Math.min(Math.max(q.limit ?? 100, 1), 500);
   const like = q.query ? `%${q.query}%` : '%';
@@ -1297,16 +1342,16 @@ export function searchFiles(
   let findSql = '';
   const findParams: unknown[] = [];
   if (q.find && q.find.trim() !== '') {
-    const { parsed, match, empty } = parseForSearch(q.find);
+    const { parsed, match, empty, fts } = parseForSearch(q.find, db, q.deep);
     if (!empty) {
       const f = filterSql(parsed.filters, 'ms');
       const matched =
         match !== null
           ? `SELECT DISTINCT COALESCE(ms.parent_session_id, ms.id)
-             FROM messages_fts
-             JOIN messages m ON m.rowid = messages_fts.rowid
+             FROM ${fts}
+             JOIN messages m ON m.rowid = ${fts}.rowid
              JOIN sessions ms ON ms.id = m.session_id
-             WHERE messages_fts MATCH ? ${f.sql}`
+             WHERE ${fts} MATCH ? ${f.sql}`
           : `SELECT DISTINCT COALESCE(ms.parent_session_id, ms.id)
              FROM messages m
              JOIN sessions ms ON ms.id = m.session_id
@@ -1451,9 +1496,14 @@ export function getSpend(
     .prepare(`SELECT id, parent_session_id, project_key, started_at, cost_usd FROM sessions`)
     .all() as SessionRowLite[];
   const byId = new Map(sessions.map((s) => [s.id, s]));
+  // Spend's query filter stays on the word index: it answers "what did this
+  // KIND of work cost", a coarse question, and building the trigram index is
+  // not a precondition for the spend screen.
   const matchedRoots = match
     ? new Set(
-        (db.prepare(MATCHED_SESSIONS_SQL).raw().all(match) as [string][]).map((r) => r[0]),
+        (db.prepare(matchedSessionsSql('messages_fts')).raw().all(match) as [string][]).map(
+          (r) => r[0],
+        ),
       )
     : null;
 
@@ -1590,6 +1640,7 @@ export function getIndexHealth(db: Database.Database): {
   unknownTypes: { type: string; count: number }[];
   missingFiles: number;
   dbBytes: number;
+  deepSearch: boolean;
 } {
   const files = db.prepare(`SELECT COUNT(*) AS n FROM sessions`).get() as { n: number };
   // Checked live rather than stored: the file count is small and the watcher
@@ -1627,6 +1678,7 @@ export function getIndexHealth(db: Database.Database): {
     unknownTypes,
     missingFiles,
     dbBytes,
+    deepSearch: hasDeepIndex(db),
   };
 }
 

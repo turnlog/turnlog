@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import type Database from 'better-sqlite3';
 import type { IndexDriver } from '../indexer/driver.js';
+import { buildDeepIndex, dropDeepIndex } from '../indexer/deepSearch.js';
 import {
   createSavedSearch,
   deleteSavedSearch,
@@ -516,7 +517,20 @@ async function handleApiWrite(
       const { freedBytes } = vacuumIndex(db);
       return sendJson(res, 200, { action, freedBytes, ...getIndexHealth(db) });
     }
-    throw new HttpError(400, 'action must be "prune" or "vacuum"');
+    // Substring search, on and off. Building scans every indexed message, so
+    // it is the one maintenance action that takes real time on a big index.
+    if (action === 'deep-build') {
+      buildDeepIndex(db);
+      return sendJson(res, 200, { action, ...getIndexHealth(db) });
+    }
+    if (action === 'deep-drop') {
+      dropDeepIndex(db);
+      return sendJson(res, 200, { action, ...getIndexHealth(db) });
+    }
+    throw new HttpError(
+      400,
+      'action must be "prune", "vacuum", "deep-build" or "deep-drop"',
+    );
   }
 
   if (p === '/api/shutdown') {
@@ -587,7 +601,11 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
     );
   }
   if (p === '/api/search/timeline') {
-    return sendJson(res, 200, searchTimeline(db, { query: q.get('q') ?? '' }));
+    return sendJson(
+      res,
+      200,
+      searchTimeline(db, { query: q.get('q') ?? '', deep: q.get('deep') === '1' }),
+    );
   }
   if (p === '/api/search') {
     return sendJson(
@@ -597,6 +615,8 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
         query: q.get('q') ?? '',
         limit: numParam(q, 'limit'),
         sessionId: q.get('session') ?? undefined,
+        // Substring search, when the caller asks and the index exists.
+        deep: q.get('deep') === '1',
       }),
     );
   }
@@ -618,6 +638,7 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
         query: q.get('q') ?? undefined,
         limit: numParam(q, 'limit'),
         find: q.get('find') ?? undefined,
+        deep: q.get('deep') === '1',
       }),
     );
   }

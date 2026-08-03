@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   useDeleteSavedSearch,
+  useHealth,
   useSavedSearches,
   useSaveSearch,
   useSearch,
@@ -312,7 +313,12 @@ export default function Search({
     inputRef.current?.focus();
   }, []);
 
-  const search = useSearch(query);
+  // Deep search is a per-search choice, not a saved preference: it is slower
+  // and noisier, so it should be a thing you reach for on a query that failed.
+  const [deep, setDeep] = useState(false);
+  const health = useHealth();
+  const deepBuilt = health.data?.deepSearch === true;
+  const search = useSearch(query, undefined, deep && deepBuilt);
   const groups = search.data?.groups ?? [];
 
   // Flat list of hits for keyboard navigation.
@@ -328,7 +334,7 @@ export default function Search({
     [groups],
   );
   const [active, setActive] = useState(0);
-  useEffect(() => setActive(0), [query]);
+  useEffect(() => setActive(0), [query, deep]);
 
   const openHit = (sessionId: string, idx: number) => {
     navigate(sessionHash(sessionId, { m: idx, q: query }));
@@ -401,6 +407,19 @@ export default function Search({
           <code>is:pinned</code> <code>has:note</code> <code>has:bookmark</code>{' '}
           <code>project:name</code> <code>model:opus</code> <code>path:api.ts</code>{' '}
           <code>before:2026-07</code> <code>after:7d</code> <code>after:yesterday</code>
+          {query !== '' && deepBuilt && (
+            <Segmented
+              fill="card"
+              className="search-deep"
+              ariaLabel="Match mode"
+              value={deep ? 'deep' : 'words'}
+              onChange={(v) => setDeep(v === 'deep')}
+              options={[
+                { value: 'words', label: 'words' },
+                { value: 'deep', label: 'inside words' },
+              ]}
+            />
+          )}
           {query !== '' && (
             <Segmented
               fill="card"
