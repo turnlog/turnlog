@@ -8,6 +8,12 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Added
 
+- A fresh index now starts with three example saved searches — `is:error
+  after:7d`, `has:bookmark`, `kind:prompt after:today`. The operator grammar
+  is the most useful thing in Turnlog and the hardest to discover; three
+  working examples teach it better than a list of syntax. They are ordinary
+  saved searches: delete any you don't want and they stay deleted.
+
 - Refine chips on search results: under the result count, a row of what your
   matches actually contain — which agents, tools, record kinds and projects,
   with counts. Click one to narrow to it. The operator grammar is powerful and

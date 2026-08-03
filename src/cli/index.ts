@@ -6,6 +6,7 @@ import readline from 'node:readline';
 import { dbPath, defaultCodexDir, defaultProjectsDir, loadSettings, serverInfoPath } from '../config.js';
 import { renderSearch } from './search.js';
 import {
+  seedStarterSearches,
   exportAnnotations,
   getSessionExport,
   getSessionHtmlExport,
@@ -146,6 +147,9 @@ async function start(
 
   const dbFile = dbPath();
   const db = openDb(dbFile); // main-thread connection: creates schema, then read-only use
+  // Three worked examples of the query grammar, once, into a fresh index —
+  // the operators are the most powerful and least discoverable thing here.
+  seedStarterSearches(db);
   // TURNLOG_TOKEN is a dev-only escape hatch so the Vite proxy can inject a
   // stable token; real launches always get a fresh random one.
   const token = process.env.TURNLOG_TOKEN ?? crypto.randomBytes(16).toString('hex');

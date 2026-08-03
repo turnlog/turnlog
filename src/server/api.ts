@@ -1580,6 +1580,58 @@ export function listSavedSearches(db: Database.Database): SavedSearch[] {
     .map(rowToSavedSearch);
 }
 
+/**
+ * Three examples, seeded once into an empty index.
+ *
+ * The operator grammar is the most powerful thing in Turnlog and the least
+ * discoverable — a cheat line teaches it worse than three working examples
+ * sitting where saved searches already appear. Chosen to show three different
+ * ideas rather than three spellings of one: a state filter, an annotation
+ * filter, and a kind filter with a relative date.
+ *
+ * They are ordinary saved searches, so deleting them is permanent — the seed
+ * is pref-flagged and never runs twice, or a deleted example would come back
+ * on the next launch, which is the single most annoying thing a starter item
+ * can do.
+ */
+const STARTER_SEARCHES: { name: string; query: string }[] = [
+  { name: 'recent failures', query: 'is:error after:7d' },
+  { name: 'moments I marked', query: 'has:bookmark' },
+  { name: 'what I asked today', query: 'kind:prompt after:today' },
+];
+
+/** Pref key recording that the seed has run, so it runs exactly once. */
+const SEEDED_KEY = 'starterSearchesSeeded';
+
+/**
+ * Seed the examples if this index has never had a saved search and has never
+ * been seeded. Returns how many were written — zero on every later launch.
+ */
+export function seedStarterSearches(db: Database.Database): number {
+  const seeded = db.prepare(`SELECT value FROM ui_prefs WHERE key = ?`).get(SEEDED_KEY);
+  if (seeded !== undefined) return 0;
+  const existing = db.prepare(`SELECT COUNT(*) AS n FROM saved_searches`).get() as { n: number };
+
+  const now = new Date().toISOString();
+  const insert = db.prepare(
+    `INSERT INTO saved_searches (name, query, created_at) VALUES (?, ?, ?)`,
+  );
+  const markSeeded = db.prepare(
+    `INSERT OR REPLACE INTO ui_prefs (key, value) VALUES (?, ?)`,
+  );
+  return db.transaction(() => {
+    // Someone with their own saved searches does not need examples; mark it
+    // seeded anyway so this check stops running.
+    if (existing.n > 0) {
+      markSeeded.run(SEEDED_KEY, JSON.stringify(true));
+      return 0;
+    }
+    for (const s of STARTER_SEARCHES) insert.run(s.name, s.query, now);
+    markSeeded.run(SEEDED_KEY, JSON.stringify(true));
+    return STARTER_SEARCHES.length;
+  })();
+}
+
 /** Create a saved search; the name defaults to the query. Null = nothing to save. */
 export function createSavedSearch(
   db: Database.Database,
