@@ -7,6 +7,7 @@ import { newCodexState } from '../parser/adapters/codex.js';
 import type { NormalizedRecord } from '../parser/types.js';
 import { computeCost, type ModelPricing } from '../cost/pricing.js';
 import { ADAPTER_VERSION, CODEX_ADAPTER_VERSION } from '../version.js';
+import { resumeDeepIndex, suspendDeepIndex } from './deepSearch.js';
 
 export interface IndexProgress {
   filesTotal: number;
@@ -493,12 +494,17 @@ export class Indexer {
 
   /** Wipe the index and re-scan everything from byte zero. */
   async rebuild(onProgress?: (p: IndexProgress) => void): Promise<ScanSummary> {
+    // The trigram twin's triggers come down for the wipe — left live, the
+    // bulk DELETE would issue one FTS 'delete' per row against an index that
+    // no longer holds them, which corrupts rather than errors.
+    const deep = suspendDeepIndex(this.db);
     this.db.exec(`
       INSERT INTO messages_fts (messages_fts) VALUES ('delete-all');
       DELETE FROM messages;
       DELETE FROM files_touched;
       DELETE FROM sessions;
     `);
+    resumeDeepIndex(this.db, deep);
     return this.scanAll(onProgress);
   }
 }
