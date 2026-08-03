@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 export function openDb(path: string): Database.Database {
   const db = new Database(path);
@@ -178,6 +178,15 @@ function migrate(db: Database.Database): void {
     db.exec(`
       ALTER TABLE sessions ADD COLUMN ai_title TEXT;
       ALTER TABLE sessions ADD COLUMN cc_title TEXT;
+    `);
+  }
+
+  if (version < 9) {
+    // Multi-tool groundwork (Phase 5): which agent wrote the session.
+    // Existing rows are all Claude Code, so the default backfills them —
+    // no reindex needed.
+    db.exec(`
+      ALTER TABLE sessions ADD COLUMN tool TEXT NOT NULL DEFAULT 'claude-code';
     `);
   }
 

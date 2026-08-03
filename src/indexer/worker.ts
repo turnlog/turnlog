@@ -5,6 +5,7 @@ import { Indexer, type IndexProgress } from './indexer.js';
 interface WorkerInit {
   dbPath: string;
   projectsDir: string;
+  codexDir?: string;
   pricingOverrides?: Record<string, Partial<import('../cost/pricing.js').ModelPricing>>;
 }
 
@@ -17,9 +18,9 @@ interface Command {
 if (!parentPort) throw new Error('indexer worker must run inside a worker thread');
 const port = parentPort;
 
-const { dbPath, projectsDir, pricingOverrides } = workerData as WorkerInit;
+const { dbPath, projectsDir, codexDir, pricingOverrides } = workerData as WorkerInit;
 const db = openDb(dbPath);
-const indexer = new Indexer(db, { projectsDir, pricingOverrides });
+const indexer = new Indexer(db, { projectsDir, codexDir, pricingOverrides });
 
 let queue: Promise<unknown> = Promise.resolve();
 

@@ -1,3 +1,5 @@
+import Primary from '../components/Primary';
+import TextArea from '../components/TextArea';
 import { useState } from 'react';
 import { useSetSessionMeta } from '../api';
 import { projectName } from '../format';
@@ -31,11 +33,10 @@ export default function AnnotatePanel({ s, onClose }: { s: SessionMeta; onClose:
       </label>
       <label className="annotate-field">
         <span className="annotate-label">Note</span>
-        <textarea
+        <TextArea
           value={note}
-          onChange={(e) => setNote(e.target.value)}
+          onChange={setNote}
           placeholder="Anything future-you should know about this session…"
-          rows={3}
           maxLength={4000}
           onKeyDown={(e) => {
             if (e.key === 'Escape') onClose();
@@ -43,12 +44,12 @@ export default function AnnotatePanel({ s, onClose }: { s: SessionMeta; onClose:
         />
       </label>
       <div className="annotate-actions">
-        <button className="pill" onClick={onClose}>
+        <Primary fill="quiet" onClick={onClose}>
           Cancel
-        </button>
-        <button className="btn-accent annotate-save" onClick={save} disabled={setMeta.isPending}>
+        </Primary>
+        <Primary fill="accent" onClick={save} disabled={setMeta.isPending}>
           Save
-        </button>
+        </Primary>
       </div>
     </div>
   );

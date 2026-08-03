@@ -129,11 +129,14 @@ export function shortId(id: string): string {
 }
 
 /**
- * Deterministic per-project tile color: hash the project key into one of 8
- * validated categorical hues (`--tile-0…7`, defined in theme.css). Color
- * follows the project key, never its position in a list, so filtering/sorting
- * never repaints a project. Collisions past 8 projects are disambiguated by the
- * tile's initial + the project name (the required secondary encoding).
+ * Deterministic per-project class: hash the project key into one of 8 validated
+ * categorical hues (`--tile-0…7`, theme.css). Follows the key, never a position
+ * in a list, so filtering and sorting never repaint a project.
+ *
+ * Only surfaces where comparing projects is the task actually paint it —
+ * calendar blocks and the search timeline. The lettered tiles are neutral, so
+ * there the class is inert. Collisions past 8 projects are disambiguated by the
+ * initial and the project name.
  */
 export function tileClass(key: string | null): string {
   let h = 0;

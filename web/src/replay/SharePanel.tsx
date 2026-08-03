@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { fetchExport, useTurns } from '../api';
-import Tooltip from '../components/Tooltip';
+import Primary from '../components/Primary';
+import IconButton from '../components/IconButton';
+import Segmented from '../components/Segmented';
 import { CheckIcon, CopyIcon, DownloadIcon, ShareIcon } from '../icons';
 
 /**
@@ -69,7 +71,8 @@ export default function SharePanel({ sessionId }: { sessionId: string }) {
     const body = await fetchExport(sessionId, { format, redact, ...idxRange() }).catch(() => null);
     if (body === null) return;
     const [type, ext] = format === 'html' ? ['text/html', 'html'] : ['text/markdown', 'md'];
-    const rangeTag = whole || turnCount === 0 ? '' : `-t${clampTurn(fromTurn)}-${clampTurn(toTurn)}`;
+    const rangeTag =
+      whole || turnCount === 0 ? '' : `-t${clampTurn(fromTurn)}-${clampTurn(toTurn)}`;
     const url = URL.createObjectURL(new Blob([body], { type }));
     const a = document.createElement('a');
     a.href = url;
@@ -93,48 +96,48 @@ export default function SharePanel({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="share-wrap" ref={rootRef}>
-      <Tooltip content="Share / export">
-        <button
-          className={`replay-action ${open ? 'active' : ''}`}
-          onClick={() => (open ? setOpen(false) : openPanel())}
-          aria-label="Share or export this session"
-          aria-expanded={open}
-        >
-          <ShareIcon size={16} />
-        </button>
-      </Tooltip>
+      <IconButton
+        label="Share or export this session"
+        tooltip="Share / export"
+        active={open}
+        aria-expanded={open}
+        onClick={() => (open ? setOpen(false) : openPanel())}
+      >
+        <ShareIcon size={16} />
+      </IconButton>
       {open && (
         <div className="share-pop" role="dialog" aria-label="Share this session">
-          <div className="share-row">
-            <span className="share-label">format</span>
-            <div className="view-toggle share-seg">
-              <button
-                className={format === 'markdown' ? 'active' : ''}
-                onClick={() => setFormat('markdown')}
-              >
-                markdown
-              </button>
-              <button className={format === 'html' ? 'active' : ''} onClick={() => setFormat('html')}>
-                web page
-              </button>
-            </div>
+          <div className="pop-row">
+            <span className="pop-label">format</span>
+            <Segmented
+              className="share-seg"
+              ariaLabel="Export format"
+              value={format}
+              onChange={setFormat}
+              options={[
+                { value: 'markdown', label: 'markdown' },
+                { value: 'html', label: 'web page' },
+              ]}
+            />
           </div>
           {turnCount > 1 && (
-            <div className="share-row">
-              <span className="share-label">turns</span>
-              <div className="view-toggle share-seg">
-                <button className={whole ? 'active' : ''} onClick={() => setWhole(true)}>
-                  all {turnCount}
-                </button>
-                <button className={!whole ? 'active' : ''} onClick={() => setWhole(false)}>
-                  range
-                </button>
-              </div>
+            <div className="pop-row">
+              <span className="pop-label">turns</span>
+              <Segmented
+                className="share-seg"
+                ariaLabel="Turn range"
+                value={whole ? 'all' : 'range'}
+                onChange={(v) => setWhole(v === 'all')}
+                options={[
+                  { value: 'all', label: `all ${turnCount}` },
+                  { value: 'range', label: 'range' },
+                ]}
+              />
             </div>
           )}
           {!whole && turnCount > 1 && (
-            <div className="share-row">
-              <span className="share-label">range</span>
+            <div className="pop-row">
+              <span className="pop-label">range</span>
               <div className="share-range">
                 {turnInput(fromTurn, setFromTurn, 'First turn to export')}
                 <span className="share-range-sep">to</span>
@@ -142,16 +145,18 @@ export default function SharePanel({ sessionId }: { sessionId: string }) {
               </div>
             </div>
           )}
-          <div className="share-row">
-            <span className="share-label">redact</span>
-            <div className="view-toggle share-seg">
-              <button className={!redact ? 'active' : ''} onClick={() => setRedact(false)}>
-                off
-              </button>
-              <button className={redact ? 'active' : ''} onClick={() => setRedact(true)}>
-                on
-              </button>
-            </div>
+          <div className="pop-row">
+            <span className="pop-label">redact</span>
+            <Segmented
+              className="share-seg"
+              ariaLabel="Redact secrets"
+              value={redact ? 'on' : 'off'}
+              onChange={(v) => setRedact(v === 'on')}
+              options={[
+                { value: 'off', label: 'off' },
+                { value: 'on', label: 'on' },
+              ]}
+            />
           </div>
           <p className="share-hint">
             {redact
@@ -159,14 +164,14 @@ export default function SharePanel({ sessionId }: { sessionId: string }) {
               : 'Exports verbatim — switch redact on before sharing outside your machine.'}
           </p>
           <div className="share-actions">
-            <button className="share-btn" onClick={copy}>
+            <Primary fill="quiet" onClick={copy}>
               {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
-              {copied ? 'copied' : 'copy'}
-            </button>
-            <button className="share-btn primary" onClick={() => void download()}>
+              {copied ? 'Copied' : 'Copy'}
+            </Primary>
+            <Primary fill="contrast" onClick={() => void download()}>
               <DownloadIcon size={14} />
-              download
-            </button>
+              Download
+            </Primary>
           </div>
         </div>
       )}

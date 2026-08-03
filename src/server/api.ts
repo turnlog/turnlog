@@ -28,7 +28,7 @@ import type {
 import { LENSES, SNIPPET_CLOSE, SNIPPET_OPEN, type Lens } from './apiTypes.js';
 
 const SESSION_COLUMNS = `
-  id, project_path, project_key, parent_session_id, started_at, ended_at, model, turn_count,
+  id, project_path, project_key, parent_session_id, started_at, ended_at, model, turn_count, tool,
   input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
   cost_usd, files_touched_count, ai_title, cc_title,
   COALESCE(session_meta.pinned, 0) AS pinned, custom_name, note,
@@ -63,6 +63,7 @@ function rowToSession(r: any): SessionMeta {
     aiTitle: r.cc_title ?? r.ai_title ?? null,
     // NULL root_uuid never matches the subquery — 0 reads as standalone.
     chainLen: r.chain_len > 0 ? r.chain_len : 1,
+    tool: r.tool ?? 'claude-code',
   };
 }
 
@@ -85,6 +86,8 @@ export interface ListSessionsQuery {
   until?: string;
   /** Drop sessions with nothing in them (0 turns or 0 tokens, no cost). */
   hideEmpty?: boolean;
+  /** Case-insensitive name filter: custom name, CC title, or project. */
+  name?: string;
   /**
    * Collapse resume chains to their most recent part (the tip carries the
    * whole copied history anyway). The calendar wants every part at its real
@@ -112,6 +115,16 @@ export function listSessions(db: Database.Database, q: ListSessionsQuery): Sessi
   if (q.until) {
     clauses.push('started_at < ?');
     params.push(q.until);
+  }
+  if (q.name && q.name.trim() !== '') {
+    // The sidebar's quick filter — matches everything a row can display as
+    // its name, so what you see is what it filters.
+    const like = `%${q.name.trim()}%`;
+    clauses.push(
+      `(custom_name LIKE ? OR cc_title LIKE ? OR ai_title LIKE ?
+        OR project_path LIKE ? OR project_key LIKE ?)`,
+    );
+    params.push(like, like, like, like, like);
   }
   if (q.hideEmpty) {
     // Empty = reads zero on either axis (no prompts, or no usage at all —
@@ -1009,7 +1022,7 @@ function searchAggregates(
 }
 
 const SESSION_JOIN_COLUMNS = `s.id, s.project_path, s.project_key, s.parent_session_id,
-                s.started_at, s.ended_at, s.model,
+                s.started_at, s.ended_at, s.model, s.tool,
                 s.turn_count, s.input_tokens, s.output_tokens, s.cache_read_tokens,
                 s.cache_write_tokens, s.cost_usd, s.files_touched_count,
                 (SELECT COUNT(*) FROM sessions c
@@ -1187,8 +1200,15 @@ export function getSessionContext(
   db: Database.Database,
   sessionId: string,
 ): SessionContextResponse | null {
-  const exists = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(sessionId);
+  const exists = db.prepare(`SELECT id, tool FROM sessions WHERE id = ?`).get(sessionId) as
+    | { id: string; tool: string | null }
+    | undefined;
   if (!exists) return null;
+  // Codex rows carry per-response DELTAS, not window fill — a curve of them
+  // would be confidently wrong. Empty means the strip simply doesn't render.
+  if (exists.tool !== null && exists.tool !== 'claude-code') {
+    return { sessionId, points: [], compactions: [] };
+  }
   const points = db
     .prepare(
       `SELECT idx, ts,

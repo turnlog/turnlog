@@ -81,7 +81,7 @@ function ContextStrip({ sessionId }: { sessionId: string }) {
 
   if (points.length < 2) return null;
 
-  /** The turn number holding a message idx — jump chips speak in turns. */
+  /** The turn number holding a message idx — jump badges speak in turns. */
   const turnOf = (idx: number): number | null => {
     const list = turns.data?.turns ?? [];
     for (let i = list.length - 1; i >= 0; i--) {
@@ -128,7 +128,7 @@ function ContextStrip({ sessionId }: { sessionId: string }) {
             return (
               <button
                 key={c.idx}
-                className="chip chip-summary ctx-compact-chip"
+                className="badge badge-summary ctx-compact-badge"
                 onClick={() => navigate(sessionHash(sessionId, { m: c.idx }))}
                 aria-label="Jump to the compaction point"
               >

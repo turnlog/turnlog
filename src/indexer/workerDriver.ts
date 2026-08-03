@@ -27,6 +27,7 @@ export class WorkerDriver implements IndexDriver {
   constructor(opts: {
     dbPath: string;
     projectsDir: string;
+    codexDir?: string;
     pricingOverrides?: Record<string, Partial<ModelPricing>>;
   }) {
     this.worker = new Worker(new URL('./worker.js', import.meta.url), { workerData: opts });

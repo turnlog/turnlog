@@ -1,7 +1,9 @@
 import { memo, useContext, useMemo, useState } from 'react';
 import { useChildRows } from '../api';
+import { AgentLabelContext } from './agentContext';
 import CodeBlock from '../code/CodeBlock';
 import { langFromPath } from '../code/highlighter';
+import Badge from '../components/Badge';
 import { SkeletonLines } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
 import { fmtCount, fmtTime } from '../format';
@@ -72,7 +74,7 @@ const PromptBlock = memo(function PromptBlock({ row }: { row: MessageRow }) {
       </div>
       {command ? (
         <div className="prompt-command">
-          <span className="chip chip-cmd">{command}</span>
+          <Badge kind="cmd">{command}</Badge>
           {stdout && stdout !== '' && <ClampedText text={stdout} />}
         </div>
       ) : (
@@ -87,11 +89,12 @@ const PromptBlock = memo(function PromptBlock({ row }: { row: MessageRow }) {
 const AssistantBlock = memo(function AssistantBlock({ row }: { row: MessageRow }) {
   const view = parseRaw(row);
   const [thinkingOpen, setThinkingOpen] = useState(false);
+  const agentLabel = useContext(AgentLabelContext);
 
   return (
     <div className="block block-assistant">
       <div className="block-head">
-        <span className="block-label">claude</span>
+        <span className="block-label">{agentLabel}</span>
         <Ts iso={row.ts} />
       </div>
       {view.thinkingParts.length > 0 && (
@@ -417,7 +420,7 @@ const ToolBlockView = memo(function ToolBlockView({
 function SummaryBlock({ row }: { row: MessageRow }) {
   return (
     <div className="block block-summary">
-      <span className="chip chip-summary">summary</span>
+      <Badge kind="summary">summary</Badge>
       <span className="summary-text">{row.text}</span>
     </div>
   );
@@ -442,13 +445,13 @@ const SystemBlock = memo(function SystemBlock({ row }: { row: MessageRow }) {
 function TitleBlock({ row }: { row: MessageRow }) {
   return (
     <div className="block block-summary">
-      <span className="chip chip-summary">title</span>
+      <Badge kind="summary">title</Badge>
       <span className="summary-text">{row.text}</span>
     </div>
   );
 }
 
-/** Attachment payloads worth a visible chip; everything else is bookkeeping. */
+/** Attachment payloads worth a visible badge; everything else is bookkeeping. */
 const ATTACH_LABEL: Record<string, string> = {
   file: 'file attached',
   directory: 'directory attached',
@@ -478,7 +481,7 @@ const AttachmentBlock = memo(function AttachmentBlock({ row }: { row: MessageRow
     const detail = row.text || str(att?.prompt) || str(att?.planFilePath) || '';
     return (
       <div className="block block-summary block-attachment">
-        <span className="chip chip-attach">{label}</span>
+        <Badge>{label}</Badge>
         {detail && <span className="attach-detail">{shortPath(detail)}</span>}
         <Ts iso={row.ts} />
       </div>

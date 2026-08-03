@@ -1,4 +1,5 @@
 import Tooltip from './Tooltip';
+import './NoteDot.css';
 
 /**
  * A saved note surfaces as a floating yellow dot; hovering (or focusing) it

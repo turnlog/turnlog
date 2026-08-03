@@ -1,0 +1,23 @@
+/* TextArea — the multi-line field. Matches SearchField's sm size: same inset
+   ground, same radius, same focus ring. */
+
+.textarea {
+  width: 100%;
+  background: var(--bg1);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  /* Form controls do not inherit the app font — without this the field falls
+     back to the browser's monospace default. */
+  font-family: var(--sans);
+  font-size: var(--fs-14);
+  line-height: 1.5;
+  color: var(--tx0);
+  resize: vertical;
+}
+.textarea::placeholder {
+  color: var(--tx2);
+}
+.textarea:focus-visible {
+  outline: 2px solid var(--accent-dim);
+}

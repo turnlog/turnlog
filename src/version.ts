@@ -5,7 +5,13 @@ const pkg = createRequire(import.meta.url)('../package.json') as { version: stri
 export const APP_VERSION: string = pkg.version;
 
 /**
- * Version of the parser/adapter pipeline. Bumping this forces a full reindex
- * of every session file on the next scan.
+ * Version of the Claude Code parser/adapter pipeline. Bumping this forces a
+ * full reindex of every CC session file on the next scan.
  */
 export const ADAPTER_VERSION = 4;
+
+/**
+ * Version of the Codex rollout adapter. Per-tool on purpose: bumping one
+ * tool's adapter must not reindex the other tool's files.
+ */
+export const CODEX_ADAPTER_VERSION = 1;

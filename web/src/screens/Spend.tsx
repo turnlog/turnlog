@@ -3,6 +3,9 @@ import { useProjects, useSpend } from '../api';
 import { navigate } from '../router';
 import Calendar from './Calendar';
 import Disk from './Disk';
+import Button from '../components/Button';
+import SearchField from '../components/SearchField';
+import Segmented from '../components/Segmented';
 import { Skel, SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
 import { fmtCost, fmtCount, fmtModel, fmtTokens, projectName, tileClass } from '../format';
@@ -101,13 +104,7 @@ function rangeLabel(b: SpendBucket): string {
  */
 const BAR_MAX_PCT = 88;
 
-function SpendChart({
-  data,
-  granularity,
-}: {
-  data: SpendResponse;
-  granularity: 'day' | 'week';
-}) {
+function SpendChart({ data, granularity }: { data: SpendResponse; granularity: 'day' | 'week' }) {
   const buckets = useMemo(() => {
     const filled = fillDays(data.days, chartSpanDays(data));
     return granularity === 'week' ? bucketWeeks(filled) : filled;
@@ -153,7 +150,10 @@ function SpendChart({
                 <div className="spend-bar" style={{ height: `${barPct(d.costUsd)}%` }} />
               )}
               {i === peak && d.costUsd > 0 && (
-                <span className="spend-peak" style={{ bottom: `calc(${barPct(d.costUsd)}% + 5px)` }}>
+                <span
+                  className="spend-peak"
+                  style={{ bottom: `calc(${barPct(d.costUsd)}% + 5px)` }}
+                >
                   {fmtCost(d.costUsd)}
                 </span>
               )}
@@ -192,11 +192,7 @@ function toCsv(data: SpendResponse): string {
 
 /* ── screen ──────────────────────────────────────────────────────── */
 
-export default function Spend({
-  view = 'overview',
-}: {
-  view?: 'overview' | 'calendar' | 'disk';
-}) {
+export default function Spend({ view = 'overview' }: { view?: 'overview' | 'calendar' | 'disk' }) {
   const [days, setDays] = useState<number>(30);
   const [gran, setGran] = useState<'day' | 'week'>('day');
   const [q, setQ] = useState('');
@@ -220,186 +216,153 @@ export default function Spend({
     <div className="spend">
       <div className="spend-head">
         <h1>Spend</h1>
-        <div className="view-toggle" role="tablist" aria-label="Spend view">
-          <button
-            role="tab"
-            aria-selected={view === 'overview'}
-            className={view === 'overview' ? 'active' : ''}
-            onClick={() => navigate('#/spend')}
-          >
-            overview
-          </button>
-          <button
-            role="tab"
-            aria-selected={view === 'calendar'}
-            className={view === 'calendar' ? 'active' : ''}
-            onClick={() => navigate('#/spend?v=calendar')}
-          >
-            calendar
-          </button>
-          <button
-            role="tab"
-            aria-selected={view === 'disk'}
-            className={view === 'disk' ? 'active' : ''}
-            onClick={() => navigate('#/spend?v=disk')}
-          >
-            disk
-          </button>
-        </div>
+        <Segmented
+          fill="card"
+          ariaLabel="Spend view"
+          value={view}
+          onChange={(v) => navigate(v === 'overview' ? '#/spend' : `#/spend?v=${v}`)}
+          options={[
+            { value: 'overview', label: 'overview' },
+            { value: 'calendar', label: 'calendar' },
+            { value: 'disk', label: 'disk' },
+          ]}
+        />
         {view === 'overview' && (
-        <div className="view-toggle" role="tablist" aria-label="Period">
-          {PERIODS.map((p) => (
-            <button
-              key={p.days}
-              role="tab"
-              aria-selected={days === p.days}
-              className={days === p.days ? 'active' : ''}
-              onClick={() => {
-                setDays(p.days);
-                // A year-plus of daily bars is unreadable — flip to weeks.
-                if (p.days >= 365) setGran('week');
-              }}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+          <Segmented
+            fill="card"
+            ariaLabel="Period"
+            value={String(days)}
+            onChange={(v) => {
+              const d = Number(v);
+              setDays(d);
+              // A year-plus of daily bars is unreadable — flip to weeks.
+              if (d >= 365) setGran('week');
+            }}
+            options={PERIODS.map((p) => ({ value: String(p.days), label: p.label }))}
+          />
         )}
         {view === 'overview' && (
-        <form
-          className="spend-filter"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setApplied(q);
-          }}
-        >
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Only work matching… (e.g. websocket)"
-            aria-label="Filter spend by search query"
-          />
-        </form>
+          <form
+            className="spend-filter"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setApplied(q);
+            }}
+          >
+            <SearchField
+              value={q}
+              onChange={setQ}
+              placeholder="Only work matching… (e.g. websocket)"
+              ariaLabel="Filter spend by search query"
+            />
+          </form>
         )}
         {view === 'overview' && d && (
           <div className="spend-actions">
-            <button className="pill" onClick={() => download('turnlog-spend.csv', 'text/csv', toCsv(d))}>
-              CSV
-            </button>
-            <button
-              className="pill"
+            <Button onClick={() => download('turnlog-spend.csv', 'text/csv', toCsv(d))}>CSV</Button>
+            <Button
               onClick={() =>
                 download('turnlog-spend.json', 'application/json', JSON.stringify(d, null, 2))
               }
             >
               JSON
-            </button>
+            </Button>
           </div>
         )}
       </div>
 
       <div className="spend-body">
-      {view === 'calendar' ? (
-        <Calendar />
-      ) : view === 'disk' ? (
-        <Disk />
-      ) : d === undefined ? (
-        <SkeletonRows n={7} tile={28} />
-      ) : (
-        <div className="spend-grid-layout">
-          <section className="card spend-chart-card">
-            <div className="spend-chart-head">
-              <div>
-                <strong className="spend-total">{fmtCost(d.totals.costUsd)}</strong>
-                <span className="spend-total-sub">
-                  est. · {periodText(d.sinceDays)} · {fmtCount(d.totals.sessions)} session
-                  {d.totals.sessions === 1 ? '' : 's'} ·{' '}
-                  {fmtTokens(d.totals.inputTokens + d.totals.outputTokens)} tok
-                  {d.query && (
-                    <>
-                      {' '}
-                      matching <em>“{d.query}”</em>
-                    </>
-                  )}
-                  {d.totals.unpricedSessions > 0 && <> · {d.totals.unpricedSessions} unpriced</>}
-                </span>
+        {view === 'calendar' ? (
+          <Calendar />
+        ) : view === 'disk' ? (
+          <Disk />
+        ) : d === undefined ? (
+          <SkeletonRows n={7} tile={28} />
+        ) : (
+          <div className="spend-grid-layout">
+            <section className="card spend-chart-card">
+              <div className="spend-chart-head">
+                <div>
+                  <strong className="spend-total">{fmtCost(d.totals.costUsd)}</strong>
+                  <span className="spend-total-sub">
+                    est. · {periodText(d.sinceDays)} · {fmtCount(d.totals.sessions)} session
+                    {d.totals.sessions === 1 ? '' : 's'} ·{' '}
+                    {fmtTokens(d.totals.inputTokens + d.totals.outputTokens)} tok
+                    {d.query && (
+                      <>
+                        {' '}
+                        matching <em>“{d.query}”</em>
+                      </>
+                    )}
+                    {d.totals.unpricedSessions > 0 && <> · {d.totals.unpricedSessions} unpriced</>}
+                  </span>
+                </div>
+                <Segmented
+                  ariaLabel="Chart granularity"
+                  value={gran}
+                  onChange={setGran}
+                  options={[
+                    { value: 'day', label: 'daily' },
+                    { value: 'week', label: 'weekly' },
+                  ]}
+                />
               </div>
-              <div className="view-toggle" role="tablist" aria-label="Chart granularity">
-                <button
-                  role="tab"
-                  aria-selected={gran === 'day'}
-                  className={gran === 'day' ? 'active' : ''}
-                  onClick={() => setGran('day')}
-                >
-                  daily
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={gran === 'week'}
-                  className={gran === 'week' ? 'active' : ''}
-                  onClick={() => setGran('week')}
-                >
-                  weekly
-                </button>
+              <SpendChart data={d} granularity={gran} />
+            </section>
+
+            <section className="card list-card">
+              <div className="list-card-head">
+                <h2>By model</h2>
               </div>
-            </div>
-            <SpendChart data={d} granularity={gran} />
-          </section>
+              <ul className="split-list">
+                {d.byModel.map((m) => (
+                  <li key={m.key}>
+                    <span className={`tile tile-xs ${tileClass(m.key)}`}>
+                      {fmtModel(m.key)[0]?.toUpperCase() ?? '·'}
+                    </span>
+                    <span className="split-name">{fmtModel(m.key)}</span>
+                    <span className="split-meta">
+                      {fmtTokens(m.tokens)} tok · {fmtCount(m.sessions)}s
+                    </span>
+                    <span className="split-cost">{fmtCost(m.costUsd)}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
 
-          <section className="card list-card">
-            <div className="list-card-head">
-              <h2>By model</h2>
-            </div>
-            <ul className="split-list">
-              {d.byModel.map((m) => (
-                <li key={m.key}>
-                  <span className={`tile tile-xs ${tileClass(m.key)}`}>
-                    {fmtModel(m.key)[0]?.toUpperCase() ?? '·'}
-                  </span>
-                  <span className="split-name">{fmtModel(m.key)}</span>
-                  <span className="split-meta">
-                    {fmtTokens(m.tokens)} tok · {fmtCount(m.sessions)}s
-                  </span>
-                  <span className="split-cost">{fmtCost(m.costUsd)}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+            <section className="card list-card">
+              <div className="list-card-head">
+                <h2>By project</h2>
+              </div>
+              <ul className="split-list">
+                {d.byProject.map((p) => (
+                  <li key={p.key}>
+                    <span className={`tile tile-xs ${tileClass(p.key)}`}>
+                      {nameOf(p.key)[0]?.toUpperCase() ?? '·'}
+                    </span>
+                    <span className="split-name">{nameOf(p.key)}</span>
+                    <span className="split-meta">
+                      {fmtTokens(p.tokens)} tok · {fmtCount(p.sessions)}s
+                    </span>
+                    <span className="split-cost">{fmtCost(p.costUsd)}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
 
-          <section className="card list-card">
-            <div className="list-card-head">
-              <h2>By project</h2>
-            </div>
-            <ul className="split-list">
-              {d.byProject.map((p) => (
-                <li key={p.key}>
-                  <span className={`tile tile-xs ${tileClass(p.key)}`}>
-                    {nameOf(p.key)[0]?.toUpperCase() ?? '·'}
-                  </span>
-                  <span className="split-name">{nameOf(p.key)}</span>
-                  <span className="split-meta">
-                    {fmtTokens(p.tokens)} tok · {fmtCount(p.sessions)}s
-                  </span>
-                  <span className="split-cost">{fmtCost(p.costUsd)}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="card dark-card spend-cache-card">
-            <div className="dark-card-head">
-              <h2>Prompt caching</h2>
-              <span className="dark-chip">saved ~{fmtCost(d.totals.cacheSavedUsd)}</span>
-            </div>
-            <p className="spend-cache-note">
-              {fmtTokens(d.totals.cacheReadTokens)} tokens read from cache at ~0.1× the input
-              rate ({fmtTokens(d.totals.cacheWriteTokens)} written). Without caching this
-              period would cost roughly{' '}
-              {fmtCost(d.totals.costUsd + d.totals.cacheSavedUsd)}.
-            </p>
-          </section>
-        </div>
-      )}
+            <section className="card dark-card spend-cache-card">
+              <div className="dark-card-head">
+                <h2>Prompt caching</h2>
+                <span className="dark-badge">saved ~{fmtCost(d.totals.cacheSavedUsd)}</span>
+              </div>
+              <p className="spend-cache-note">
+                {fmtTokens(d.totals.cacheReadTokens)} tokens read from cache at ~0.1× the input rate
+                ({fmtTokens(d.totals.cacheWriteTokens)} written). Without caching this period would
+                cost roughly {fmtCost(d.totals.costUsd + d.totals.cacheSavedUsd)}.
+              </p>
+            </section>
+          </div>
+        )}
       </div>
     </div>
   );

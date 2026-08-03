@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import './Dropdown.css';
 
 export interface DropdownOption {
   value: string;
@@ -92,6 +93,9 @@ export default function Dropdown({
       }
       case 'Escape':
         e.preventDefault();
+        // The dropdown consumed this Escape — don't let it also close a
+        // popover (filter panel, share panel) hosting the dropdown.
+        e.stopPropagation();
         setOpen(false);
         break;
       case 'Tab':

@@ -15,6 +15,7 @@ import { navigate, useRoute } from './router';
 import { SHORTCUTS, isTyping } from './keys';
 import { APP_EVENT, emitAppEvent, onAppEvent } from './events';
 import { getPref, setPref, usePref } from './prefs';
+import DesignSystem from './screens/DesignSystem';
 import Home from './screens/Home';
 import Replay from './screens/Replay';
 import FileHistory from './screens/FileHistory';
@@ -22,6 +23,8 @@ import Search from './screens/Search';
 import Spend from './screens/Spend';
 import WhatsNew from './screens/WhatsNew';
 import Sidebar from './Sidebar';
+import IconButton from './components/IconButton';
+import Primary from './components/Primary';
 import Palette from './components/Palette';
 import Shortcuts from './components/Shortcuts';
 import Tooltip from './components/Tooltip';
@@ -44,16 +47,14 @@ function SearchButton() {
   }, []);
 
   return (
-    <Tooltip content="Search all sessions" shortcut={SHORTCUTS.search}>
-      <a
-        href="#/search"
-        className={`circle ${route.name === 'search' ? 'active' : ''}`}
-        aria-label="Search all sessions"
-        aria-current={route.name === 'search' ? 'page' : undefined}
-      >
-        <MagniferIcon size={16} />
-      </a>
-    </Tooltip>
+    <Primary
+      href="#/search"
+      label="Search all sessions"
+      tooltip="Search all sessions"
+      shortcut={SHORTCUTS.search}
+      active={route.name === 'search'}
+      icon={<MagniferIcon />}
+    />
   );
 }
 
@@ -71,18 +72,18 @@ function StatusCircle() {
         : `Index up to date · v${data.appVersion}`))
     : 'Connecting…';
   return (
-    <Tooltip content={`${label} · ${hasNews ? 'see what’s new' : 'what’s new'}`}>
-      <a
-        href="#/whats-new"
-        className={`circle ${route.name === 'whatsnew' ? 'active' : ''} ${hasNews ? 'news' : ''}`}
-        aria-label="Index status — open what's new"
-        aria-current={route.name === 'whatsnew' ? 'page' : undefined}
-      >
+    <Primary
+      href="#/whats-new"
+      label="Index status — open what's new"
+      tooltip={`${label} · ${hasNews ? 'see what’s new' : 'what’s new'}`}
+      active={route.name === 'whatsnew'}
+      className={hasNews ? 'news' : ''}
+      icon={
         <span
           className={`status-dot ${indexing ? 'busy' : 'idle'} ${data?.lastError ? 'err' : ''}`}
         />
-      </a>
-    </Tooltip>
+      }
+    />
   );
 }
 
@@ -125,13 +126,14 @@ function UpdateBanner() {
         <code>{cmd}</code>
         <span className="update-banner-copy">{copied ? 'copied' : 'copy'}</span>
       </button>
-      <button
+      <IconButton
+        fill="ghost"
+        label="Dismiss update notice"
         className="update-banner-x"
         onClick={dismiss}
-        aria-label="Dismiss update notice"
       >
         <CloseIcon size={13} />
-      </button>
+      </IconButton>
     </div>
   );
 }
@@ -171,18 +173,14 @@ function StopButton({ onStopped }: { onStopped: () => void }) {
   }, [armed]);
 
   return (
-    <Tooltip
-      content={armed ? 'Press again to stop' : 'Stop Turnlog'}
+    <Primary
+      label={armed ? 'Confirm: stop Turnlog' : 'Stop Turnlog'}
+      tooltip={armed ? 'Press again to stop' : 'Stop Turnlog'}
       shortcut={SHORTCUTS.stop}
-    >
-      <button
-        className={`circle stop-btn ${armed ? 'armed' : ''}`}
-        onClick={() => (armed ? void stop() : setArmed(true))}
-        aria-label={armed ? 'Confirm: stop Turnlog' : 'Stop Turnlog'}
-      >
-        <PowerIcon size={16} />
-      </button>
-    </Tooltip>
+      fill={armed ? 'danger' : 'card'}
+      onClick={() => (armed ? void stop() : setArmed(true))}
+      icon={<PowerIcon />}
+    />
   );
 }
 
@@ -309,11 +307,13 @@ export default function App() {
           {/* While the sidebar is open, its own top row carries these. */}
           {!sidebarOpen && (
             <>
-              <Tooltip content="Show sessions" shortcut={SHORTCUTS.sidebar}>
-                <button className="circle" onClick={toggleSidebar} aria-label="Show sessions">
-                  <SidebarIcon size={17} />
-                </button>
-              </Tooltip>
+              <Primary
+                label="Show sessions"
+                tooltip="Show sessions"
+                shortcut={SHORTCUTS.sidebar}
+                onClick={toggleSidebar}
+                icon={<SidebarIcon />}
+              />
               <a href="#/" className="header-brand" aria-label="Turnlog — overview">
                 <Brandmark />
                 <span className="header-title">
@@ -324,30 +324,20 @@ export default function App() {
             </>
           )}
           <div className="header-right">
-            <a
-              className={`header-pill ${route.name === 'files' ? 'active' : ''}`}
-              href="#/files"
-            >
-              <FolderIcon size={16} />
+            <Primary href="#/files" active={route.name === 'files'} icon={<FolderIcon />}>
               Files
-            </a>
-            <a
-              className={`header-pill ${route.name === 'spend' ? 'active' : ''}`}
-              href="#/spend"
-            >
-              <WalletIcon size={16} />
+            </Primary>
+            <Primary href="#/spend" active={route.name === 'spend'} icon={<WalletIcon />}>
               Spend
-            </a>
+            </Primary>
             <SearchButton />
-            <Tooltip content={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} shortcut={SHORTCUTS.theme}>
-              <button
-                className="circle"
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
-              >
-                {theme === 'dark' ? <SunIcon size={16} /> : <MoonIcon size={16} />}
-              </button>
-            </Tooltip>
+            <Primary
+              label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+              tooltip={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+              shortcut={SHORTCUTS.theme}
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              icon={theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+            />
             <StatusCircle />
             <StopButton onStopped={() => setStopped(true)} />
           </div>
@@ -358,6 +348,9 @@ export default function App() {
           {route.name === 'search' && <Search query={route.query} view={route.view} />}
           {route.name === 'spend' && <Spend view={route.view} />}
           {route.name === 'whatsnew' && <WhatsNew />}
+          {/* Internal reference — deliberately unlinked; reach it by typing
+              #/design-system. */}
+          {route.name === 'design' && <DesignSystem />}
           {route.name === 'files' && (
             <FileHistory query={route.query} path={route.path} find={route.find} />
           )}

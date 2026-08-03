@@ -4,6 +4,70 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] — 2026-08-03
+
+### Changed
+
+- The interface got a visual overhaul. New type — Plus Jakarta Sans for the
+  app's own voice, Space Mono for anything quoted from your logs — and a
+  reworked palette where colour means one thing at a time: green is success
+  and nothing else, diffs moved to teal, and errors are their own red rather
+  than sharing a hex with the accent. Every button in the app frame is now
+  one control, so the header, the sidebar toggle, the hero search and the
+  stop button share a height, a padding and an icon size instead of six
+  near-identical implementations. Toggles read more clearly too: a control
+  that is switched on now fills solid rather than sitting one shade off its
+  own hover, and the replay's lens buttons carry their category as the fill
+  with the icon reversed out of it. Notes, exports and the command palette
+  all picked up the same treatment.
+
+### Added
+
+- The sidebar got a quick filter: type a few letters and the session list
+  narrows by name, title, or project — across your whole history, not just
+  the rows already loaded. Everything else — project, sort order, direction,
+  and empty-session visibility — now lives in a filter popover behind one
+  button beside it, with a dot on the button (and a reset link inside)
+  whenever a hidden control is narrowing the list.
+
+- Turnlog now reads OpenAI Codex sessions. Rollouts under
+  `~/.codex/sessions` are indexed automatically when the directory exists
+  (read-only, like everything else): full-text search, the turn spine,
+  replay, spend and disk views all work, sessions wear a CODEX badge, and
+  the resume button copies `codex resume <id>`. Codex work on a repo lands
+  in the **same project** as your Claude Code work on that repo — one
+  timeline per repo, whichever agent you pointed at it. Every session now
+  names its agent — an uppercase chip in the agent's brand color (Anthropic
+  clay, OpenAI green) in the sidebar and replay header, and correct speaker
+  labels in the replay and exports. The calendar can color blocks by
+  project or by agent (a new toggle) — and whichever one fills the block,
+  the other becomes its edge stripe, so a mixed week reads at a glance
+  either way. Codex token
+  accounting reads the per-response usage the logs record (cached input
+  split out), so totals are exact; GPT model pricing isn't bundled yet, so
+  costs show as estimates only if you add rates via `modelPricing` in
+  settings.json.
+
+### Fixed
+
+- Controls sitting directly on the page background (the Spend and calendar
+  header toggles, the calendar's arrows and "This week" pill) were nearly
+  invisible in the light theme — they now use the card tone, like the
+  header pills always have.
+
+- A to-do list in a tool result showed no difference between the task being
+  worked on and the ones still queued — the "in progress" row was meant to
+  stand out and never did. The live task now reads in full ink, ahead of the
+  pending ones and the faded, finished ones.
+
+- A pass over the interface for small inconsistencies that had crept in:
+  agent badges (CLAUDE, CODEX) were the only text in the app below the
+  legible floor and are now a touch larger; every screen title is one size;
+  the disk total is sized like the spend total it sits beside; inline
+  `code` in the interface is one shape everywhere instead of four; the
+  update-available banner lines up with the content beneath it; and hover
+  timing is uniform across every control.
+
 ## [0.8.0] — 2026-07-29
 
 ### Added
