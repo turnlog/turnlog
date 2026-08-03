@@ -27,6 +27,8 @@ export interface SessionMeta {
   filesTouchedCount: number;
   /** User annotations (session_meta table) — survive reindex and rebuild. */
   pinned: boolean;
+  /** User tags, alphabetical. Free-form labels, canonical lower case. */
+  tags: string[];
   customName: string | null;
   note: string | null;
   /**

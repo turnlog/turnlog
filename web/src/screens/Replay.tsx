@@ -13,6 +13,7 @@ import {
 } from '../api';
 import { agentInfo } from '../agents';
 import AgentBadge from '../components/AgentBadge';
+import TagEditor from '../components/TagEditor';
 import Badge from '../components/Badge';
 import IconButton from '../components/IconButton';
 import NoteDot from '../components/NoteDot';
@@ -216,6 +217,9 @@ export default function Replay({
               {s && s.chainLen > 1 && <ChainNav sessionId={sessionId} />}
               {s?.note && <NoteDot note={s.note} />}
             </span>
+            {/* Tags sit under the meta line rather than in it: the row is
+                already dense, and a session can carry several. */}
+            {s && <TagEditor sessionId={sessionId} tags={s.tags} />}
           </div>
           <div className="replay-controls-right">
             <div className="replay-views">

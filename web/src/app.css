@@ -3751,3 +3751,10 @@ kbd {
 }
 
 /* The sidebar quick filter is a components/SearchField.css field. */
+
+/* Tag chips on a sidebar row: quieter than the identity badges beside them —
+   a tag is the user's own word, not a fact about the session. */
+.tag-badge-row {
+  background: var(--bg2);
+  color: var(--tx1);
+}

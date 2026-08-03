@@ -133,6 +133,8 @@ export interface SessionsQuery {
   hideEmpty?: boolean;
   /** Case-insensitive name/title/project filter (sidebar quick filter). */
   name?: string;
+  /** Only sessions carrying this tag. */
+  tag?: string;
   /** Collapse resume chains to their most recent part (sidebar list). */
   collapseChains?: boolean;
 }
@@ -231,6 +233,34 @@ export function useHealth() {
  * Housekeeping on Turnlog's own index: 'prune' forgets session files that no
  * longer exist, 'vacuum' repacks the database. Both refresh the health card.
  */
+/** Every tag in use, with counts — the sidebar filter and editor suggestions. */
+export function useTags() {
+  return useQuery({
+    queryKey: ['tags'],
+    queryFn: () => apiFetch<{ tags: { tag: string; count: number }[] }>('/api/tags'),
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * Replace a session's tags. The whole set goes over the wire, so a dropped
+ * request cannot leave half an edit applied.
+ */
+export function useSetSessionTags() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, tags }: { id: string; tags: string[] }) =>
+      apiPost<{ tags: string[] }>(`/api/sessions/${encodeURIComponent(id)}/tags`, { tags }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['sessions'] });
+      void queryClient.invalidateQueries({ queryKey: ['session'] });
+      void queryClient.invalidateQueries({ queryKey: ['tags'] });
+      // A tag: query's results change the moment a tag moves.
+      void queryClient.invalidateQueries({ queryKey: ['search'] });
+    },
+  });
+}
+
 export function useMaintenance() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -261,6 +291,7 @@ export function useSessions(q: SessionsQuery) {
   if (q.project) params.set('project', q.project);
   if (q.hideEmpty) params.set('hideEmpty', '1');
   if (q.name) params.set('name', q.name);
+  if (q.tag) params.set('tag', q.tag);
   if (q.collapseChains) params.set('chains', 'collapse');
 
   return useInfiniteQuery({

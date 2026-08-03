@@ -33,6 +33,10 @@ const SESSION_COLUMNS = `
   input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
   cost_usd, files_touched_count, ai_title, cc_title,
   COALESCE(session_meta.pinned, 0) AS pinned, custom_name, note,
+  -- Tags ride the row so a list can show its chips without a query per row.
+  (SELECT group_concat(tag, char(10)) FROM (
+     SELECT tag FROM session_tags WHERE session_id = sessions.id ORDER BY tag
+   )) AS tags,
   (SELECT COUNT(*) FROM sessions c
    WHERE c.root_uuid = sessions.root_uuid AND c.project_key IS sessions.project_key
      AND c.parent_session_id IS NULL) AS chain_len
@@ -60,6 +64,9 @@ function rowToSession(r: any): SessionMeta {
     pinned: !!r.pinned,
     customName: r.custom_name ?? null,
     note: r.note ?? null,
+    // Newline-joined by the query because a tag may contain a space; the
+    // separator is the one character normalizeTag can never leave in.
+    tags: r.tags ? String(r.tags).split('\n') : [],
     // CC's user-set custom-title outranks its generated ai-title.
     aiTitle: r.cc_title ?? r.ai_title ?? null,
     // NULL root_uuid never matches the subquery — 0 reads as standalone.
@@ -89,6 +96,8 @@ export interface ListSessionsQuery {
   hideEmpty?: boolean;
   /** Case-insensitive name filter: custom name, CC title, or project. */
   name?: string;
+  /** Only sessions carrying this tag (canonical form, like the tag: operator). */
+  tag?: string;
   /**
    * Collapse resume chains to their most recent part (the tip carries the
    * whole copied history anyway). The calendar wants every part at its real
@@ -108,6 +117,13 @@ export function listSessions(db: Database.Database, q: ListSessionsQuery): Sessi
   if (q.project) {
     clauses.push('project_key = ?');
     params.push(q.project);
+  }
+  if (q.tag) {
+    const tag = normalizeTag(q.tag);
+    if (tag !== null) {
+      clauses.push('EXISTS (SELECT 1 FROM session_tags st WHERE st.session_id = sessions.id AND st.tag = ?)');
+      params.push(tag);
+    }
   }
   if (q.since) {
     clauses.push('started_at >= ?');
@@ -267,6 +283,79 @@ export function setSessionMeta(
     ).run(id, pinned, customName, note, new Date().toISOString());
   }
   return getSession(db, id);
+}
+
+/* ── session tags ────────────────────────────────────────────────────── */
+
+/** Long enough to be a label, short enough to stay a chip. */
+export const TAG_MAX = 32;
+/** A session with more than this many tags has stopped organising anything. */
+export const TAGS_PER_SESSION_MAX = 24;
+
+/**
+ * Tags are free-form, so they need exactly one canonical form or the same
+ * idea splits across `Refactor`, `refactor ` and `REFACTOR` and the filter
+ * silently misses two thirds of it. Lower-cased, inner whitespace collapsed,
+ * trimmed, capped. Returns null for anything that normalises to nothing.
+ */
+export function normalizeTag(raw: string): string | null {
+  const tag = raw.trim().toLowerCase().replace(/\s+/g, ' ').slice(0, TAG_MAX).trim();
+  return tag === '' ? null : tag;
+}
+
+/** A session's tags, alphabetical. Null = unknown session. */
+export function listSessionTags(db: Database.Database, sessionId: string): string[] | null {
+  const exists = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(sessionId);
+  if (!exists) return null;
+  const rows = db
+    .prepare(`SELECT tag FROM session_tags WHERE session_id = ? ORDER BY tag`)
+    .all(sessionId) as { tag: string }[];
+  return rows.map((r) => r.tag);
+}
+
+/**
+ * Replace a session's tags wholesale — the UI edits a set, not a diff, and a
+ * whole-set write means a dropped request can't leave half an edit applied.
+ * Returns the stored set, or null for an unknown session.
+ */
+export function setSessionTags(
+  db: Database.Database,
+  sessionId: string,
+  tags: string[],
+): string[] | null {
+  const exists = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(sessionId);
+  if (!exists) return null;
+
+  const seen = new Set<string>();
+  for (const raw of tags) {
+    const tag = normalizeTag(raw);
+    if (tag !== null) seen.add(tag);
+    if (seen.size >= TAGS_PER_SESSION_MAX) break;
+  }
+  const now = new Date().toISOString();
+  const del = db.prepare(`DELETE FROM session_tags WHERE session_id = ?`);
+  const ins = db.prepare(
+    `INSERT OR IGNORE INTO session_tags (session_id, tag, created_at) VALUES (?, ?, ?)`,
+  );
+  db.transaction(() => {
+    del.run(sessionId);
+    for (const tag of seen) ins.run(sessionId, tag, now);
+  })();
+  return [...seen].sort();
+}
+
+/**
+ * Every tag in use with how many sessions carry it — the sidebar's filter
+ * list and the replay editor's suggestions. Ordered by use so the labels that
+ * organise the most work come first.
+ */
+export function listAllTags(db: Database.Database): { tag: string; count: number }[] {
+  return db
+    .prepare(
+      `SELECT tag, COUNT(*) AS count FROM session_tags
+       GROUP BY tag ORDER BY count DESC, tag`,
+    )
+    .all() as { tag: string; count: number }[];
 }
 
 /* ── message bookmarks ("mark this moment") ─────────────────────────── */
@@ -801,6 +890,8 @@ export interface SearchFilters {
   hasBookmark?: boolean;
   /** path: — sessions whose family touched a matching file (files_touched). */
   path?: string;
+  /** tag: — sessions carrying a user tag (exact, since tags are canonical). */
+  tag?: string;
 }
 
 export interface ParsedQuery {
@@ -818,6 +909,7 @@ const FILTER_OPS = new Set([
   'project',
   'model',
   'path',
+  'tag',
   'before',
   'after',
 ]);
@@ -867,6 +959,13 @@ export function parseSearchQuery(input: string): ParsedQuery {
       case 'project':
         filters.project = value;
         break;
+      case 'tag': {
+        // Normalised the same way on the way in and the way out, so typing
+        // `tag:Refactor` finds what the chip stored as `refactor`.
+        const tag = normalizeTag(value);
+        if (tag !== null) filters.tag = tag;
+        break;
+      }
       case 'model':
         filters.model = value;
         break;
@@ -931,6 +1030,12 @@ function filterSql(f: SearchFilters, sessionAlias: string): { sql: string; param
     clauses.push(
       `EXISTS (SELECT 1 FROM session_meta sm WHERE sm.session_id = ${annotated} AND sm.pinned = 1)`,
     );
+  }
+  if (f.tag !== undefined) {
+    clauses.push(
+      `EXISTS (SELECT 1 FROM session_tags st WHERE st.session_id = ${annotated} AND st.tag = ?)`,
+    );
+    params.push(f.tag);
   }
   if (f.hasNote) {
     clauses.push(
@@ -1756,6 +1861,11 @@ export interface AnnotationsDump {
   }[];
   bookmarks: { sessionId: string; idx: number; createdAt: string | null }[];
   savedSearches: { name: string; query: string; createdAt: string | null }[];
+  /**
+   * Optional so a dump written before tags existed still imports — the
+   * importer treats a missing list as an empty one rather than a bad shape.
+   */
+  tags?: { sessionId: string; tag: string; createdAt: string | null }[];
 }
 
 export function exportAnnotations(db: Database.Database): AnnotationsDump {
@@ -1768,6 +1878,9 @@ export function exportAnnotations(db: Database.Database): AnnotationsDump {
   const saved = db
     .prepare(`SELECT name, query, created_at FROM saved_searches`)
     .all() as { name: string; query: string; created_at: string | null }[];
+  const tags = db
+    .prepare(`SELECT session_id, tag, created_at FROM session_tags ORDER BY session_id, tag`)
+    .all() as { session_id: string; tag: string; created_at: string | null }[];
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
@@ -1788,6 +1901,11 @@ export function exportAnnotations(db: Database.Database): AnnotationsDump {
       query: sv.query,
       createdAt: sv.created_at,
     })),
+    tags: tags.map((t) => ({
+      sessionId: t.session_id,
+      tag: t.tag,
+      createdAt: t.created_at,
+    })),
   };
 }
 
@@ -1799,7 +1917,7 @@ export function exportAnnotations(db: Database.Database): AnnotationsDump {
 export function importAnnotations(
   db: Database.Database,
   data: unknown,
-): { sessionMeta: number; bookmarks: number; savedSearches: number } {
+): { sessionMeta: number; bookmarks: number; savedSearches: number; tags: number } {
   const d = data as Partial<AnnotationsDump> | null;
   if (
     d === null ||
@@ -1811,7 +1929,7 @@ export function importAnnotations(
   ) {
     throw new Error('not a turnlog annotations export (expected {version: 1, …})');
   }
-  const counts = { sessionMeta: 0, bookmarks: 0, savedSearches: 0 };
+  const counts = { sessionMeta: 0, bookmarks: 0, savedSearches: 0, tags: 0 };
   const upsertMeta = db.prepare(
     `INSERT OR REPLACE INTO session_meta (session_id, pinned, custom_name, note, updated_at)
      VALUES (?, ?, ?, ?, ?)`,
@@ -1824,6 +1942,9 @@ export function importAnnotations(
   );
   const insertSaved = db.prepare(
     `INSERT INTO saved_searches (name, query, created_at) VALUES (?, ?, ?)`,
+  );
+  const insertTag = db.prepare(
+    `INSERT OR IGNORE INTO session_tags (session_id, tag, created_at) VALUES (?, ?, ?)`,
   );
   const tx = db.transaction(() => {
     for (const m of d.sessionMeta!) {
@@ -1851,6 +1972,19 @@ export function importAnnotations(
       if (savedExists.get(sv.name, sv.query) !== undefined) continue;
       insertSaved.run(sv.name, sv.query, typeof sv.createdAt === 'string' ? sv.createdAt : null);
       counts.savedSearches++;
+    }
+    // Additive and re-normalised: a dump hand-edited to `Refactor` merges into
+    // the same tag the UI would have written.
+    for (const t of d.tags ?? []) {
+      if (typeof t?.sessionId !== 'string' || typeof t.tag !== 'string') continue;
+      const tag = normalizeTag(t.tag);
+      if (tag === null) continue;
+      const res = insertTag.run(
+        t.sessionId,
+        tag,
+        typeof t.createdAt === 'string' ? t.createdAt : null,
+      );
+      counts.tags += res.changes;
     }
   });
   tx();

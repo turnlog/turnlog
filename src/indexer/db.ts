@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 export function openDb(path: string): Database.Database {
   const db = new Database(path);
@@ -187,6 +187,22 @@ function migrate(db: Database.Database): void {
     // no reindex needed.
     db.exec(`
       ALTER TABLE sessions ADD COLUMN tool TEXT NOT NULL DEFAULT 'claude-code';
+    `);
+  }
+
+  if (version < 10) {
+    // Session tags. User data, like session_meta and saved searches: rebuild()
+    // wipes the derived tables and leaves this one alone, so re-indexing never
+    // costs you your organisation. Free-form and lower-cased on the way in, so
+    // `Refactor` and `refactor` are one tag rather than two.
+    db.exec(`
+      CREATE TABLE session_tags (
+        session_id TEXT NOT NULL,
+        tag        TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        UNIQUE (session_id, tag)
+      );
+      CREATE INDEX idx_session_tags_tag ON session_tags(tag);
     `);
   }
 

@@ -1,0 +1,78 @@
+/* TagEditor — the chips on a session plus the field that adds them. */
+
+.tag-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* A tag badge carries its own remove button, so it needs room on the right
+   that a plain badge does not. */
+.tag-badge {
+  gap: 4px;
+  padding-right: 4px;
+}
+.tag-editor .tag-remove {
+  width: 16px;
+  height: 16px;
+  color: var(--tx2);
+}
+.tag-editor .tag-remove:hover {
+  background: none;
+  color: var(--tx0);
+}
+
+.tag-add {
+  padding: 3px 10px;
+  font-size: var(--fs-12);
+}
+
+.tag-input-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.tag-input {
+  width: 120px;
+  background: var(--bg1);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-family: var(--sans);
+  font-size: var(--fs-12);
+  color: var(--tx0);
+}
+.tag-input::placeholder {
+  color: var(--tx2);
+}
+.tag-input:focus-visible {
+  outline: 2px solid var(--accent-dim);
+}
+
+/* Existing tags, so the same idea does not get typed three ways. Floats over
+   the row rather than reflowing it — the header would jump otherwise. */
+.tag-suggest {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 260px;
+  padding: 8px;
+  background: var(--card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+}
+.tag-suggest button {
+  font-size: var(--fs-12);
+  color: var(--tx1);
+  background: var(--bg2);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+.tag-suggest button:hover {
+  background: var(--bg3);
+  color: var(--tx0);
+}

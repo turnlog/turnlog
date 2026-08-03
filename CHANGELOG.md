@@ -8,6 +8,16 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Added
 
+- Session tags: free-form labels on any session — `refactor`, `billing`,
+  `wip`. Add them from the replay header, see them on sidebar rows, filter the
+  sidebar to one from the filter popover, and narrow any search with
+  `tag:billing` (combines with every other operator). Tags are yours, not
+  derived: they survive a re-index, and they travel with
+  `turnlog annotations export|import` like your pins and notes. Casing and
+  spacing are normalised, so `Refactor` and `refactor` are one tag rather than
+  two. Works across every indexed agent — a tag belongs to the session, not to
+  the tool that wrote it.
+
 - Deep search: an opt-in index that matches **inside** words. The normal
   search matches whole words, so a fragment like `eWebSock`, half an error
   string, or part of a UUID finds nothing — the one thing grep still did

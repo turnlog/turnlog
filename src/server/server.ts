@@ -28,6 +28,7 @@ import {
   listMessages,
   listProjects,
   listSessionChildren,
+  listAllTags,
   listSavedSearches,
   listSessions,
   listTurns,
@@ -38,6 +39,7 @@ import {
   setBookmark,
   setPrefs,
   setSessionMeta,
+  setSessionTags,
   vacuumIndex,
 } from './api.js';
 import type { SessionMetaPatch } from './apiTypes.js';
@@ -382,8 +384,9 @@ export function createServer(ctx: ServerContext): http.Server {
 }
 
 /**
- * The write surface — session annotations, saved searches, UI prefs, and
- * shutdown, all requiring the same token + Host/Origin gates every request passes
+ * The write surface — session annotations (meta, tags, bookmarks), saved
+ * searches, UI prefs, and shutdown, all requiring the same token +
+ * Host/Origin gates every request passes
  * first. Any other POST is 405, so the hardening posture stays "GET-only
  * plus this allowlist". Deletion rides POST (…/delete) to keep the method
  * surface at GET/HEAD/POST.
@@ -420,6 +423,23 @@ async function handleApiWrite(
     const updated = setSessionMeta(db, decodeURIComponent(metaMatch[1]!), patch);
     if (!updated) return sendJson(res, 404, { error: 'session not found' });
     return sendJson(res, 200, updated);
+  }
+
+  // Tags are replaced as a whole set, not patched: the editor edits a set,
+  // and a whole-set write cannot leave half an edit applied.
+  const tagsMatch = /^\/api\/sessions\/([^/]+)\/tags$/.exec(p);
+  if (tagsMatch) {
+    const body = await readJsonBody(req);
+    if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+      throw new HttpError(400, 'expected a JSON object');
+    }
+    const raw = (body as Record<string, unknown>).tags;
+    if (!Array.isArray(raw) || raw.some((t) => typeof t !== 'string')) {
+      throw new HttpError(400, 'tags must be an array of strings');
+    }
+    const stored = setSessionTags(db, decodeURIComponent(tagsMatch[1]!), raw as string[]);
+    if (stored === null) return sendJson(res, 404, { error: 'session not found' });
+    return sendJson(res, 200, { tags: stored });
   }
 
   const revealMatch = /^\/api\/sessions\/([^/]+)\/reveal$/.exec(p);
@@ -596,6 +616,7 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
         until: q.get('until') ?? undefined,
         hideEmpty: q.get('hideEmpty') === '1',
         name: q.get('name') ?? undefined,
+        tag: q.get('tag') ?? undefined,
         collapseChains: q.get('chains') === 'collapse',
       }),
     );
@@ -622,6 +643,9 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
   }
   if (p === '/api/searches') {
     return sendJson(res, 200, listSavedSearches(db));
+  }
+  if (p === '/api/tags') {
+    return sendJson(res, 200, { tags: listAllTags(db) });
   }
   if (p === '/api/files/history') {
     const filePath = q.get('path');

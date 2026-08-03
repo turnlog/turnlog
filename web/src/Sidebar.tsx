@@ -6,6 +6,7 @@ import {
   useSessions,
   useSetSessionMeta,
   useStatus,
+  useTags,
   type SessionsQuery,
 } from './api';
 import Badge from './components/Badge';
@@ -118,6 +119,11 @@ function Item({
         <span className="side-item-badges">
           <AgentBadge tool={s.tool} />
           {s.model && <Badge kind="model">{fmtModel(s.model)}</Badge>}
+          {s.tags.map((t) => (
+            <Badge key={t} className="tag-badge-row">
+              {t}
+            </Badge>
+          ))}
         </span>
       </span>
     </div>
@@ -140,6 +146,8 @@ export default function Sidebar({
 
   const status = useStatus();
   const projects = useProjects();
+  const tags = useTags();
+  const [tag, setTag] = useState('');
 
   // Quick name filter — server-side (matches custom names, CC titles, and
   // projects across ALL sessions, not just loaded pages), debounced.
@@ -156,6 +164,7 @@ export default function Sidebar({
     sort,
     dir,
     project: project || undefined,
+    tag: tag || undefined,
     hideEmpty,
     name: name || undefined,
     collapseChains: true,
@@ -172,9 +181,11 @@ export default function Sidebar({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const controlsRef = useRef<HTMLDivElement>(null);
   const sortActive = sort !== 'ended_at' || dir !== 'desc';
-  const activeCount = (project ? 1 : 0) + (hideEmpty ? 1 : 0) + (sortActive ? 1 : 0);
+  const activeCount =
+    (project ? 1 : 0) + (tag ? 1 : 0) + (hideEmpty ? 1 : 0) + (sortActive ? 1 : 0);
   const resetFilters = () => {
     setProject('');
+    setTag('');
     setHideEmpty(false);
     setSort('ended_at');
     setDir('desc');
@@ -254,6 +265,22 @@ export default function Sidebar({
                   ...(projects.data?.map((p) => ({
                     value: p.projectKey,
                     label: `${projectName(p)} (${p.sessionCount})`,
+                  })) ?? []),
+                ]}
+              />
+            </div>
+            <div className="pop-row">
+              <span className="pop-label">tag</span>
+              <Dropdown
+                className="dd-grow"
+                value={tag}
+                onChange={setTag}
+                ariaLabel="Filter by tag"
+                options={[
+                  { value: '', label: 'any tag' },
+                  ...(tags.data?.tags.map((t) => ({
+                    value: t.tag,
+                    label: `${t.tag} (${t.count})`,
                   })) ?? []),
                 ]}
               />
