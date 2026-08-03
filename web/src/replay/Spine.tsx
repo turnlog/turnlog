@@ -4,6 +4,7 @@ import { useTurnRows } from '../api';
 import Badge from '../components/Badge';
 import { SkeletonLines } from '../components/Skeleton';
 import { fmtTime, fmtTokens } from '../format';
+import { isTyping } from '../keys';
 import type { TurnsResponse, TurnSummary } from '../types';
 import { BlockView } from './blocks';
 import { buildBlocks } from './thread';
@@ -195,6 +196,59 @@ export default function SpineView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIdx]);
 
+  /**
+   * j/k move a focused turn, Enter expands it, e jumps to the next one that
+   * errored. The spine is the screen's own list, so it owns these keys — and
+   * they are guarded by isTyping like every other single-letter shortcut, so
+   * they never fire while the find bar or a note field has the caret.
+   *
+   * Focus is separate from open: moving through turns should not expand
+   * everything you pass, and separate from `topPos`, which only tracks what
+   * scrolled into view.
+   */
+  const [focus, setFocus] = useState<number | null>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return;
+      const key = e.key;
+      if (key !== 'j' && key !== 'k' && key !== 'e' && key !== 'Enter') return;
+      if (items.length === 0) return;
+
+      // First keypress adopts whatever is on screen rather than jumping to
+      // the top — the list you are looking at is the one you meant.
+      const from = focus ?? topPos;
+
+      if (key === 'Enter') {
+        const it = items[from];
+        if (!it) return;
+        e.preventDefault();
+        toggle(it.type === 'turn' ? it.turn.idx : -1);
+        setFocus(from);
+        return;
+      }
+
+      let next: number;
+      if (key === 'e') {
+        // Wraps, so repeated presses cycle rather than sticking at the last.
+        const order = [
+          ...items.slice(from + 1).map((it, i) => ({ it, i: from + 1 + i })),
+          ...items.slice(0, from + 1).map((it, i) => ({ it, i })),
+        ];
+        const hit = order.find((o) => o.it.type === 'turn' && o.it.turn.errors > 0);
+        if (!hit) return;
+        next = hit.i;
+      } else {
+        next = key === 'j' ? Math.min(from + 1, items.length - 1) : Math.max(from - 1, 0);
+      }
+      e.preventDefault();
+      setFocus(next);
+      virtuoso.current?.scrollToIndex({ index: next, align: 'center', behavior: 'smooth' });
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [items, focus, topPos, toggle]);
+
   const outlineClick = (idx: number, listPos: number) => {
     // Toggle, mirroring the turn header: a second click collapses the turn.
     const wasOpen = openTurns.has(idx);
@@ -213,7 +267,7 @@ export default function SpineView({
             it.type === 'prelude' ? (
               <button
                 key="prelude"
-                className={`outline-item dim ${openTurns.has(-1) ? 'active' : ''} ${topPos === listPos ? 'current' : ''}`}
+                className={`outline-item dim ${openTurns.has(-1) ? 'active' : ''} ${topPos === listPos ? 'current' : ''} ${focus === listPos ? 'focused' : ''}`}
                 onClick={() => outlineClick(-1, listPos)}
               >
                 <span className="outline-n">·</span> prelude
@@ -221,7 +275,7 @@ export default function SpineView({
             ) : (
               <button
                 key={it.turn.idx}
-                className={`outline-item ${openTurns.has(it.turn.idx) ? 'active' : ''} ${it.turn.errors > 0 ? 'has-error' : ''} ${topPos === listPos ? 'current' : ''}`}
+                className={`outline-item ${openTurns.has(it.turn.idx) ? 'active' : ''} ${it.turn.errors > 0 ? 'has-error' : ''} ${topPos === listPos ? 'current' : ''} ${focus === listPos ? 'focused' : ''}`}
                 onClick={() => outlineClick(it.turn.idx, listPos)}
                 title={it.turn.command ?? it.turn.text}
               >

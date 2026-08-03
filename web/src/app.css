@@ -3858,3 +3858,11 @@ kbd {
   border-radius: 50%;
   background: var(--warning);
 }
+
+/* The turn j/k is sitting on. Distinct from .current, which only says what
+   scrolled into view — the keyboard's position is a different fact from the
+   viewport's, and conflating them makes j/k feel like it does nothing. */
+.outline-item.focused {
+  background: var(--bg2);
+  color: var(--tx0);
+}

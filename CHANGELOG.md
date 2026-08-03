@@ -8,6 +8,12 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Added
 
+- The turn spine is keyboard-navigable: **j** and **k** move between turns,
+  **enter** expands the one you're on, and **e** jumps to the next turn that
+  errored (wrapping, so it cycles). The first keypress picks up wherever
+  you've scrolled to rather than jumping to the top. Listed in the `?` cheat
+  sheet with everything else.
+
 - `turnlog demo` runs the real app against bundled sample sessions, in a
   scratch index — so you can see what Turnlog does before you have any agent
   history, and nobody has to hand you a screenshot. Your own sessions are

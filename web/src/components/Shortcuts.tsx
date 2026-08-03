@@ -40,6 +40,9 @@ const GROUPS: { title: string; rows: Row[] }[] = [
       { label: 'Find in session', keys: [SHORTCUTS.find] },
       { label: 'Next match (in find)', keys: [['enter']] },
       { label: 'Previous match (in find)', keys: [[SHIFT, 'enter']] },
+      { label: 'Next / previous turn', keys: [['j'], ['k']] },
+      { label: 'Expand the focused turn', keys: [['enter']] },
+      { label: 'Next turn with an error', keys: [['e']] },
     ],
   },
 ];
