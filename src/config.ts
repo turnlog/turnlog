@@ -24,6 +24,32 @@ export function dbPath(): string {
   return path.join(ensureDataDir(), 'index.sqlite');
 }
 
+/**
+ * Where `turnlog demo` keeps its index — a scratch dir, never the real one.
+ * The demo must be incapable of touching a user's own history, so it does not
+ * merely point at a different file inside the data dir; it is a separate tree
+ * that can be deleted wholesale.
+ */
+export function demoDataDir(): string {
+  return path.join(os.tmpdir(), 'turnlog-demo');
+}
+
+/**
+ * The bundled sample sessions, shipped inside the package so a reviewer with
+ * no agent history can see the real UI with real-looking data in one command.
+ * Both agents, deliberately: the differentiator is one timeline per repo
+ * whichever agent you pointed at it, and a single-agent demo hides it.
+ */
+export function demoCorpusDir(): { projectsDir: string; codexDir: string } {
+  // dist/config.js at runtime, src/config.ts under tsx — both sit one level
+  // below the package root.
+  const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+  return {
+    projectsDir: path.join(root, 'fixtures', 'corpus'),
+    codexDir: path.join(root, 'fixtures', 'codex'),
+  };
+}
+
 export function defaultProjectsDir(): string {
   return process.env.TURNLOG_PROJECTS_DIR ?? path.join(os.homedir(), '.claude', 'projects');
 }

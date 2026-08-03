@@ -515,4 +515,10 @@ export interface StatusResponse {
    * buttons only render when there is something to launch.
    */
   editorConfigured: boolean;
+  /**
+   * `turnlog demo` — the sessions on screen are bundled samples, not the
+   * user's. The UI says so, because a screenshot of a demo is otherwise
+   * indistinguishable from a screenshot of someone's real history.
+   */
+  demo: boolean;
 }

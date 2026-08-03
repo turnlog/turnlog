@@ -8,6 +8,13 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Added
 
+- `turnlog demo` runs the real app against bundled sample sessions, in a
+  scratch index — so you can see what Turnlog does before you have any agent
+  history, and nobody has to hand you a screenshot. Your own sessions are
+  never read: the demo redirects its data directory to a temp tree and
+  rebuilds it fresh each run. A banner says "demo data" the whole time, and
+  it can't be dismissed.
+
 - A fresh index now starts with three example saved searches — `is:error
   after:7d`, `has:bookmark`, `kind:prompt after:today`. The operator grammar
   is the most useful thing in Turnlog and the hardest to discover; three

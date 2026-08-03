@@ -3,7 +3,15 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
-import { dbPath, defaultCodexDir, defaultProjectsDir, loadSettings, serverInfoPath } from '../config.js';
+import {
+  dbPath,
+  defaultCodexDir,
+  defaultProjectsDir,
+  demoCorpusDir,
+  demoDataDir,
+  loadSettings,
+  serverInfoPath,
+} from '../config.js';
 import { renderSearch } from './search.js';
 import {
   seedStarterSearches,
@@ -43,6 +51,8 @@ Usage:
   turnlog annotations import <file>
                               Merge a previous export back in (additive; the
                               file's pins/names/notes win on conflict)
+  turnlog demo                Run against bundled sample sessions in a scratch
+                              index — your own history is never read
   turnlog mcp                 Serve the index as a read-only MCP server (stdio)
                               Register: claude mcp add turnlog -- npx turnlog mcp
 
@@ -126,6 +136,11 @@ async function main(): Promise<void> {
       });
     case 'annotations':
       return runAnnotations(positionals[1], positionals[2]);
+    case 'demo':
+      return runDemo({
+        port: values.port ? Number(values.port) : undefined,
+        open: values['no-open'] !== true,
+      });
     case 'mcp':
       return runMcp(projectsDir, codexDir);
     default:
@@ -133,12 +148,40 @@ async function main(): Promise<void> {
   }
 }
 
+/**
+ * `turnlog demo` — the real app against bundled sample sessions.
+ *
+ * Exists for reviewers, screenshots and the landing GIF: someone with no
+ * agent history still sees the real UI with real-looking data in one command.
+ * It rebuilds a scratch index every run so the demo is identical each time,
+ * and it cannot reach a user's own history: TURNLOG_DATA_DIR is redirected to
+ * a temp tree before anything opens the database.
+ */
+async function runDemo(opts: { port?: number; open: boolean }): Promise<void> {
+  const { projectsDir, codexDir } = demoCorpusDir();
+  if (!fs.existsSync(projectsDir)) {
+    fail(
+      `Demo sessions are missing from this install (looked in ${projectsDir}).\n` +
+        `This is a packaging fault — please report it.`,
+    );
+  }
+  const dir = demoDataDir();
+  // Fresh every run: a demo that accumulates yesterday's state is not a demo.
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  process.env.TURNLOG_DATA_DIR = dir;
+
+  console.log('Demo mode — bundled sample sessions, in a scratch index.');
+  console.log('Your own history is not read and not touched.\n');
+  return start(projectsDir, codexDir, { ...opts, demo: true });
+}
+
 async function start(
   projectsDir: string,
   codexDir: string | undefined,
-  opts: { port?: number; open: boolean },
+  opts: { port?: number; open: boolean; demo?: boolean },
 ): Promise<void> {
-  if (!fs.existsSync(projectsDir)) {
+  if (!opts.demo && !fs.existsSync(projectsDir)) {
     console.warn(
       `Note: ${projectsDir} does not exist yet — no Claude Code sessions found.\n` +
         `Point turnlog elsewhere with --projects <dir>.`,
@@ -176,6 +219,7 @@ async function start(
       pricingOverrides: settings.modelPricing,
       exportFooter: settings.exportFooter,
       editorCommand: settings.editorCommand,
+      demo: opts.demo === true,
       getUpdate: () => latestUpdate,
       events,
       // The web UI's stop button — same path as Ctrl-C. `shutdown` is declared

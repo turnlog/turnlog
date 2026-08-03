@@ -88,6 +88,24 @@ function StatusCircle() {
 }
 
 /**
+ * `turnlog demo`: says so, permanently and without a dismiss.
+ *
+ * A screenshot of the demo is otherwise indistinguishable from a screenshot
+ * of someone's real history — which is fine for a landing GIF and misleading
+ * everywhere else, so this one cannot be turned off.
+ */
+function DemoBanner() {
+  const { data } = useStatus();
+  if (data?.demo !== true) return null;
+  return (
+    <div className="demo-banner" role="status">
+      <span className="demo-banner-dot" aria-hidden />
+      Demo data — bundled sample sessions. Your own history is not being read.
+    </div>
+  );
+}
+
+/**
  * Surfaces the CLI's startup update check inside the browser: the Node process
  * is the only thing that ever talks to npm, so the version arrives on
  * /api/status (already polled) rather than a fetch from here. Dismissal is
@@ -342,6 +360,7 @@ export default function App() {
             <StopButton onStopped={() => setStopped(true)} />
           </div>
         </header>
+        <DemoBanner />
         <UpdateBanner />
         <main className="screen">
           {route.name === 'library' && <Home />}

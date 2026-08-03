@@ -63,6 +63,8 @@ export interface ServerContext {
    * shell: split on whitespace, spawned directly.
    */
   editorCommand?: string;
+  /** `turnlog demo`: the corpus is bundled samples, and the UI says so. */
+  demo?: boolean;
   /** Launch the editor on a path. Injectable for tests; defaults to spawning
    *  the editorCommand template. */
   openInEditor?: (filePath: string) => void;
@@ -584,6 +586,7 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
       appVersion: APP_VERSION,
       updateAvailable: ctx.getUpdate?.() ?? null,
       editorConfigured: typeof ctx.editorCommand === 'string' && ctx.editorCommand.trim() !== '',
+      demo: ctx.demo === true,
     });
   }
   if (p === '/api/stats') {

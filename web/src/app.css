@@ -3835,3 +3835,26 @@ kbd {
 .facet-chip:hover em {
   color: var(--tx1);
 }
+
+/* Demo mode says so and cannot be dismissed: a screenshot of the demo would
+   otherwise pass for a screenshot of someone's real history. Warning yellow,
+   because this is "correct but not what you think", not an error. */
+.demo-banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 var(--gutter) 4px;
+  padding: 9px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--warning-dim);
+  font-size: var(--fs-12);
+  color: var(--tx0);
+}
+.demo-banner-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--warning);
+}

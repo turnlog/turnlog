@@ -31,7 +31,9 @@
   "files": [
     "bin",
     "dist",
-    "web/dist"
+    "web/dist",
+    "fixtures/corpus",
+    "fixtures/codex"
   ],
   "publishConfig": {
     "access": "public",
