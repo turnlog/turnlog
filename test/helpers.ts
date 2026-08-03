@@ -6,6 +6,7 @@ import { openDb } from '../src/indexer/db.js';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const CORPUS_DIR = path.join(ROOT, 'fixtures', 'corpus');
+export const CODEX_CORPUS_DIR = path.join(ROOT, 'fixtures', 'codex');
 export const GOLDEN_DIR = path.join(ROOT, 'fixtures', 'golden');
 
 export const SESSION_A = '11111111-1111-4111-8111-111111111111';
@@ -15,6 +16,8 @@ export const SESSION_EMPTY = '44444444-4444-4444-8444-444444444444';
 /** Parent session with a subagent transcript under <session>/subagents/. */
 export const SESSION_D = '55555555-5555-4555-8555-555555555555';
 export const SUBAGENT_D = 'agent-abc123def456';
+/** The synthetic Codex rollout (same cwd as SESSION_A's webapp project). */
+export const CODEX_SESSION = '77777777-7777-4777-8777-777777777777';
 
 export function tmpDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -25,6 +28,26 @@ export function copyCorpus(): string {
   const dest = tmpDir('turnlog-corpus-');
   fs.cpSync(CORPUS_DIR, dest, { recursive: true });
   return dest;
+}
+
+/** Copy the Codex rollout corpus into a scratch dir. */
+export function copyCodexCorpus(): string {
+  const dest = tmpDir('turnlog-codex-');
+  fs.cpSync(CODEX_CORPUS_DIR, dest, { recursive: true });
+  return dest;
+}
+
+export function codexCorpusFiles(): string[] {
+  const out: string[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith('.jsonl')) out.push(full);
+    }
+  };
+  walk(CODEX_CORPUS_DIR);
+  return out.sort();
 }
 
 export function testDb(dir: string) {

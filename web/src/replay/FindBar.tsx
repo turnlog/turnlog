@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import IconButton from '../components/IconButton';
+import SearchField from '../components/SearchField';
 import { fmtCount } from '../format';
 import { CloseIcon } from '../icons';
 import { navigate, sessionHash } from '../router';
@@ -41,10 +43,10 @@ export default function FindBar({
 
   return (
     <div className="find-bar">
-      <input
-        ref={inputRef}
+      <SearchField
+        inputRef={inputRef}
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={setValue}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
             e.preventDefault();
@@ -55,14 +57,14 @@ export default function FindBar({
           }
         }}
         placeholder="Find in this session…"
-        aria-label="Find in session"
+        ariaLabel="Find in session"
       />
       <span className="find-count">
         {query ? `${fmtCount(hitIdxs.length)} hit${hitIdxs.length === 1 ? '' : 's'}` : ''}
       </span>
-      <button onClick={onClose} aria-label="Close find">
+      <IconButton fill="ghost" label="Close find" onClick={onClose}>
         <CloseIcon size={14} />
-      </button>
+      </IconButton>
     </div>
   );
 }

@@ -28,7 +28,7 @@ export default function ChainNav({ sessionId }: { sessionId: string }) {
         >
           <a
             href={sessionHash(prev.id)}
-            className="chain-nav-btn"
+            className="icon-btn ghost chain-nav-btn"
             aria-label="Earlier part of this conversation"
           >
             <ChevronLeftIcon size={14} />
@@ -51,7 +51,7 @@ export default function ChainNav({ sessionId }: { sessionId: string }) {
         >
           <a
             href={sessionHash(next.id)}
-            className="chain-nav-btn"
+            className="icon-btn ghost chain-nav-btn"
             aria-label="Later part of this conversation"
           >
             <ChevronRightIcon size={14} />

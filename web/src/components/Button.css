@@ -1,0 +1,27 @@
+/* Button — the quiet screen-level text action, and the only shape it has.
+   The compact card/popover pair that used to live here (.btn, .btn.primary)
+   is gone: those are Primary fills now. Sizing to a row (flex) belongs to the
+   surface that lays it out, not here. */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg2);
+  color: var(--tx0);
+  border-radius: 999px;
+  padding: 9px 18px;
+  font-size: var(--fs-14);
+  font-weight: 500;
+}
+.pill:hover {
+  background: var(--bg3);
+}
+/* On the bare app background --bg2 all but disappears in the light theme, so
+   the pill steps up to the card tone. Same pairing as every other type. */
+.pill.on-bg {
+  background: var(--card);
+}
+.pill.on-bg:hover {
+  background: var(--bg2);
+}

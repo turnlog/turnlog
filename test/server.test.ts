@@ -798,3 +798,19 @@ describe('files content filter (find=) and missing-file facts', () => {
     expect(after.missingFiles).toBe(1);
   });
 });
+
+describe('sidebar name filter (name= on /api/sessions)', () => {
+  it('matches CC titles, custom names, and projects across all sessions', async () => {
+    // SESSION_A carries the custom-title "Reconnect surgery".
+    const byTitle = (await request(withToken('/api/sessions?name=surgery'))).json() as {
+      sessions: { id: string }[];
+    };
+    expect(byTitle.sessions.map((s) => s.id)).toEqual([SESSION_A]);
+
+    const byProject = (await request(withToken('/api/sessions?name=webapp'))).json() as {
+      sessions: { id: string }[];
+    };
+    expect(byProject.sessions.length).toBeGreaterThanOrEqual(2); // A + B live in webapp
+    expect((await request(withToken('/api/sessions?name=zzznope'))).json().sessions).toHaveLength(0);
+  });
+});

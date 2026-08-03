@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { openFileInEditor, useLensRows, useStatus } from '../api';
+import Badge from '../components/Badge';
+import IconButton from '../components/IconButton';
 import { SkeletonRows } from '../components/Skeleton';
-import Tooltip from '../components/Tooltip';
 import { fmtTime } from '../format';
 import { CodeFileIcon } from '../icons';
 import { filesHash, navigate, sessionHash } from '../router';
@@ -184,15 +185,13 @@ export default function FilesView({ sessionId }: { sessionId: string }) {
         <div className="file-diffs-head">
           <span className="file-diffs-path">{current.path}</span>
           {status.data?.editorConfigured && (
-            <Tooltip content="Open this file in your editor">
-              <button
-                className="circle-sm fh-open-editor"
-                onClick={() => openFileInEditor(current.path)}
-                aria-label="Open this file in your editor"
-              >
-                <CodeFileIcon size={14} />
-              </button>
-            </Tooltip>
+            <IconButton
+              label="Open this file in your editor"
+              tooltip="Open this file in your editor"
+              onClick={() => openFileInEditor(current.path)}
+            >
+              <CodeFileIcon size={14} />
+            </IconButton>
           )}
           <a
             className="file-entry-jump fh-head-link"
@@ -207,10 +206,10 @@ export default function FilesView({ sessionId }: { sessionId: string }) {
             <section key={edit.idx} className="file-entry">
               <header className="file-entry-head">
                 <span className="turn-n">{i + 1}</span>
-                <span className={`chip ${edit.failed ? 'chip-failed' : ''}`}>
+                <Badge kind={edit.failed ? 'failed' : 'default'}>
                   {edit.tool}
                   {edit.failed ? ' · failed' : ''}
-                </span>
+                </Badge>
                 <button
                   className="file-entry-jump"
                   onClick={() => navigate(sessionHash(sessionId, { m: edit.idx }))}

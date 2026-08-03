@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { useTurnRows } from '../api';
+import Badge from '../components/Badge';
 import { SkeletonLines } from '../components/Skeleton';
 import { fmtTime, fmtTokens } from '../format';
 import type { TurnsResponse, TurnSummary } from '../types';
@@ -81,7 +82,7 @@ const TurnCard = memo(function TurnCard({
         <span className="turn-n">{n}</span>
         <span className={`caret ${open ? 'open' : ''}`}>▸</span>
         {turn.command ? (
-          <span className="chip chip-cmd">{turn.command}</span>
+          <Badge kind="cmd">{turn.command}</Badge>
         ) : (
           <span className="turn-text">{turn.text || '(empty prompt)'}</span>
         )}
@@ -91,8 +92,8 @@ const TurnCard = memo(function TurnCard({
               {p.text}
             </span>
           ))}
-          {turn.mode === 'plan' && <span className="chip chip-summary turn-compact">plan</span>}
-          {compacted && <span className="chip chip-summary turn-compact">compacted</span>}
+          {turn.mode === 'plan' && <Badge kind="summary" className="turn-compact">plan</Badge>}
+          {compacted && <Badge kind="summary" className="turn-compact">compacted</Badge>}
         </span>
         <span className="turn-ts">{fmtTime(turn.ts)}</span>
       </button>

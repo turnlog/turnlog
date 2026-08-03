@@ -1,0 +1,111 @@
+/* IconButton — every round icon-only button inside the app. Two sizes and
+   three fills; screen context (the calendar's card tone, the recent-row
+   hover) stays in app.css. The 44px frame buttons are Primary.css.
+
+   34 is the size. 26 is the exception, and it earns it: the ghost rides
+   inside list rows and floating nav pills, where a 34 crowds the row. */
+
+.icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg2);
+  color: var(--tx1);
+  transition:
+    background 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+}
+/* One glyph size per box, pinned here so no call site can drift. */
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.icon-btn:hover {
+  background: var(--bg3);
+  color: var(--tx0);
+}
+.icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* ── fills ─────────────────────────────────────────────────────────── */
+
+/* On the bare app background, where --bg2 all but disappears in the light
+   theme. The same card/quiet pair Primary has, chosen the same way: by the
+   ground underneath, not by importance. */
+.icon-btn.card {
+  background: var(--card);
+}
+.icon-btn.card:hover {
+  background: var(--bg2);
+}
+
+/* One surface down — for controls already sitting on --bg2 ground. */
+.icon-btn.inset {
+  background: var(--bg1);
+}
+.icon-btn.inset:hover {
+  background: var(--bg2);
+}
+
+/* Invisible until wanted: row hovers, floating nav pills, dismissals. The
+   only one that is not 34, because the rows it rides are not that tall. */
+.icon-btn.ghost {
+  width: 26px;
+  height: 26px;
+  background: none;
+  color: var(--tx2);
+}
+.icon-btn.ghost svg {
+  width: 14px;
+  height: 14px;
+}
+.icon-btn.ghost:hover {
+  background: var(--bg2);
+  color: var(--tx0);
+}
+
+/* ── states ────────────────────────────────────────────────────────── */
+
+/* After the fills on purpose: a fill and a state are the same specificity, so
+   whichever is declared last wins. A pressed button is pressed whatever it is
+   sitting on — that has to be the one that wins. */
+.icon-btn.on,
+.icon-btn.on:hover {
+  background: var(--contrast-solid);
+  color: var(--contrast-on);
+}
+/* The ghost is the exception: with no fill at rest, "on" is ink alone. */
+.icon-btn.ghost.on,
+.icon-btn.ghost.on:hover {
+  background: none;
+  color: var(--tx0);
+}
+
+/* On the accent card, where every fill above would be invisible. */
+.icon-btn.onaccent,
+.icon-btn.onaccent:hover {
+  background: var(--accent-on-line);
+  color: var(--accent-on);
+}
+
+/* Copy confirmed. A result, not a toggle, so it states itself as a fill —
+   --success-fill is the rung that carries a white glyph, and the pair travels
+   together the way every invariant fill does. */
+.icon-btn.ok,
+.icon-btn.ok:hover {
+  background: var(--success-fill);
+  color: var(--tile-on);
+}
+
+/* Direction reads from the mirrored mark: desc as drawn, asc flipped. */
+.icon-btn.asc svg {
+  transition: transform 200ms cubic-bezier(0.25, 0.8, 0.3, 1);
+  transform: scaleY(-1);
+}

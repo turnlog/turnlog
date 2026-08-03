@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import './Overlay.css';
 
 /**
  * Shared scrim for centered overlays (palette, shortcuts sheet): closes on

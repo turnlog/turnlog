@@ -1,0 +1,82 @@
+/* Primary — the app frame's button. One set of metrics for every instance;
+   only the fill changes. Screen context (the sidebar's ground shift, the
+   status circle's unseen-news ring) stays in app.css. */
+
+.primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: none;
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-size: var(--fs-14);
+  font-weight: 500;
+  background: var(--card);
+  color: var(--tx1);
+  transition:
+    background 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+}
+/* One icon size for the whole type, pinned here so no call site can drift. */
+.primary-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.primary-btn:hover {
+  color: var(--tx0);
+  transform: translateY(-1px);
+}
+/* The press scale reads off the shape: a circle takes 0.92, a wide pill
+   would look squeezed at anything below 0.96. */
+.primary-btn:active {
+  transform: scale(0.96);
+  transition-duration: 70ms;
+}
+
+/* A circle is this button with no visible label — the name lives in
+   aria-label, so the pill closes up to its own height. */
+.primary-btn.round {
+  width: 44px;
+  padding: 0;
+}
+.primary-btn.round:active {
+  transform: scale(0.92);
+}
+
+/* ── fills ─────────────────────────────────────────────────────────── */
+
+/* One surface up from --card: the dismissive half of a pair, and the frame
+   buttons that stand on a card, where --card would vanish into it. */
+.primary-btn.quiet {
+  background: var(--bg2);
+}
+.primary-btn.quiet:hover {
+  background: var(--bg3);
+}
+.primary-btn.contrast,
+.primary-btn.contrast:hover {
+  background: var(--contrast-solid);
+  color: var(--contrast-on);
+}
+.primary-btn.accent {
+  background: var(--accent);
+  color: var(--accent-on);
+}
+.primary-btn.accent:hover {
+  background: var(--accent-hi);
+  color: var(--accent-on);
+}
+.primary-btn.danger,
+.primary-btn.danger:hover {
+  background: var(--danger-fill);
+  color: var(--tile-on);
+}
+
+.primary-btn:disabled {
+  transform: none;
+  opacity: 0.4;
+  cursor: default;
+}

@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import './Tooltip.css';
 
 /**
  * Design-system tooltip: a contrast pill floated over the trigger, replacing

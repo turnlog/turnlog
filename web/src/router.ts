@@ -10,6 +10,7 @@ import { useSyncExternalStore } from 'react';
  *   #/session/<id>          replay
  *   #/session/<id>?m=42&q=… replay, scrolled to message idx 42, match nav for q
  *   #/search?q=…            search
+ *   #/design-system         internal design reference (unlinked on purpose)
  */
 export type Lens = 'diffs' | 'commands' | 'errors' | 'prompts';
 const LENS_VALUES: readonly string[] = ['diffs', 'commands', 'errors', 'prompts'];
@@ -29,6 +30,7 @@ export type Route =
   | { name: 'search'; query: string; view: 'list' | 'timeline' }
   | { name: 'spend'; view: 'overview' | 'calendar' | 'disk' }
   | { name: 'whatsnew' }
+  | { name: 'design' }
   | { name: 'files'; query: string; path: string | null; find: string };
 
 export function parseRoute(hash: string): Route {
@@ -64,6 +66,11 @@ export function parseRoute(hash: string): Route {
   }
   if (path === '/whats-new') {
     return { name: 'whatsnew' };
+  }
+  // Internal-only: the living design-system reference. Deliberately unlinked —
+  // no header button, no palette entry. Reachable by typing the hash.
+  if (path === '/design-system') {
+    return { name: 'design' };
   }
   if (path === '/files') {
     return {

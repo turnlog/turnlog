@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSessionChain } from '../api';
-import Tooltip from '../components/Tooltip';
+import IconButton from '../components/IconButton';
 import { CheckIcon, PlayCircleIcon } from '../icons';
 import type { SessionMeta } from '../types';
 
@@ -23,8 +23,11 @@ export default function ResumeButton({ session }: { session: SessionMeta }) {
 
   const copy = async () => {
     const cd = tip.projectPath ? `cd ${shellQuote(tip.projectPath)} && ` : '';
+    // Each tool has its own resume verb; the id is the session id either way.
+    const resume =
+      session.tool === 'codex' ? `codex resume ${tip.id}` : `claude --resume ${tip.id}`;
     try {
-      await navigator.clipboard.writeText(`${cd}claude --resume ${tip.id}`);
+      await navigator.clipboard.writeText(`${cd}${resume}`);
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
     } catch {
@@ -33,22 +36,21 @@ export default function ResumeButton({ session }: { session: SessionMeta }) {
   };
 
   return (
-    <Tooltip
-      content={
+    <IconButton
+      label="Copy the resume command for this session"
+      tooltip={
         copied
           ? 'Command copied — paste it in your terminal'
           : isElsewhere
             ? 'Continue this conversation (resumes the latest part)'
-            : 'Continue this session in Claude Code'
+            : session.tool === 'codex'
+              ? 'Continue this session in Codex'
+              : 'Continue this session in Claude Code'
       }
+      className={copied ? 'ok' : ''}
+      onClick={copy}
     >
-      <button
-        className={`replay-action ${copied ? 'ok' : ''}`}
-        onClick={copy}
-        aria-label="Copy the claude --resume command for this session"
-      >
-        {copied ? <CheckIcon size={16} /> : <PlayCircleIcon size={16} />}
-      </button>
-    </Tooltip>
+      {copied ? <CheckIcon size={16} /> : <PlayCircleIcon size={16} />}
+    </IconButton>
   );
 }

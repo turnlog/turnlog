@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSessionsRange } from '../api';
+import { agentInfo } from '../agents';
 import { useHideEmpty } from '../filterStore';
+import Button from '../components/Button';
+import IconButton from '../components/IconButton';
+import Segmented from '../components/Segmented';
 import { SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
 import {
@@ -18,6 +22,7 @@ import {
 } from '../format';
 import { ChevronLeftIcon, ChevronRightIcon } from '../icons';
 import { navigate, sessionHash } from '../router';
+import { getPref, setPref } from '../prefs';
 import type { SessionMeta } from '../types';
 
 /**
@@ -32,6 +37,7 @@ const ROW_H = 56; // px per day row; lanes divide it when sessions overlap
 const HEAD_W = 64; // day-label gutter (row head width + gap), px
 
 type Mode = 'week' | 'month';
+type ColorBy = 'project' | 'agent';
 
 function sameDay(a: Date, b: Date): boolean {
   return a.toDateString() === b.toDateString();
@@ -69,7 +75,8 @@ function BlockTip({ s }: { s: SessionMeta }) {
       <span>
         {fmtTime(s.startedAt)}
         {s.endedAt ? `–${fmtTime(s.endedAt)}` : ''} · {fmtCount(s.turnCount)} turns ·{' '}
-        {fmtTokens(s.inputTokens + s.outputTokens)} tok · {fmtCost(s.costUsd)}
+        {fmtTokens(s.inputTokens + s.outputTokens)} tok · {fmtCost(s.costUsd)} ·{' '}
+        {agentInfo(s.tool).label}
       </span>
     </>
   );
@@ -78,6 +85,15 @@ function BlockTip({ s }: { s: SessionMeta }) {
 export default function Calendar() {
   const [mode, setMode] = useState<Mode>('week');
   const [anchor, setAnchor] = useState(() => new Date());
+  // Blocks color by project (default) or by agent; the OTHER dimension
+  // becomes the edge stripe, so both signals stay visible either way.
+  const [colorBy, setColorBy] = useState<ColorBy>(() =>
+    getPref('calendarColor') === 'agent' ? 'agent' : 'project',
+  );
+  const setColorByPersist = (v: ColorBy) => {
+    setPref('calendarColor', v);
+    setColorBy(v);
+  };
 
   // Fetch range depends on mode.
   const weekStart = useMemo(() => startOfWeek(anchor), [anchor]);
@@ -93,7 +109,10 @@ export default function Calendar() {
   const [rangeStart, rangeEnd] =
     mode === 'week'
       ? [weekStart, new Date(weekStart.getTime() + 7 * DAY_MS)]
-      : [monthGrid.gridStart, new Date(monthGrid.gridStart.getTime() + monthGrid.weeks * 7 * DAY_MS)];
+      : [
+          monthGrid.gridStart,
+          new Date(monthGrid.gridStart.getTime() + monthGrid.weeks * 7 * DAY_MS),
+        ];
   const hideEmpty = useHideEmpty();
   const sessions = useSessionsRange(rangeStart.toISOString(), rangeEnd.toISOString(), hideEmpty);
 
@@ -127,60 +146,61 @@ export default function Calendar() {
   return (
     <div className="calendar">
       <div className="calendar-head">
-        <div className="view-toggle" role="tablist" aria-label="Calendar mode">
-          <button
-            role="tab"
-            aria-selected={mode === 'week'}
-            className={mode === 'week' ? 'active' : ''}
-            onClick={() => setMode('week')}
-          >
-            week
-          </button>
-          <button
-            role="tab"
-            aria-selected={mode === 'month'}
-            className={mode === 'month' ? 'active' : ''}
-            onClick={() => setMode('month')}
-          >
-            month
-          </button>
-        </div>
+        <Segmented
+          fill="card"
+          ariaLabel="Calendar mode"
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: 'week', label: 'week' },
+            { value: 'month', label: 'month' },
+          ]}
+        />
+        <Segmented
+          fill="card"
+          ariaLabel="Color blocks by"
+          value={colorBy}
+          onChange={setColorByPersist}
+          options={[
+            { value: 'project', label: 'projects' },
+            { value: 'agent', label: 'agents' },
+          ]}
+        />
         <span className="calendar-range">{rangeLabel}</span>
         <div className="calendar-nav">
-          <Tooltip content={mode === 'week' ? 'Previous week' : 'Previous month'}>
-            <button
-              className="circle circle-sm"
-              onClick={() => (mode === 'week' ? jump(-7) : jumpMonth(-1))}
-              aria-label={mode === 'week' ? 'Previous week' : 'Previous month'}
-            >
-              <ChevronLeftIcon size={16} />
-            </button>
-          </Tooltip>
-          <button className="pill" disabled={isCurrentPeriod} onClick={() => setAnchor(new Date())}>
+          <IconButton
+            fill="card"
+            label={mode === 'week' ? 'Previous week' : 'Previous month'}
+            tooltip={mode === 'week' ? 'Previous week' : 'Previous month'}
+            onClick={() => (mode === 'week' ? jump(-7) : jumpMonth(-1))}
+          >
+            <ChevronLeftIcon size={16} />
+          </IconButton>
+          <Button fill="card" disabled={isCurrentPeriod} onClick={() => setAnchor(new Date())}>
             {mode === 'week' ? 'This week' : 'This month'}
-          </button>
-          <Tooltip content={mode === 'week' ? 'Next week' : 'Next month'}>
-            <button
-              className="circle circle-sm"
-              onClick={() => (mode === 'week' ? jump(7) : jumpMonth(1))}
-              aria-label={mode === 'week' ? 'Next week' : 'Next month'}
-              disabled={isCurrentPeriod}
-            >
-              <ChevronRightIcon size={16} />
-            </button>
-          </Tooltip>
+          </Button>
+          <IconButton
+            fill="card"
+            label={mode === 'week' ? 'Next week' : 'Next month'}
+            tooltip={mode === 'week' ? 'Next week' : 'Next month'}
+            onClick={() => (mode === 'week' ? jump(7) : jumpMonth(1))}
+            disabled={isCurrentPeriod}
+          >
+            <ChevronRightIcon size={16} />
+          </IconButton>
         </div>
       </div>
 
       {sessions.isLoading ? (
         <SkeletonRows n={6} tile={30} />
       ) : mode === 'week' ? (
-        <WeekGrid weekStart={weekStart} buckets={buckets} today={today} />
+        <WeekGrid weekStart={weekStart} buckets={buckets} today={today} colorBy={colorBy} />
       ) : (
         <MonthGrid
           grid={monthGrid}
           buckets={buckets}
           today={today}
+          colorBy={colorBy}
           onPickDay={(d) => {
             setAnchor(d);
             setMode('week');
@@ -213,10 +233,12 @@ function WeekGrid({
   weekStart,
   buckets,
   today,
+  colorBy,
 }: {
   weekStart: Date;
   buckets: Map<string, SessionMeta[]>;
   today: Date;
+  colorBy: ColorBy;
 }) {
   const days = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
@@ -226,10 +248,7 @@ function WeekGrid({
         const start = new Date(s.startedAt!);
         const end = s.endedAt ? new Date(s.endedAt) : new Date(start.getTime() + 15 * 60_000);
         const startH = start.getHours() + start.getMinutes() / 60;
-        const endH = Math.min(
-          (end.getTime() - startOfDay(start).getTime()) / 3_600_000,
-          24,
-        );
+        const endH = Math.min((end.getTime() - startOfDay(start).getTime()) / 3_600_000, 24);
         return { s, startH, endH: Math.max(endH, startH + 0.25) };
       });
       return placeDay(placed);
@@ -301,7 +320,7 @@ function WeekGrid({
                   return (
                     <Tooltip key={s.id} content={<BlockTip s={s} />}>
                       <button
-                        className={`calendar-block tier-${tier} ${tileClass(s.projectKey)}`}
+                        className={`calendar-block tier-${tier} ${tileClass(s.projectKey)} ${agentInfo(s.tool).colorClass} ${colorBy === 'agent' ? 'mode-agent' : ''}`}
                         style={{
                           left: `${left}%`,
                           width: `max(${Math.max(widthPx, 0)}px, 5px)`,
@@ -337,11 +356,13 @@ function MonthGrid({
   grid,
   buckets,
   today,
+  colorBy,
   onPickDay,
 }: {
   grid: { gridStart: Date; weeks: number; month: number };
   buckets: Map<string, SessionMeta[]>;
   today: Date;
+  colorBy: ColorBy;
   onPickDay: (d: Date) => void;
 }) {
   const maxCost = useMemo(() => {
@@ -349,7 +370,10 @@ function MonthGrid({
     for (let i = 0; i < grid.weeks * 7; i++) {
       const d = new Date(grid.gridStart.getTime() + i * DAY_MS);
       const list = buckets.get(dayKey(d)) ?? [];
-      m = Math.max(m, list.reduce((n, s) => n + (s.costUsd ?? 0), 0));
+      m = Math.max(
+        m,
+        list.reduce((n, s) => n + (s.costUsd ?? 0), 0),
+      );
     }
     return Math.max(m, 0.01);
   }, [grid, buckets]);
@@ -371,7 +395,10 @@ function MonthGrid({
           const tokens = list.reduce((n, s) => n + s.inputTokens + s.outputTokens, 0);
           const other = date.getMonth() !== grid.month;
           const isToday = sameDay(date, today);
-          const projects = [...new Set(list.map((s) => s.projectKey))].slice(0, 4);
+          const dotClasses =
+            colorBy === 'agent'
+              ? [...new Set(list.map((s) => agentInfo(s.tool).colorClass))].slice(0, 4)
+              : [...new Set(list.map((s) => tileClass(s.projectKey)))].slice(0, 4);
           const heat = cost > 0 ? 0.06 + (cost / maxCost) * 0.32 : 0;
           const cell = (
             <button
@@ -385,8 +412,8 @@ function MonthGrid({
                 <>
                   <span className="month-cost">{fmtCost(cost)}</span>
                   <span className="month-dots">
-                    {projects.map((p) => (
-                      <span key={p ?? '·'} className={`tile-dot ${tileClass(p)}`} />
+                    {dotClasses.map((c) => (
+                      <span key={c} className={`tile-dot ${c}`} />
                     ))}
                     <span className="month-count">{list.length}</span>
                   </span>
@@ -400,12 +427,18 @@ function MonthGrid({
               content={
                 <>
                   <strong>
-                    {date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                    {date.toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      month: 'short',
+                      day: 'numeric',
+                    })}
                   </strong>
                   <span>
                     {fmtCount(list.length)} session{list.length === 1 ? '' : 's'} ·{' '}
                     {fmtTokens(tokens)} tok · {fmtCost(cost)} ·{' '}
-                    {projects.map((p) => projectName({ projectKey: p, projectPath: null })).join(', ')}
+                    {[...new Set(list.map((s) => s.projectKey))]
+                      .map((p) => projectName({ projectKey: p, projectPath: null }))
+                      .join(', ')}
                   </span>
                 </>
               }

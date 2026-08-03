@@ -8,6 +8,10 @@ import {
   useStatus,
 } from '../api';
 import { setProjectFilter } from '../filterStore';
+import Button from '../components/Button';
+import Badge from '../components/Badge';
+import Primary from '../components/Primary';
+import SearchField from '../components/SearchField';
 import {
   fmtBytes,
   fmtCost,
@@ -50,13 +54,13 @@ function RecentRow({ s }: { s: SessionMeta }) {
         <span className="recent-main">
           <span className="recent-title">
             {name}
-            {s.model && <span className="chip">{fmtModel(s.model)}</span>}
+            {s.model && <Badge kind="model">{fmtModel(s.model)}</Badge>}
           </span>
           <span className="recent-sub">
             {fmtCost(s.costUsd)} · {fmtCount(s.turnCount)} turns · {fmtDate(s.startedAt)}
           </span>
         </span>
-        <span className="circle circle-sm" aria-hidden>
+        <span className="icon-btn" aria-hidden>
           <ArrowUpRight />
         </span>
       </button>
@@ -99,7 +103,7 @@ function HealthCard() {
       <div className="list-card-head">
         <h2>Index health</h2>
         <span className={`health-state ${skipped > 0 ? 'warn' : ''}`}>
-          <span className={`dot ${skipped > 0 ? 'dot-accent' : 'dot-mint'}`} />
+          <span className={`dot ${skipped > 0 ? 'dot-error' : 'dot-ok'}`} />
           {skipped > 0
             ? `${fmtCount(skipped)} file${skipped === 1 ? '' : 's'} skipped`
             : 'everything readable is indexed'}
@@ -125,9 +129,9 @@ function HealthCard() {
             {h.unknownEvents === 1 ? '' : 's'} — kept raw, shown collapsed:
           </span>
           {h.unknownTypes.map((t) => (
-            <span key={t.type} className="chip health-chip">
+            <Badge key={t.type} className="health-badge">
               {t.type} ×{fmtCount(t.count)}
-            </span>
+            </Badge>
           ))}
         </div>
       )}
@@ -144,20 +148,20 @@ function HealthCard() {
       {/* Housekeeping on our own index only — ~/.claude is never written to. */}
       <div className="health-maintain">
         <span className="health-maintain-label">Maintain</span>
-        <button
-          className="pill health-action"
+        <Button
+          className="health-action"
           onClick={() => run('prune')}
           disabled={maintain.isPending}
         >
           forget deleted files
-        </button>
-        <button
-          className="pill health-action"
+        </Button>
+        <Button
+          className="health-action"
           onClick={() => run('vacuum')}
           disabled={maintain.isPending}
         >
           repack index
-        </button>
+        </Button>
         <span className="health-maintain-note">
           {maintain.isPending ? 'working…' : (done ?? 'Turnlog only ever writes to its own index.')}
         </span>
@@ -206,25 +210,31 @@ export default function Home() {
           </em>
         </h1>
         <form className="hero-search" onSubmit={submit}>
-          <input
+          <SearchField
+            size="lg"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={setQuery}
             placeholder="grep, but for everything your agents ever did…"
-            aria-label="Search all sessions"
+            ariaLabel="Search all sessions"
           />
-          <button className="btn-accent" aria-label="Search">
+          <Primary
+            fill="accent"
+            type="submit"
+            trailing={
+              <svg viewBox="0 0 24 24" aria-hidden>
+                <path
+                  d="M4 12h14M13 6l6 6-6 6"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            }
+          >
             Search
-            <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden>
-              <path
-                d="M4 12h14M13 6l6 6-6 6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
+          </Primary>
         </form>
       </div>
 
@@ -232,21 +242,21 @@ export default function Home() {
         <section className="card dark-card">
           <div className="dark-card-head">
             <h2>Indexed history</h2>
-            <span className="dark-chip">100% local</span>
+            <span className="dark-badge">100% local</span>
           </div>
           <div className="dark-numbers">
             <div className="dark-col">
-              <span className="dot dot-mint" />
+              <span className="dot dot-diff" />
               <em>Sessions</em>
               <strong>{s ? fmtCount(s.sessions) : <Skel w={64} h={30} />}</strong>
             </div>
             <div className="dark-col">
-              <span className="dot dot-purple" />
+              <span className="dot dot-cmd" />
               <em>Turns</em>
               <strong>{s ? fmtCount(s.messages) : <Skel w={96} h={30} />}</strong>
             </div>
             <div className="dark-col">
-              <span className="dot dot-accent" />
+              <span className="dot dot-error" />
               <em>Tokens</em>
               <strong>{s ? fmtTokens(s.inputTokens + s.outputTokens) : <Skel w={80} h={30} />}</strong>
             </div>
@@ -256,7 +266,7 @@ export default function Home() {
         <section className="card accent-card">
           <div className="accent-card-head">
             <h2>Est. spend</h2>
-            <a className="circle circle-sm circle-onaccent" href="#/spend" aria-label="Open spend view">
+            <a className="icon-btn onaccent" href="#/spend" aria-label="Open spend view">
               <ArrowUpRight />
             </a>
           </div>

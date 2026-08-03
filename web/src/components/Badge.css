@@ -1,0 +1,83 @@
+/* Badge — small rounded labels. Every badge is a SOLID fill; there are no
+   translucent washes and there is one size. A kind changes the two colors,
+   and sometimes the family — never the metrics. Layout-only modifiers
+   stay with their screens — though the base now covers what they used to.
+
+   Because every badge is opaque, none of them need a screen to adapt their
+   ground any more: a solid pill reads against the sidebar's active-row wash,
+   the pinned note-yellow, and a plain card alike. The override that used to
+   do that is gone.
+
+   The text on the accent fills is `--contrast-on`, which is not a
+   coincidence: that token inverts across themes, and so do the accents — the
+   dark theme's blue and vermilion are light (they sit on a dark ground) and
+   the light theme's are deep. One token, correct on both sides:
+   blue 6.15:1 dark / 4.46:1 light · error 5.75:1 / 4.39:1. */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  line-height: 1;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex: none;
+  /* the neutral fill — every kind below swaps just these two */
+  background: var(--bg3);
+  color: var(--tx0);
+}
+
+/* Emphasis fill — the identity pair. Black means "this is what ran"; the
+   agent badge overrides it with its own hue just below.
+   (There was a `badge-open` kind sharing this fill for "the current one". It
+   was declared and styled but rendered nowhere, so it is gone.) */
+.badge-model,
+.badge-tool {
+  background: var(--contrast-solid);
+  color: var(--contrast-on);
+}
+
+.badge-cmd {
+  background: var(--c-command-fill);
+  color: var(--tile-on);
+}
+
+.badge-summary {
+  background: var(--blue);
+  color: var(--contrast-on);
+}
+/* (There was a `badge-attach` kind here that restated the base exactly — an
+   attachment marker is plain metadata, so it uses the default badge.) */
+.badge-failed {
+  background: var(--danger-fill);
+  color: var(--tile-on);
+}
+
+/* The adapter's own hue replaces the emphasis fill; the registry
+   (web/src/agents.ts) supplies the class, theme.css the --agent-* token.
+   `model` and `tool` sit side by side as one identity pair — neither is
+   uppercased, because an adapter is a proper noun and a model id a literal. */
+.badge-tool.agent-claude {
+  background: var(--agent-claude);
+  color: var(--tile-on);
+}
+.badge-tool.agent-codex {
+  background: var(--agent-codex);
+  color: var(--tile-on);
+}
+
+/* Fixed width so the three read as a column. */
+
+/* An icon inside a badge is sized by the badge's type, not by a number passed
+   at the call site — 1em means it tracks --fs-* forever and there is nothing
+   to keep in sync. Overrides the width/height attributes the icon components
+   set as their default. */
+.badge svg {
+  width: 1em;
+  height: 1em;
+  flex: none;
+}

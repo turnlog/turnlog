@@ -2,10 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type Database from 'better-sqlite3';
 import { readLines } from '../parser/lineReader.js';
-import { normalizeLine } from '../parser/normalize.js';
+import { normalizeCodexLine, normalizeLine } from '../parser/normalize.js';
+import { newCodexState } from '../parser/adapters/codex.js';
 import type { NormalizedRecord } from '../parser/types.js';
 import { computeCost, type ModelPricing } from '../cost/pricing.js';
-import { ADAPTER_VERSION } from '../version.js';
+import { ADAPTER_VERSION, CODEX_ADAPTER_VERSION } from '../version.js';
 
 export interface IndexProgress {
   filesTotal: number;
@@ -22,8 +23,25 @@ export interface ScanSummary {
 
 export interface IndexerOptions {
   projectsDir: string;
+  /**
+   * Codex rollout root (`~/.codex/sessions`), date-nested
+   * `YYYY/MM/DD/rollout-*.jsonl`. Absent or missing dir = Codex indexing
+   * simply off. Read-only, exactly like `~/.claude/projects`.
+   */
+  codexDir?: string;
   pricingOverrides?: Record<string, Partial<ModelPricing>>;
 }
+
+export type SessionTool = 'claude-code' | 'codex';
+
+/** `/Users/dev/projects/webapp` → `-Users-dev-projects-webapp` — the same
+ *  munging CC uses for its project dir names, so a Codex session in the same
+ *  cwd lands in the SAME Turnlog project as the CC sessions. */
+export function mungeCwd(cwd: string): string {
+  return '-' + cwd.replace(/^[/\\]+/, '').replace(/[/\\.:]/g, '-');
+}
+
+const ROLLOUT_ID_RE = /rollout-.*-([0-9a-fA-F]{8}-[0-9a-fA-F-]{27,})\.jsonl$/;
 
 interface SessionFileRow {
   id: string;
@@ -42,6 +60,7 @@ export class Indexer {
 
   private readonly selByPath: Database.Statement;
   private readonly selById: Database.Statement;
+  private readonly selCodexSeed: Database.Statement;
   private readonly selMessageIds: Database.Statement;
   private readonly insMessage: Database.Statement;
   private readonly insFts: Database.Statement;
@@ -63,6 +82,7 @@ export class Indexer {
        FROM sessions WHERE file_path = ?`,
     );
     this.selById = db.prepare(`SELECT file_path, file_mtime_ms FROM sessions WHERE id = ?`);
+    this.selCodexSeed = db.prepare(`SELECT model, project_path FROM sessions WHERE id = ?`);
     this.selMessageIds = db.prepare(
       `SELECT DISTINCT message_id FROM messages WHERE session_id = ? AND message_id IS NOT NULL`,
     );
@@ -85,10 +105,10 @@ export class Indexer {
     this.upsertSession = db.prepare(
       `INSERT INTO sessions
          (id, project_key, project_path, file_path, parent_session_id, root_uuid,
-          ai_title, cc_title,
+          ai_title, cc_title, tool,
           adapter_version, file_byte_offset, file_mtime_ms, file_size, line_count)
        VALUES (@id, @projectKey, @projectPath, @filePath, @parentSessionId, @rootUuid,
-               @aiTitle, @ccTitle,
+               @aiTitle, @ccTitle, @tool,
                @adapterVersion, @offset, @mtimeMs, @size, @lineCount)
        ON CONFLICT (id) DO UPDATE SET
          file_path         = excluded.file_path,
@@ -96,6 +116,7 @@ export class Indexer {
          root_uuid         = COALESCE(excluded.root_uuid, sessions.root_uuid),
          ai_title          = COALESCE(excluded.ai_title, sessions.ai_title),
          cc_title          = COALESCE(excluded.cc_title, sessions.cc_title),
+         tool              = excluded.tool,
          adapter_version   = excluded.adapter_version,
          file_byte_offset  = excluded.file_byte_offset,
          file_mtime_ms     = excluded.file_mtime_ms,
@@ -211,7 +232,46 @@ export class Indexer {
         }
       }
     }
+    out.push(...(await this.listCodexFiles()));
     return out.sort();
+  }
+
+  /**
+   * Codex rollouts under `codexDir`, date-nested `YYYY/MM/DD/rollout-*.jsonl`.
+   * A bounded recursive walk (the nesting is fixed at three levels, but a
+   * tolerant walk survives layout drift); absent dir = no Codex.
+   */
+  private async listCodexFiles(): Promise<string[]> {
+    const root = this.opts.codexDir;
+    if (!root) return [];
+    const out: string[] = [];
+    const walk = async (dir: string, depth: number): Promise<void> => {
+      if (depth > 4) return;
+      let entries: fs.Dirent[];
+      try {
+        entries = await fs.promises.readdir(dir, { withFileTypes: true });
+      } catch {
+        return; // missing root, permissions — Codex indexing simply off
+      }
+      for (const entry of entries) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory() && !entry.name.startsWith('.')) {
+          await walk(full, depth + 1);
+        } else if (entry.isFile() && /^rollout-.*\.jsonl$/.test(entry.name)) {
+          out.push(full);
+        }
+      }
+    };
+    await walk(root, 0);
+    return out;
+  }
+
+  /** Which tool wrote a session file — by which discovery root it lives under. */
+  private toolFor(filePath: string): SessionTool {
+    const root = this.opts.codexDir;
+    return root && (filePath === root || filePath.startsWith(root + path.sep))
+      ? 'codex'
+      : 'claude-code';
   }
 
   async scanAll(onProgress?: (p: IndexProgress) => void): Promise<ScanSummary> {
@@ -252,11 +312,20 @@ export class Indexer {
       return -1; // deleted or unreadable; keep whatever we already indexed
     }
 
-    const sessionId = path.basename(filePath, '.jsonl');
+    const tool = this.toolFor(filePath);
+    const toolAdapterVersion = tool === 'codex' ? CODEX_ADAPTER_VERSION : ADAPTER_VERSION;
+    let sessionId = path.basename(filePath, '.jsonl');
     const dir = path.dirname(filePath);
     let projectKey = path.basename(dir);
     let parentSessionId: string | null = null;
-    if (projectKey === 'subagents') {
+    if (tool === 'codex') {
+      // The filename carries the session uuid — stable across passes, unlike
+      // the session_meta record an incremental pass never re-reads. The
+      // project key is derived from the session's cwd after parsing (below),
+      // munged CC-style so both tools' work on one repo is one project.
+      sessionId = ROLLOUT_ID_RE.exec(path.basename(filePath))?.[1] ?? sessionId;
+      projectKey = 'codex';
+    } else if (projectKey === 'subagents') {
       // <projects>/<project>/<parent-session>/subagents/<agent>.jsonl
       const sessionDir = path.dirname(dir);
       parentSessionId = path.basename(sessionDir);
@@ -281,13 +350,13 @@ export class Indexer {
     let startLine = 0;
     if (row) {
       const upToDate =
-        row.adapter_version === ADAPTER_VERSION &&
+        row.adapter_version === toolAdapterVersion &&
         row.file_size === st.size &&
         row.file_mtime_ms === st.mtimeMs &&
         row.file_byte_offset === st.size;
       if (upToDate) return -1;
 
-      if (st.size < row.file_byte_offset || row.adapter_version !== ADAPTER_VERSION) {
+      if (st.size < row.file_byte_offset || row.adapter_version !== toolAdapterVersion) {
         this.deleteSessionData(row.id);
       } else {
         startOffset = row.file_byte_offset;
@@ -318,6 +387,18 @@ export class Indexer {
         : [],
     );
 
+    // Codex cross-line context (cwd, current model). Incremental passes start
+    // mid-file and would otherwise lose the model in force — reseed it from
+    // the stored session row.
+    const codexState = tool === 'codex' ? newCodexState() : null;
+    if (codexState && startOffset > 0) {
+      const seed = this.selCodexSeed.get(sessionId) as
+        | { model: string | null; project_path: string | null }
+        | undefined;
+      codexState.model = seed?.model ?? null;
+      codexState.cwd = seed?.project_path ?? null;
+    }
+
     const flush = () => {
       if (batch.length === 0) return;
       this.insertBatchTx(sessionId, batch);
@@ -336,7 +417,9 @@ export class Indexer {
         }
       }
       const fallbackId = `${sessionId}:${lineNo}`;
-      const rec = normalizeLine(chunk.text, fallbackId);
+      const rec = codexState
+        ? normalizeCodexLine(chunk.text, fallbackId, codexState)
+        : normalizeLine(chunk.text, fallbackId);
       lineNo += 1;
       newOffset = chunk.end;
       if (rec) {
@@ -367,6 +450,11 @@ export class Indexer {
     }
     flush();
 
+    // Codex files carry no project in their path — the cwd is the project.
+    // Incremental passes may not see it again; the upsert's ON CONFLICT does
+    // not touch project_key, so the from-zero pass's value survives.
+    if (tool === 'codex' && firstCwd) projectKey = mungeCwd(firstCwd);
+
     this.upsertSession.run({
       id: sessionId,
       projectKey,
@@ -376,7 +464,8 @@ export class Indexer {
       rootUuid,
       aiTitle,
       ccTitle,
-      adapterVersion: ADAPTER_VERSION,
+      tool,
+      adapterVersion: toolAdapterVersion,
       offset: newOffset,
       mtimeMs: st.mtimeMs,
       size: st.size,

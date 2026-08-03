@@ -2,9 +2,17 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { readLines } from '../src/parser/lineReader.js';
-import { normalizeLine } from '../src/parser/normalize.js';
+import { normalizeCodexLine, normalizeLine } from '../src/parser/normalize.js';
+import { newCodexState } from '../src/parser/adapters/codex.js';
 import type { NormalizedRecord } from '../src/parser/types.js';
-import { CORPUS_DIR, GOLDEN_DIR, SESSION_A, corpusFiles } from './helpers.js';
+import {
+  CODEX_CORPUS_DIR,
+  CORPUS_DIR,
+  GOLDEN_DIR,
+  SESSION_A,
+  codexCorpusFiles,
+  corpusFiles,
+} from './helpers.js';
 
 const UPDATE = process.env.UPDATE_GOLDEN === '1';
 
@@ -18,6 +26,24 @@ async function normalizeFile(file: string): Promise<NormalizedRecord[]> {
     if (rec) records.push(rec);
   }
   return records;
+}
+
+async function normalizeCodexFile(file: string): Promise<NormalizedRecord[]> {
+  const sessionId = path.basename(file, '.jsonl');
+  const records: NormalizedRecord[] = [];
+  const state = newCodexState();
+  let lineNo = 0;
+  for await (const chunk of readLines(file)) {
+    const rec = normalizeCodexLine(chunk.text, `${sessionId}:${lineNo}`, state);
+    lineNo += 1;
+    if (rec) records.push(rec);
+  }
+  return records;
+}
+
+function codexGoldenPath(file: string): string {
+  const rel = path.relative(CODEX_CORPUS_DIR, file).replace(/\.jsonl$/, '');
+  return path.join(GOLDEN_DIR, `codex__${rel.split(path.sep).join('__')}.json`);
 }
 
 function goldenPath(file: string): string {
@@ -34,6 +60,22 @@ describe('adapter golden snapshots', () => {
     it(`normalizes ${path.relative(CORPUS_DIR, file)}`, async () => {
       const records = await normalizeFile(file);
       const golden = goldenPath(file);
+      if (UPDATE) {
+        fs.mkdirSync(GOLDEN_DIR, { recursive: true });
+        fs.writeFileSync(golden, JSON.stringify(records, null, 2) + '\n');
+        return;
+      }
+      const expected = JSON.parse(fs.readFileSync(golden, 'utf8'));
+      expect(records).toEqual(expected);
+    });
+  }
+});
+
+describe('codex adapter golden snapshots', () => {
+  for (const file of codexCorpusFiles()) {
+    it(`normalizes ${path.relative(CODEX_CORPUS_DIR, file)}`, async () => {
+      const records = await normalizeCodexFile(file);
+      const golden = codexGoldenPath(file);
       if (UPDATE) {
         fs.mkdirSync(GOLDEN_DIR, { recursive: true });
         fs.writeFileSync(golden, JSON.stringify(records, null, 2) + '\n');

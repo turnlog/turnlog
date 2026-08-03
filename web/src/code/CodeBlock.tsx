@@ -28,7 +28,10 @@ export default function CodeBlock({ code, langHint }: { code: string; langHint?:
     return () => {
       alive = false;
     };
-  }, [code, lang, shouldHighlight]);
+    // `theme` is a dependency: without it a theme switch keeps the HTML
+    // highlighted for the previous theme, painting one palette on the other's
+    // ground.
+  }, [code, lang, shouldHighlight, theme]);
 
   if (html !== null) {
     // Shiki output is generated markup over escaped text — safe by construction.

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import {
   flattenSessions,
@@ -8,20 +8,25 @@ import {
   useStatus,
   type SessionsQuery,
 } from './api';
+import Badge from './components/Badge';
 import Dropdown from './components/Dropdown';
+import IconButton from './components/IconButton';
 import NoteDot from './components/NoteDot';
+import Primary from './components/Primary';
+import SearchField from './components/SearchField';
+import Segmented from './components/Segmented';
 import { SkeletonRows } from './components/Skeleton';
+import AgentBadge from './components/AgentBadge';
 import Tooltip from './components/Tooltip';
 import { SHORTCUTS } from './keys';
 import {
   Brandmark,
-  EyeClosedIcon,
-  EyeIcon,
   HistoryIcon,
   PinFilledIcon,
   PinIcon,
   SidebarIcon,
   SortVerticalIcon,
+  TuningIcon,
 } from './icons';
 import { setHideEmpty, setProjectFilter, useHideEmpty, useProjectFilter } from './filterStore';
 import {
@@ -81,34 +86,38 @@ function Item({
             <span className="side-item-live" role="img" aria-label="active in the last 5 minutes" />
           )}
           {s.note && <NoteDot note={s.note} />}
-          <Tooltip content={s.pinned ? 'Unpin' : 'Pin to top'}>
-            <button
-              className={`side-item-pin ${s.pinned ? 'pinned' : ''}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onTogglePin(s);
-              }}
-              aria-label={s.pinned ? 'Unpin session' : 'Pin session to top'}
-              aria-pressed={s.pinned}
-            >
-              {s.pinned ? <PinFilledIcon size={13} /> : <PinIcon size={13} />}
-            </button>
-          </Tooltip>
+          <IconButton
+            fill="ghost"
+            label={s.pinned ? 'Unpin session' : 'Pin session to top'}
+            tooltip={s.pinned ? 'Unpin' : 'Pin to top'}
+            className="side-item-pin"
+            active={s.pinned}
+            aria-pressed={s.pinned}
+            onClick={(e) => {
+              e.stopPropagation();
+              onTogglePin(s);
+            }}
+          >
+            {s.pinned ? <PinFilledIcon size={13} /> : <PinIcon size={13} />}
+          </IconButton>
           <span className="side-item-cost">{fmtCost(s.costUsd)}</span>
         </span>
         <span className="side-item-sub">
           {s.chainLen > 1 && (
             <Tooltip content={`Resumed conversation — ${s.chainLen} session files`}>
-              <span className="chain-badge">
-                <HistoryIcon size={11} />
+              <Badge className="chain-badge">
+                <HistoryIcon />
                 {s.chainLen}
-              </span>
+              </Badge>
             </Tooltip>
           )}
           <span>{fmtDate(s.startedAt)}</span>
           <span>· {fmtCount(s.turnCount)}t</span>
           <span>· {fmtTokens(s.inputTokens + s.outputTokens)} tok</span>
-          {s.model && <span className="side-item-model">{fmtModel(s.model)}</span>}
+        </span>
+        <span className="side-item-badges">
+          <AgentBadge tool={s.tool} />
+          {s.model && <Badge kind="model">{fmtModel(s.model)}</Badge>}
         </span>
       </span>
     </div>
@@ -131,6 +140,16 @@ export default function Sidebar({
 
   const status = useStatus();
   const projects = useProjects();
+
+  // Quick name filter — server-side (matches custom names, CC titles, and
+  // projects across ALL sessions, not just loaded pages), debounced.
+  const [nameInput, setNameInput] = useState('');
+  const [name, setName] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setName(nameInput.trim()), 250);
+    return () => clearTimeout(t);
+  }, [nameInput]);
+
   // Resume chains collapse to their tip — the tip file carries the whole
   // copied history, so earlier parts would read as duplicate rows here.
   const sessions = useSessions({
@@ -138,6 +157,7 @@ export default function Sidebar({
     dir,
     project: project || undefined,
     hideEmpty,
+    name: name || undefined,
     collapseChains: true,
   });
 
@@ -146,14 +166,48 @@ export default function Sidebar({
   const setMeta = useSetSessionMeta();
   const togglePin = (s: SessionMeta) => setMeta.mutate({ id: s.id, patch: { pinned: !s.pinned } });
 
+  // Filter popover — project/sort/direction/empty live behind one button so
+  // the always-visible row stays just the name filter. The accent dot on the
+  // button is the "a hidden control is narrowing this list" flag.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const controlsRef = useRef<HTMLDivElement>(null);
+  const sortActive = sort !== 'ended_at' || dir !== 'desc';
+  const activeCount = (project ? 1 : 0) + (hideEmpty ? 1 : 0) + (sortActive ? 1 : 0);
+  const resetFilters = () => {
+    setProject('');
+    setHideEmpty(false);
+    setSort('ended_at');
+    setDir('desc');
+  };
+
+  useEffect(() => {
+    if (!filtersOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!controlsRef.current?.contains(e.target as Node)) setFiltersOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFiltersOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [filtersOpen]);
+
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <Tooltip content="Hide sessions" shortcut={SHORTCUTS.sidebar}>
-          <button className="circle circle-active" onClick={onToggle} aria-label="Hide sessions">
-            <SidebarIcon size={17} />
-          </button>
-        </Tooltip>
+        {/* quiet, not card: this one stands on the sidebar card. */}
+        <Primary
+          fill="quiet"
+          label="Hide sessions"
+          tooltip="Hide sessions"
+          shortcut={SHORTCUTS.sidebar}
+          onClick={onToggle}
+          icon={<SidebarIcon />}
+        />
         <a href="#/" className="header-brand" aria-label="Turnlog — overview">
           <Brandmark />
           <span className="header-title">
@@ -162,52 +216,87 @@ export default function Sidebar({
           </span>
         </a>
       </div>
-      <div className="sidebar-controls">
+      <div className="sidebar-controls" ref={controlsRef}>
         <div className="sidebar-controls-row">
-          <Dropdown
-            className="dd-grow"
-            value={project}
-            onChange={setProject}
-            ariaLabel="Filter by project"
-            options={[
-              { value: '', label: `all projects (${projects.data?.length ?? 0})` },
-              ...(projects.data?.map((p) => ({
-                value: p.projectKey,
-                label: `${projectName(p)} (${p.sessionCount})`,
-              })) ?? []),
-            ]}
+          <SearchField
+            value={nameInput}
+            onChange={setNameInput}
+            placeholder="Filter sessions…"
+            ariaLabel="Filter sessions by name or project"
+            icon
+            clearable
           />
+          <IconButton
+            fill="inset"
+            label="Session filters and sort"
+            tooltip={activeCount > 0 ? `Filters & sort — ${activeCount} active` : 'Filters & sort'}
+            className="filter-btn"
+            active={filtersOpen}
+            onClick={() => setFiltersOpen(!filtersOpen)}
+            aria-expanded={filtersOpen}
+          >
+            <TuningIcon size={16} />
+            {activeCount > 0 && <span className="filter-dot" />}
+          </IconButton>
           <span className="sidebar-count">{fmtCount(total)}</span>
         </div>
-        <div className="sidebar-controls-row">
-          <Dropdown
-            className="dd-grow"
-            value={sort}
-            onChange={(v) => setSort(v as typeof sort)}
-            ariaLabel="Sort by"
-            options={SORTS.map((s) => ({ value: s.value, label: `by ${s.label}` }))}
-          />
-          <Tooltip content={dir === 'desc' ? 'Newest first' : 'Oldest first'}>
-            <button
-              className={`dir-toggle ${dir === 'asc' ? 'asc' : ''}`}
-              onClick={() => setDir(dir === 'desc' ? 'asc' : 'desc')}
-              aria-label={`Direction: ${dir}`}
-            >
-              <SortVerticalIcon size={16} />
-            </button>
-          </Tooltip>
-          {/* The eye is the state: open = empty sessions shown, closed = hidden. */}
-          <Tooltip content={hideEmpty ? 'Show empty sessions' : 'Hide empty sessions'}>
-            <button
-              className={`dir-toggle eye-toggle ${hideEmpty ? 'on' : ''}`}
-              onClick={() => setHideEmpty(!hideEmpty)}
-              aria-label={hideEmpty ? 'Show empty sessions' : 'Hide empty sessions'}
-              aria-pressed={hideEmpty}
-            >
-              {hideEmpty ? <EyeClosedIcon size={16} /> : <EyeIcon size={16} />}
-            </button>
-          </Tooltip>
-        </div>
+        {filtersOpen && (
+          <div className="filter-pop" role="dialog" aria-label="Session filters">
+            <div className="pop-row">
+              <span className="pop-label">project</span>
+              <Dropdown
+                className="dd-grow"
+                value={project}
+                onChange={setProject}
+                ariaLabel="Filter by project"
+                options={[
+                  { value: '', label: `all projects (${projects.data?.length ?? 0})` },
+                  ...(projects.data?.map((p) => ({
+                    value: p.projectKey,
+                    label: `${projectName(p)} (${p.sessionCount})`,
+                  })) ?? []),
+                ]}
+              />
+            </div>
+            <div className="pop-row">
+              <span className="pop-label">sort</span>
+              <Dropdown
+                className="dd-grow"
+                value={sort}
+                onChange={(v) => setSort(v as typeof sort)}
+                ariaLabel="Sort by"
+                options={SORTS.map((s) => ({ value: s.value, label: `by ${s.label}` }))}
+              />
+              <IconButton
+                fill="inset"
+                label={`Direction: ${dir}`}
+                tooltip={dir === 'desc' ? 'Newest first' : 'Oldest first'}
+                className={dir === 'asc' ? 'asc' : ''}
+                onClick={() => setDir(dir === 'desc' ? 'asc' : 'desc')}
+              >
+                <SortVerticalIcon size={16} />
+              </IconButton>
+            </div>
+            <div className="pop-row">
+              <span className="pop-label">empty</span>
+              <Segmented
+                className="share-seg"
+                ariaLabel="Empty sessions"
+                value={hideEmpty ? 'hidden' : 'shown'}
+                onChange={(v) => setHideEmpty(v === 'hidden')}
+                options={[
+                  { value: 'shown', label: 'shown' },
+                  { value: 'hidden', label: 'hidden' },
+                ]}
+              />
+            </div>
+            {activeCount > 0 && (
+              <button className="filter-reset" onClick={resetFilters}>
+                reset filters
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {rows.length === 0 && sessions.isLoading ? (
@@ -218,7 +307,9 @@ export default function Sidebar({
             ? (sessions.error as Error).message
             : status.data?.state === 'indexing'
               ? 'indexing…'
-              : 'no sessions yet'}
+              : name || activeCount > 0
+                ? 'no matching sessions'
+                : 'no sessions yet'}
         </div>
       ) : (
         <Virtuoso

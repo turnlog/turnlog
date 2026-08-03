@@ -1,10 +1,18 @@
 Bundled third-party assets — everything ships inside the package; the app
 never loads anything from the network.
 
-Geist / Geist Mono (latin variable woff2, via Google Fonts)
-  © 2023 Vercel, in collaboration with basement.studio — SIL Open Font
-  License 1.1 (see fonts/LICENSE.txt)
+Plus Jakarta Sans (latin variable woff2, via Google Fonts)
+  © 2020 Tokotype — SIL Open Font License 1.1 (see fonts/LICENSE.txt)
+
+Space Mono (latin woff2, weights 400/700, via Google Fonts)
+  © 2016 Colophon Foundry — SIL Open Font License 1.1
+  (see fonts/LICENSE.txt)
 
 Solar Icons, outline style (vendored as inline SVG path data)
   © 480 Design — Creative Commons Attribution 4.0
   https://creativecommons.org/licenses/by/4.0/
+
+Adapter brand marks (vendored as inline SVG path data)
+  Anthropic (Claude) and OpenAI logos, used nominatively to identify which
+  agent produced a session. Trademarks of their respective owners; not
+  covered by this project's MIT license and not endorsements.

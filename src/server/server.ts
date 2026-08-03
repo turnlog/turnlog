@@ -581,6 +581,7 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
         since: q.get('since') ?? undefined,
         until: q.get('until') ?? undefined,
         hideEmpty: q.get('hideEmpty') === '1',
+        name: q.get('name') ?? undefined,
         collapseChains: q.get('chains') === 'collapse',
       }),
     );
