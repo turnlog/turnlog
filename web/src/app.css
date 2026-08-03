@@ -2671,11 +2671,12 @@
    with it on the text alone the cards still spanned the window and the notes
    sat in a column of empty card. This is the one screen that is prose rather
    than data, so the full-bleed rule yields — it governs lists and screens,
-   not paragraphs. Left-aligned, not centered, so it still reads as part of a
-   full-bleed app. */
+   not paragraphs — and a measured document centres rather than hugging one
+   edge of a wide window. */
 .whatsnew-inner {
   width: 100%;
   max-width: 680px;
+  margin: 0 auto;
   padding: 6px 0 64px;
 }
 .whatsnew-head {
