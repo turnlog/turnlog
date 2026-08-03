@@ -134,7 +134,7 @@ export class Indexer {
        UPDATE sessions SET
          started_at = (SELECT MIN(ts) FROM messages WHERE session_id IN (SELECT id FROM family) AND ts IS NOT NULL),
          ended_at   = (SELECT MAX(ts) FROM messages WHERE session_id IN (SELECT id FROM family) AND ts IS NOT NULL),
-         turn_count = (SELECT COUNT(*) FROM messages WHERE session_id IN (SELECT id FROM family)),
+         event_count = (SELECT COUNT(*) FROM messages WHERE session_id IN (SELECT id FROM family)),
          input_tokens       = (SELECT COALESCE(SUM(tokens_in), 0) FROM messages WHERE session_id IN (SELECT id FROM family)),
          output_tokens      = (SELECT COALESCE(SUM(tokens_out), 0) FROM messages WHERE session_id IN (SELECT id FROM family)),
          cache_read_tokens  = (SELECT COALESCE(SUM(cache_read_tokens), 0) FROM messages WHERE session_id IN (SELECT id FROM family)),

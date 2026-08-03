@@ -19,7 +19,7 @@ export default function StatsPanel({ s, sessionId }: { s: SessionMeta; sessionId
   return (
     <>
       <div className="stat-strip replay-stats">
-        <Tile label="turns" value={fmtCount(s.turnCount)} />
+        <Tile label="events" value={fmtCount(s.eventCount)} />
         <Tile label="duration" value={fmtDuration(s.startedAt, s.endedAt)} />
         <Tile label="tokens in / out" value={`${fmtTokens(s.inputTokens)} / ${fmtTokens(s.outputTokens)}`} />
         <Tile label="cache read / write" value={`${fmtTokens(s.cacheReadTokens)} / ${fmtTokens(s.cacheWriteTokens)}`} />

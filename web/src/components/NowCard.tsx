@@ -57,7 +57,7 @@ export default function NowCard() {
                     </Tooltip>
                   )}
                   <span>
-                    <em>turns</em> {fmtCount(s.turnCount)}
+                    <em>events</em> {fmtCount(s.eventCount)}
                   </span>
                   <span>
                     <em>cost</em> {fmtCost(s.costUsd)}

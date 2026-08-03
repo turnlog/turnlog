@@ -58,7 +58,7 @@ function RecentRow({ s }: { s: SessionMeta }) {
             {s.model && <Badge kind="model">{fmtModel(s.model)}</Badge>}
           </span>
           <span className="recent-sub">
-            {fmtCost(s.costUsd)} · {fmtCount(s.turnCount)} turns · {fmtDate(s.startedAt)}
+            {fmtCost(s.costUsd)} · {fmtCount(s.eventCount)} events · {fmtDate(s.startedAt)}
           </span>
         </span>
         <span className="icon-btn" aria-hidden>

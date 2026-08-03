@@ -79,7 +79,7 @@ function BlockTip({ s }: { s: SessionMeta }) {
             label: 'when',
             value: `${fmtTime(s.startedAt)}${s.endedAt ? `–${fmtTime(s.endedAt)}` : ''}`,
           },
-          { label: 'turns', value: fmtCount(s.turnCount) },
+          { label: 'events', value: fmtCount(s.eventCount) },
           { label: 'tokens', value: `${fmtTokens(s.inputTokens + s.outputTokens)} tok` },
           { label: 'cost', value: fmtCost(s.costUsd) },
           { label: 'agent', value: agentInfo(s.tool).label },

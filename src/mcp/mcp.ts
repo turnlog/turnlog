@@ -71,7 +71,7 @@ function compactSession(s: SessionMeta) {
     startedAt: s.startedAt,
     endedAt: s.endedAt,
     model: s.model ?? undefined,
-    turns: s.turnCount,
+    events: s.eventCount,
     costUsd: s.costUsd ?? undefined,
     // Resume chains: this session is one of N files of the same conversation.
     chainLen: s.chainLen > 1 ? s.chainLen : undefined,

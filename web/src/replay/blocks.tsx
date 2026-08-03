@@ -324,7 +324,7 @@ function ChildSessionRun({ child, label }: { child: ChildSessionSummary; label: 
       <button className="sidechain-head" onClick={() => setOpen(!open)}>
         <Caret open={open} />
         <span className="sidechain-label">{label}</span>
-        <span className="sidechain-count">{fmtCount(child.turnCount)} events</span>
+        <span className="sidechain-count">{fmtCount(child.eventCount)} events</span>
       </button>
       {open && (
         <div className="sidechain-body">

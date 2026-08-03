@@ -134,11 +134,11 @@ describe('listSessions date range', () => {
       `INSERT INTO sessions (id, file_path, adapter_version) VALUES (?, ?, ?)`,
     ).run('empty-session-test', '/fake/empty-session-test.jsonl', 1);
     db.prepare(
-      `INSERT INTO sessions (id, file_path, adapter_version, turn_count) VALUES (?, ?, ?, 7)`,
+      `INSERT INTO sessions (id, file_path, adapter_version, event_count) VALUES (?, ?, ?, 7)`,
     ).run('prompt-only-test', '/fake/prompt-only-test.jsonl', 1);
     // Legacy costUSD-only session: no token counts, but it cost money — stays.
     db.prepare(
-      `INSERT INTO sessions (id, file_path, adapter_version, turn_count, cost_usd) VALUES (?, ?, ?, 3, 0.5)`,
+      `INSERT INTO sessions (id, file_path, adapter_version, event_count, cost_usd) VALUES (?, ?, ?, 3, 0.5)`,
     ).run('legacy-cost-test', '/fake/legacy-cost-test.jsonl', 1);
 
     const all = listSessions(db, {});
@@ -150,7 +150,7 @@ describe('listSessions date range', () => {
     // Derive the expectation — the corpus may carry empty sessions of its own.
     const empties = all.sessions.filter(
       (s) =>
-        (s.turnCount === 0 || s.inputTokens + s.outputTokens === 0) && !(s.costUsd ?? 0),
+        (s.eventCount === 0 || s.inputTokens + s.outputTokens === 0) && !(s.costUsd ?? 0),
     ).length;
     expect(empties).toBeGreaterThanOrEqual(2);
     expect(filtered.total).toBe(all.total - empties);

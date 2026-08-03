@@ -47,7 +47,7 @@ describe('demo mode', () => {
     // repo — a single-agent demo hides exactly what makes Turnlog different.
     expect(new Set(sessions.map((s) => s.tool)).size).toBeGreaterThan(1);
     // Something to actually look at: turns, not just empty shells.
-    expect(sessions.some((s) => s.turnCount > 0)).toBe(true);
+    expect(sessions.some((s) => s.eventCount > 0)).toBe(true);
     db.close();
   });
 });

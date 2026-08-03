@@ -187,7 +187,7 @@ export function sessionToHtml(
     date,
     title ? project : null,
     model,
-    `${session.turnCount} turns`,
+    `${session.eventCount} events`,
     opts.excerpt ? 'excerpt' : null,
     fmtDuration(session.startedAt, session.endedAt),
     `${fmtCost(session.costUsd)} est.`,

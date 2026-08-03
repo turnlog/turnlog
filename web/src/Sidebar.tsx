@@ -49,7 +49,7 @@ const SORTS: { value: NonNullable<SessionsQuery['sort']>; label: string }[] = [
   { value: 'ended_at', label: 'activity' },
   { value: 'started_at', label: 'date' },
   { value: 'cost_usd', label: 'cost' },
-  { value: 'turn_count', label: 'turns' },
+  { value: 'event_count', label: 'events' },
   { value: 'tokens', label: 'tokens' },
 ];
 
@@ -71,7 +71,7 @@ function sessionFacts(s: SessionMeta): Record<string, { value: string; label: st
     ended_at: { value: fmtDate(s.endedAt ?? s.startedAt), label: 'last activity' },
     started_at: { value: fmtDate(s.startedAt), label: 'started' },
     cost_usd: { value: fmtCost(s.costUsd), label: 'cost' },
-    turn_count: { value: `${fmtCount(s.turnCount)}t`, label: 'turns' },
+    event_count: { value: fmtCount(s.eventCount), label: 'events' },
     tokens: { value: `${fmtTokens(s.inputTokens + s.outputTokens)} tok`, label: 'tokens' },
   };
 }

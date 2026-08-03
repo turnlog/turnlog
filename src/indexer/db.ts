@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 export function openDb(path: string): Database.Database {
   const db = new Database(path);
@@ -204,6 +204,16 @@ function migrate(db: Database.Database): void {
       );
       CREATE INDEX idx_session_tags_tag ON session_tags(tag);
     `);
+  }
+
+  if (version < 11) {
+    // turn_count never counted turns — it is COUNT(*) over a session's
+    // messages, so a 38-turn session read as "2,786 turns". The number was
+    // always right and the word always wrong; `events` is what the rest of
+    // the codebase already calls this quantity (IndexFacts.events, the
+    // subagent row's "N events"). Renaming the column keeps the lie from
+    // being re-learned. No reindex: the values are unchanged.
+    db.exec(`ALTER TABLE sessions RENAME COLUMN turn_count TO event_count;`);
   }
 
   db.pragma(`user_version = ${SCHEMA_VERSION}`);

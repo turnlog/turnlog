@@ -479,7 +479,7 @@ export default function Search({
                   {sessionName(g.session)}
                 </button>
                 <span className="search-group-meta">
-                  {fmtDate(g.session.startedAt)} · {fmtCount(g.session.turnCount)} turns ·{' '}
+                  {fmtDate(g.session.startedAt)} · {fmtCount(g.session.eventCount)} events ·{' '}
                   {fmtCost(g.session.costUsd)}
                 </span>
                 <span className="search-group-count">

@@ -32,7 +32,7 @@ import type {
 import { LENSES, SNIPPET_CLOSE, SNIPPET_OPEN, type Lens } from './apiTypes.js';
 
 const SESSION_COLUMNS = `
-  id, project_path, project_key, parent_session_id, started_at, ended_at, model, turn_count, tool,
+  id, project_path, project_key, parent_session_id, started_at, ended_at, model, event_count, tool,
   input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
   cost_usd, files_touched_count, ai_title, cc_title,
   COALESCE(session_meta.pinned, 0) AS pinned, custom_name, note,
@@ -57,7 +57,7 @@ function rowToSession(r: any): SessionMeta {
     startedAt: r.started_at,
     endedAt: r.ended_at,
     model: r.model,
-    turnCount: r.turn_count,
+    eventCount: r.event_count,
     inputTokens: r.input_tokens,
     outputTokens: r.output_tokens,
     cacheReadTokens: r.cache_read_tokens,
@@ -82,7 +82,11 @@ const SORTABLE: Record<string, string> = {
   started_at: 'started_at',
   ended_at: 'ended_at',
   cost_usd: 'cost_usd',
-  turn_count: 'turn_count',
+  event_count: 'event_count',
+  // The old spelling still resolves: it was in URLs and saved UI state, and
+  // an unknown key silently falls back to started_at — so dropping it would
+  // reorder someone's list without saying why.
+  turn_count: 'event_count',
   tokens: '(input_tokens + output_tokens)',
 };
 
@@ -152,7 +156,7 @@ export function listSessions(db: Database.Database, q: ListSessionsQuery): Sessi
     // a session visible: legacy CC logged per-message costUSD without tokens.
     // Pinning something is a statement that it matters — pins never hide.
     clauses.push(
-      `NOT ((turn_count = 0 OR input_tokens + output_tokens = 0)
+      `NOT ((event_count = 0 OR input_tokens + output_tokens = 0)
             AND COALESCE(cost_usd, 0) = 0 AND COALESCE(session_meta.pinned, 0) = 0)`,
     );
   }
@@ -318,7 +322,7 @@ export function getLiveSessions(
   const rows = db
     .prepare(
       `SELECT id, tool, project_key, project_path, started_at, ended_at,
-              turn_count, cost_usd, ai_title, cc_title, custom_name
+              event_count, cost_usd, ai_title, cc_title, custom_name
          FROM sessions LEFT JOIN session_meta ON session_meta.session_id = sessions.id
         WHERE parent_session_id IS NULL AND ended_at IS NOT NULL AND ended_at >= ?
         ORDER BY ended_at DESC
@@ -331,7 +335,7 @@ export function getLiveSessions(
     project_path: string | null;
     started_at: string | null;
     ended_at: string | null;
-    turn_count: number;
+    event_count: number;
     cost_usd: number | null;
     ai_title: string | null;
     cc_title: string | null;
@@ -365,7 +369,7 @@ export function getLiveSessions(
         projectPath: r.project_path,
         name: r.custom_name ?? r.cc_title ?? r.ai_title ?? '',
         lastActivityAt: r.ended_at,
-        turnCount: r.turn_count,
+        eventCount: r.event_count,
         costUsd: r.cost_usd,
         lastPrompt: prompt?.text.replace(/\s+/g, ' ').trim().slice(0, 240) ?? null,
         contextTokens: ctx?.ctx ?? null,
@@ -1308,7 +1312,7 @@ function searchAggregates(
         `SELECT COUNT(*) AS n,
                 COALESCE(SUM(cost_usd), 0) AS cost,
                 SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END) AS unpriced,
-                COALESCE(SUM(turn_count), 0) AS turns,
+                COALESCE(SUM(event_count), 0) AS turns,
                 COALESCE(SUM(input_tokens + output_tokens), 0) AS tokens
          FROM sessions WHERE id IN (${matched})`,
       )
@@ -1327,7 +1331,7 @@ function searchAggregates(
 
 const SESSION_JOIN_COLUMNS = `s.id, s.project_path, s.project_key, s.parent_session_id,
                 s.started_at, s.ended_at, s.model, s.tool,
-                s.turn_count, s.input_tokens, s.output_tokens, s.cache_read_tokens,
+                s.event_count, s.input_tokens, s.output_tokens, s.cache_read_tokens,
                 s.cache_write_tokens, s.cost_usd, s.files_touched_count,
                 (SELECT COUNT(*) FROM sessions c
                  WHERE c.root_uuid = s.root_uuid AND c.project_key IS s.project_key
@@ -2230,7 +2234,7 @@ export function getStats(db: Database.Database): StatsResponse {
   const totals = db
     .prepare(
       `SELECT COUNT(*) AS sessions,
-              COALESCE(SUM(turn_count), 0) AS messages,
+              COALESCE(SUM(event_count), 0) AS messages,
               COALESCE(SUM(input_tokens), 0) AS input_tokens,
               COALESCE(SUM(output_tokens), 0) AS output_tokens,
               COALESCE(SUM(cost_usd), 0) AS cost_usd

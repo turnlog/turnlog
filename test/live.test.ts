@@ -64,7 +64,7 @@ describe('the now panel', () => {
     expect(tools.size).toBe(2);
     // Every agent-agnostic fact is present for both, so the rows read alike.
     for (const s of live.sessions) {
-      expect(s.turnCount).toBeGreaterThan(0);
+      expect(s.eventCount).toBeGreaterThan(0);
       expect(s.lastActivityAt).not.toBeNull();
     }
   });

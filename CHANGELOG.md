@@ -6,6 +6,15 @@ All notable changes to Turnlog are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- A session's message count was labelled "turns" everywhere it appeared —
+  the sidebar, search, home, the calendar, session stats, exports and the MCP
+  tools. It never counted turns: a session with 38 turns and 2,786 messages
+  read as "2,786 turns". The number was always right and the word always
+  wrong, so it now says **events**, which is what the rest of the app already
+  called it. Sorting by it still works, including from an old bookmarked URL.
+
 ### Added
 
 - The turn spine is keyboard-navigable: **j** and **k** move between turns,

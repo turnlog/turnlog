@@ -45,7 +45,7 @@ describe('Indexer', () => {
     expect(count.n).toBe(6);
 
     const a = sessionRow(SESSION_A);
-    expect(a.turn_count).toBe(23);
+    expect(a.event_count).toBe(23);
     expect(a.files_touched_count).toBe(2);
     expect(a.model).toBe('claude-opus-4-8');
     expect(a.project_path).toBe('/Users/dev/projects/webapp');
@@ -129,7 +129,7 @@ describe('Indexer', () => {
     await indexer.scanAll();
     const row = sessionRow(SESSION_EMPTY);
     expect(row).toBeDefined();
-    expect(row.turn_count).toBe(0);
+    expect(row.event_count).toBe(0);
   });
 
   it('skips files that have not changed since the last scan', async () => {
@@ -152,7 +152,7 @@ describe('Indexer', () => {
     expect(parsed).toBe(2);
 
     const after = sessionRow(SESSION_A);
-    expect(after.turn_count).toBe(before.turn_count + 2);
+    expect(after.event_count).toBe(before.event_count + 2);
     expect(after.ended_at).toBe('2026-07-01T10:05:10.000Z');
     expect(after.file_byte_offset).toBe(fs.statSync(sessionAPath()).size);
 
@@ -169,7 +169,7 @@ describe('Indexer', () => {
     // Writer got interrupted mid-line: invalid JSON, no newline.
     fs.appendFileSync(sessionAPath(), `{"parentUuid":"a5","type":"user","message`);
     await indexer.indexFile(sessionAPath());
-    expect(sessionRow(SESSION_A).turn_count).toBe(before.turn_count);
+    expect(sessionRow(SESSION_A).event_count).toBe(before.event_count);
 
     // Writer finishes the line.
     fs.appendFileSync(
@@ -178,7 +178,7 @@ describe('Indexer', () => {
     );
     await indexer.indexFile(sessionAPath());
     const after = sessionRow(SESSION_A);
-    expect(after.turn_count).toBe(before.turn_count + 1);
+    expect(after.event_count).toBe(before.event_count + 1);
     expect(
       db.prepare('SELECT kind FROM messages WHERE session_id = ? AND uuid = ?').get(SESSION_A, 'u6'),
     ).toMatchObject({ kind: 'prompt' });
@@ -192,7 +192,7 @@ describe('Indexer', () => {
 
     await indexer.indexFile(file);
     const row = sessionRow(SESSION_B);
-    expect(row.turn_count).toBe(1);
+    expect(row.event_count).toBe(1);
     expect(row.cost_usd).toBeNull();
     // The FTS index must not retain ghosts of deleted messages.
     expect(searchMessages(db, { query: 'release notes' }).totalHits).toBe(0);
@@ -205,7 +205,7 @@ describe('Indexer', () => {
     expect(summary.filesIndexed).toBe(1);
     const row = sessionRow(SESSION_C);
     expect(row.adapter_version).toBe(ADAPTER_VERSION);
-    expect(row.turn_count).toBe(7);
+    expect(row.event_count).toBe(7);
   });
 
   it('rebuild wipes and reproduces identical counts', async () => {
@@ -244,7 +244,7 @@ describe('Indexer', () => {
 
     const parent = sessionRow(SESSION_D);
     expect(parent.parent_session_id).toBeNull();
-    expect(parent.turn_count).toBe(8 + 3); // own lines + subagent lines
+    expect(parent.event_count).toBe(8 + 3); // own lines + subagent lines
     // msg_02A (500, once) + msg_02B (60) + synthetic (0) + subagent msg_03A (1000, once)
     expect(parent.input_tokens).toBe(1560);
     expect(parent.output_tokens).toBe(280);

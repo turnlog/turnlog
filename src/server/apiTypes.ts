@@ -17,7 +17,7 @@ export interface SessionMeta {
   startedAt: string | null;
   endedAt: string | null;
   model: string | null;
-  turnCount: number;
+  eventCount: number;
   inputTokens: number;
   outputTokens: number;
   cacheReadTokens: number;
@@ -260,7 +260,7 @@ export interface LiveSession {
   name: string;
   /** Last indexed activity — how "live" this is. */
   lastActivityAt: string | null;
-  turnCount: number;
+  eventCount: number;
   costUsd: number | null;
   /** The most recent thing the human asked, trimmed for one line. */
   lastPrompt: string | null;
