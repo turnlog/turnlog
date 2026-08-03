@@ -4,6 +4,18 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] — 2026-08-03
+
+### Changed
+
+- The project README caught up with the app: it still described a
+  Claude-Code-only tool, two releases after that stopped being true. Now
+  covers Codex sessions, the search operators and timeline, the context-window
+  strip, the command palette, the export formats and annotation portability —
+  and the `Commands` block matches the CLI's own help again. No changes to
+  Turnlog itself; npm renders the README from the published tarball, so
+  shipping the corrected one needs a version.
+
 ## [0.9.0] — 2026-08-03
 
 ### Changed

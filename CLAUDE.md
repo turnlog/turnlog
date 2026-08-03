@@ -1,6 +1,6 @@
 # Turnlog
 
-Search and replay every Claude Code agent session you've ever run — locally. A free, MIT-licensed npm CLI (`npx turnlog`) that starts a localhost-only server, indexes `~/.claude/projects/` JSONL logs into SQLite + FTS5, and opens a React web UI for full-text search and session replay. Website: [turnlog.dev](https://turnlog.dev).
+Search and replay every coding-agent session you've ever run — locally. A free, MIT-licensed npm CLI (`npx turnlog`) that starts a localhost-only server, indexes Claude Code (`~/.claude/projects/`) and OpenAI Codex (`~/.codex/sessions/`) logs into SQLite + FTS5, and opens a React web UI for full-text search and session replay. Read-only: neither source directory is ever written to. Website: [turnlog.dev](https://turnlog.dev).
 
 Key locked decisions:
 

@@ -18,6 +18,16 @@ export interface ReleaseNotes {
 
 export const RELEASES: ReleaseNotes[] = [
   {
+    version: '0.9.1',
+    date: '2026-08-03',
+    notes: [
+      {
+        kind: 'improved',
+        text: 'Documentation caught up with the app: the project README now covers Codex sessions and everything 0.8.0 added. Nothing changed inside Turnlog itself — npm only shows the README that shipped with a version, so correcting it needed a release.',
+      },
+    ],
+  },
+  {
     version: '0.9.0',
     date: '2026-08-03',
     notes: [

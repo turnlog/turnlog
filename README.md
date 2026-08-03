@@ -91,29 +91,35 @@ URL, not just `127.0.0.1:<port>`.
 - **Export** — `turnlog export <id>` prints a session as markdown, HTML or JSON,
   optionally redacted; a share panel does the same from the UI. Your pins,
   names, notes and bookmarks travel with `turnlog annotations export|import`.
-- **Agent memory (MCP)** — `turnlog mcp` serves your history to Claude Code
-  as a read-only MCP server, so your agent can search its own past sessions
-  mid-task ("how did we fix this last month?").
+- **Agent memory (MCP)** — `turnlog mcp` serves your history to any MCP-capable
+  agent as a read-only server, so it can search its own past sessions mid-task
+  ("how did we fix this last month?").
 
 ## Give your agent memory (MCP)
+
+`turnlog mcp` is a plain stdio MCP server — **any MCP-capable client can use
+it**, not just the one that wrote the sessions. In Claude Code that is one
+command:
 
 ```sh
 claude mcp add turnlog -- npx turnlog mcp
 ```
 
-That one command registers Turnlog as a local MCP server in Claude Code. From
-then on, the agent can consult your session history mid-task through five
+Anywhere else, register the same command however your client takes MCP
+servers — `npx` with the arguments `turnlog mcp`, no port and no URL, because
+it speaks over stdio rather than a socket.
+
+From then on the agent can consult your session history mid-task through five
 read-only tools: `search` (same operators as the UI — `tool:`, `is:error`,
 `is:pinned`, `has:note`, `project:`, `before:`/`after:`…), `list_sessions`,
-`get_session` (the turn
-spine), `get_messages` (read the context around a hit), and `file_history`
-(every session that ever touched a file).
+`get_session` (the turn spine), `get_messages` (read the context around a
+hit), and `file_history` (every session that ever touched a file).
 
-It speaks MCP over stdio on your machine — no server port, no network, and
-strictly read-only, with no flag that changes that. It reads the same index
-the app builds, so run `turnlog`
-or `turnlog index` once first; on each start it does a quick incremental
-catch-up so recent sessions are included.
+It runs on your machine — no server port, no network — and is **strictly
+read-only, with no flag that changes that**: an agent can read your history
+but never write to it. It reads the same index the app builds, so run
+`turnlog` or `turnlog index` once first; on each start it does a quick
+incremental catch-up so recent sessions are included.
 
 ## Privacy
 
@@ -173,8 +179,11 @@ npm run dev            # server + Vite together (scripts/dev.mjs)
 Both agents' log formats are undocumented and change without notice. The
 parser's rule is *never crash, never drop*: unrecognized records are stored as
 `kind='unknown'` with the raw line preserved. Adapter changes ship with corpus
-fixtures and regenerated golden files (`npm run golden:update`). Architecture and
-conventions are documented in `CLAUDE.md`.
+fixtures and regenerated golden files (`npm run golden:update`).
+
+Architecture and conventions live in `AGENTS.md` — `CLAUDE.md` is a symlink to
+the same file, so whichever name your agent looks for, it finds the one
+document.
 
 ---
 
