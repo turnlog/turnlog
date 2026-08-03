@@ -1034,13 +1034,32 @@ function resolveDateValue(value: string): string | null {
   return null;
 }
 
+/**
+ * Split a query into tokens, keeping a quoted operator value together.
+ *
+ * Splitting on whitespace alone cannot express a value that contains one, so
+ * `tag:"needs review"` used to parse as `tag:"needs` plus a stray `review"`
+ * and silently matched nothing — which mattered the moment tags allowed
+ * spaces, and matters for any project or model whose name has one.
+ */
+function tokenizeQuery(input: string): string[] {
+  // op:"quoted value" | "quoted phrase" | bare-run
+  const re = /[^\s:"]+:"[^"]*"|"[^"]*"|\S+/g;
+  return input.match(re) ?? [];
+}
+
 export function parseSearchQuery(input: string): ParsedQuery {
   const terms: string[] = [];
   const filters: SearchFilters = {};
-  for (const token of input.split(/\s+/).filter(Boolean)) {
+  for (const token of tokenizeQuery(input)) {
     const colon = token.indexOf(':');
     const op = colon > 0 ? token.slice(0, colon).toLowerCase() : null;
-    const value = colon > 0 ? token.slice(colon + 1) : '';
+    // A quoted value keeps its spaces; the quotes themselves are syntax.
+    const rawValue = colon > 0 ? token.slice(colon + 1) : '';
+    const value =
+      rawValue.length > 1 && rawValue.startsWith('"') && rawValue.endsWith('"')
+        ? rawValue.slice(1, -1)
+        : rawValue;
     if (op === null || !FILTER_OPS.has(op) || value === '') {
       terms.push(token);
       continue;

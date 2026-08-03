@@ -310,7 +310,10 @@
   background: var(--bg1);
   border-radius: var(--radius-md);
   padding: 12px 18px;
-  min-width: 140px;
+  /* Share the row: content-width tiles left the strip ending short of the
+     context chart below, which fills the container — so the two blocks did
+     not line up on the right. They wrap at 140 rather than shrinking past it. */
+  flex: 1 1 140px;
 }
 .stat-value {
   font-family: var(--mono);
@@ -3440,7 +3443,9 @@
 /* ── context-window strip (replay stats panel) ──────────────────────── */
 
 .ctx-strip {
-  margin: 4px 6px 14px;
+  /* Flush with the stat strip above: any side margin here and the two blocks
+     start on different columns. */
+  margin: 4px 0 14px;
   background: var(--bg1);
   border-radius: var(--radius);
   padding: 12px 16px 14px;

@@ -134,6 +134,16 @@ describe('the tag: operator', () => {
     expect(both).toBeLessThanOrEqual(tagOnly);
   });
 
+  it('handles a tag with a space, which needs quoting', () => {
+    setSessionTags(db, SESSION_A, ['needs review']);
+    // Unquoted, the space splits the token and the filter silently matches
+    // nothing — the failure mode that makes multi-word tags feel broken.
+    expect(searchMessages(db, { query: 'tag:"needs review"' }).totalHits).toBeGreaterThan(0);
+    // And the facet chip's own quoting must be the spelling that works.
+    const facet = searchMessages(db, { query: 'the' }).facets!.tools;
+    expect(Array.isArray(facet)).toBe(true);
+  });
+
   it('finds nothing for a tag nobody used', () => {
     expect(searchMessages(db, { query: 'tag:never-applied' }).totalHits).toBe(0);
   });

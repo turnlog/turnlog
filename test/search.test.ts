@@ -36,6 +36,24 @@ describe('toFtsQuery', () => {
   });
 });
 
+describe('quoted operator values', () => {
+  it('keeps a quoted value whole instead of splitting on its space', () => {
+    const parsed = parseSearchQuery('tag:"needs review" hello');
+    expect(parsed.filters.tag).toBe('needs review');
+    expect(parsed.terms).toBe('hello');
+  });
+
+  it('leaves a bare value alone', () => {
+    expect(parseSearchQuery('tag:refactor').filters.tag).toBe('refactor');
+  });
+
+  it('still treats a quoted phrase with no operator as search text', () => {
+    const parsed = parseSearchQuery('"web socket"');
+    expect(parsed.hasFilters).toBe(false);
+    expect(parsed.terms).toContain('web socket');
+  });
+});
+
 describe('searchMessages', () => {
   it('finds camelCase identifiers', () => {
     const res = searchMessages(db, { query: 'useWebSocket' });

@@ -8,6 +8,10 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Fixed
 
+- Operator values containing a space now work if you quote them:
+  `tag:"needs review"`, `project:"my project"`. They used to split on the
+  space and silently match nothing, which made multi-word tags look broken.
+
 - A session's message count was labelled "turns" everywhere it appeared —
   the sidebar, search, home, the calendar, session stats, exports and the MCP
   tools. It never counted turns: a session with 38 turns and 2,786 messages
