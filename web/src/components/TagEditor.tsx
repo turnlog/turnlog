@@ -1,15 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSetSessionTags, useTags } from '../api';
-import { CloseIcon } from '../icons';
+import { CloseIcon, PlusIcon } from '../icons';
 import Badge from './Badge';
-import Button from './Button';
 import IconButton from './IconButton';
+import SearchField from './SearchField';
 import './TagEditor.css';
 
 /**
  * Free-form labels on a session — the organisation layer above pins, which
  * are one bit. Edits the whole set and writes it in one go, so a dropped
  * request cannot leave half an edit applied.
+ *
+ * Every control here is a system primitive: the chip is a Badge at its one
+ * size, the × and + are ghost IconButtons (shrunk by an ancestor-scoped
+ * override, which is the sanctioned way to fit a ghost into a dense row), and
+ * the field is a real `sm` SearchField rather than a hand-rolled input.
  *
  * Tags belong to the session, not to the agent that wrote it: a Codex session
  * and a Claude Code session take the same labels, which is the point of one
@@ -57,21 +62,22 @@ export default function TagEditor({ sessionId, tags }: { sessionId: string; tags
             label={`Remove tag ${tag}`}
             onClick={() => remove(tag)}
           >
-            <CloseIcon size={10} />
+            <CloseIcon />
           </IconButton>
         </Badge>
       ))}
 
       {open ? (
         <span className="tag-input-wrap">
-          <input
-            ref={inputRef}
-            className="tag-input"
+          <SearchField
+            size="sm"
+            className="tag-field"
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={setDraft}
+            ariaLabel="Add a tag"
             placeholder="tag…"
             maxLength={32}
-            aria-label="Add a tag"
+            inputRef={inputRef}
             onKeyDown={(e) => {
               if (e.key === 'Enter') commit(draft);
               // Comma is how people type lists; treat it as a separator so a
@@ -101,23 +107,35 @@ export default function TagEditor({ sessionId, tags }: { sessionId: string; tags
                   type="button"
                   role="option"
                   aria-selected={false}
-                  // onMouseDown, not onClick: the input's blur would fire
+                  // onMouseDown, not onClick: the field's blur would fire
                   // first and close the list before a click could land.
                   onMouseDown={(e) => {
                     e.preventDefault();
                     commit(t);
                   }}
                 >
-                  {t}
+                  <Badge>{t}</Badge>
                 </button>
               ))}
             </span>
           )}
         </span>
+      ) : tags.length === 0 ? (
+        // Empty state names the action — a bare + explains nothing when there
+        // is no chip beside it to give it context. Text-only button, the same
+        // quiet inline voice as "reset filters".
+        <button className="tag-add-text" onClick={() => setOpen(true)}>
+          add tags
+        </button>
       ) : (
-        <Button className="tag-add" onClick={() => setOpen(true)}>
-          {tags.length === 0 ? 'add tags' : '+'}
-        </Button>
+        <IconButton
+          fill="ghost"
+          className="tag-add"
+          label="Add a tag"
+          onClick={() => setOpen(true)}
+        >
+          <PlusIcon />
+        </IconButton>
       )}
     </div>
   );

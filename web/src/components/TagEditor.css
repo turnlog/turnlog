@@ -1,4 +1,9 @@
-/* TagEditor — the chips on a session plus the field that adds them. */
+/* TagEditor — the chips on a session plus the field that adds them.
+
+   No metric overrides on Badge: there is one badge size, and a kind may
+   change the wash, the family and the casing, never the box. The only thing
+   said here is what the design system allows a dense context to say — a
+   ghost IconButton's size, ancestor-scoped. */
 
 .tag-editor {
   display: flex;
@@ -7,46 +12,50 @@
   gap: 6px;
 }
 
-/* A tag badge carries its own remove button, so it needs room on the right
-   that a plain badge does not. */
-.tag-badge {
-  gap: 4px;
-  padding-right: 4px;
-}
+/* The remove control rides inside the chip, so it shrinks to the chip's
+   scale — the same move .side-item-pin and .chain-nav-btn make. */
 .tag-editor .tag-remove {
   width: 16px;
   height: 16px;
+  margin-right: -3px;
   color: var(--tx2);
+}
+.tag-editor .tag-remove svg {
+  width: 10px;
+  height: 10px;
 }
 .tag-editor .tag-remove:hover {
   background: none;
   color: var(--tx0);
 }
 
-.tag-add {
-  padding: 3px 10px;
+.tag-editor .tag-add {
+  width: 22px;
+  height: 22px;
+}
+.tag-editor .tag-add svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* The quiet inline text action, same voice as "reset filters". */
+.tag-add-text {
   font-size: var(--fs-12);
+  font-weight: 500;
+  color: var(--tx1);
+}
+.tag-add-text:hover {
+  color: var(--accent);
 }
 
 .tag-input-wrap {
   position: relative;
   display: inline-flex;
 }
-.tag-input {
-  width: 120px;
-  background: var(--bg1);
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: 4px 10px;
-  font-family: var(--sans);
-  font-size: var(--fs-12);
-  color: var(--tx0);
-}
-.tag-input::placeholder {
-  color: var(--tx2);
-}
-.tag-input:focus-visible {
-  outline: 2px solid var(--accent-dim);
+/* The sm field is built to fill its row; here it sits inline among chips. */
+.tag-editor .tag-field {
+  flex: none;
+  width: 130px;
 }
 
 /* Existing tags, so the same idea does not get typed three ways. Floats over
@@ -58,21 +67,14 @@
   z-index: 20;
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 5px;
   max-width: 260px;
-  padding: 8px;
+  padding: 10px;
   background: var(--card);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow);
 }
-.tag-suggest button {
-  font-size: var(--fs-12);
-  color: var(--tx1);
-  background: var(--bg2);
-  border-radius: 999px;
-  padding: 3px 10px;
-}
-.tag-suggest button:hover {
+.tag-suggest button:hover .badge {
   background: var(--bg3);
   color: var(--tx0);
 }

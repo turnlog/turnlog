@@ -24,6 +24,7 @@ import {
   Brandmark,
   HistoryIcon,
   PinFilledIcon,
+  InfoIcon,
   PinIcon,
   SidebarIcon,
   SortVerticalIcon,
@@ -51,18 +52,51 @@ const SORTS: { value: NonNullable<SessionsQuery['sort']>; label: string }[] = [
   { value: 'tokens', label: 'tokens' },
 ];
 
+/** Tags shown on a sidebar row before the rest collapse into a +N chip. */
+const ROW_TAGS = 3;
+
+/**
+ * A row's headline figure is whatever the list is sorted by — sort by cost
+ * and you read costs, sort by tokens and you read tokens. Sorting by a number
+ * you cannot see makes the order look arbitrary.
+ *
+ * Everything else moves behind the row's info button, so the row carries one
+ * figure instead of four.
+ */
+type Facts = { label: string; value: string }[];
+
+function sessionFacts(s: SessionMeta): Record<string, { value: string; label: string }> {
+  return {
+    ended_at: { value: fmtDate(s.endedAt ?? s.startedAt), label: 'last activity' },
+    started_at: { value: fmtDate(s.startedAt), label: 'started' },
+    cost_usd: { value: fmtCost(s.costUsd), label: 'cost' },
+    turn_count: { value: `${fmtCount(s.turnCount)}t`, label: 'turns' },
+    tokens: { value: `${fmtTokens(s.inputTokens + s.outputTokens)} tok`, label: 'tokens' },
+  };
+}
+
 /** A session whose last record is this recent is treated as running now. */
 const ACTIVE_MS = 5 * 60_000;
 
 function Item({
   s,
   active,
+  sort,
   onTogglePin,
 }: {
   s: SessionMeta;
   active: boolean;
+  sort: string;
   onTogglePin: (s: SessionMeta) => void;
 }) {
+  const facts = sessionFacts(s);
+  const primary = facts[sort] ?? facts.ended_at!;
+  const rest: Facts = Object.entries(facts)
+    .filter(([key]) => key !== sort)
+    // started and last-activity are the same fact twice on most sessions;
+    // only show the one the sort is not already using when they differ.
+    .filter(([key]) => !(key === 'started_at' && sort === 'ended_at'))
+    .map(([, f]) => ({ label: f.label, value: f.value }));
   return (
     <div
       role="button"
@@ -101,9 +135,11 @@ function Item({
           >
             {s.pinned ? <PinFilledIcon size={13} /> : <PinIcon size={13} />}
           </IconButton>
-          <span className="side-item-cost">{fmtCost(s.costUsd)}</span>
+          <span className="side-item-cost">{primary.value}</span>
         </span>
-        <span className="side-item-sub">
+        <span className="side-item-badges">
+          <AgentBadge tool={s.tool} />
+          {s.model && <Badge kind="model">{fmtModel(s.model)}</Badge>}
           {s.chainLen > 1 && (
             <Tooltip content={`Resumed conversation — ${s.chainLen} session files`}>
               <Badge className="chain-badge">
@@ -112,19 +148,38 @@ function Item({
               </Badge>
             </Tooltip>
           )}
-          <span>{fmtDate(s.startedAt)}</span>
-          <span>· {fmtCount(s.turnCount)}t</span>
-          <span>· {fmtTokens(s.inputTokens + s.outputTokens)} tok</span>
+          {/* The figures the sort is not showing, one hover away — the row
+              stays one number wide however many facts a session has. */}
+          <Tooltip
+            content={
+              <span className="side-facts">
+                {rest.map((f) => (
+                  <span key={f.label}>
+                    {f.label} <em>{f.value}</em>
+                  </span>
+                ))}
+              </span>
+            }
+          >
+            <IconButton fill="ghost" className="side-item-info" label="Session details">
+              <InfoIcon />
+            </IconButton>
+          </Tooltip>
         </span>
-        <span className="side-item-badges">
-          <AgentBadge tool={s.tool} />
-          {s.model && <Badge kind="model">{fmtModel(s.model)}</Badge>}
-          {s.tags.map((t) => (
-            <Badge key={t} className="tag-badge-row">
-              {t}
-            </Badge>
-          ))}
-        </span>
+        {/* Tags get their own line: they are the user's words and there can be
+            several, so they must not compete with the identity badges. */}
+        {s.tags.length > 0 && (
+          <span className="side-item-tags">
+            {s.tags.slice(0, ROW_TAGS).map((t) => (
+              <Badge key={t} className="tag-badge-row">
+                {t}
+              </Badge>
+            ))}
+            {s.tags.length > ROW_TAGS && (
+              <Badge className="tag-badge-row">+{s.tags.length - ROW_TAGS}</Badge>
+            )}
+          </span>
+        )}
       </span>
     </div>
   );
@@ -348,7 +403,7 @@ export default function Sidebar({
             }
           }}
           itemContent={(_i, s) => (
-            <Item s={s} active={s.id === activeId} onTogglePin={togglePin} />
+            <Item s={s} active={s.id === activeId} sort={sort} onTogglePin={togglePin} />
           )}
         />
       )}

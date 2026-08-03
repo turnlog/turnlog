@@ -302,6 +302,9 @@ export function useSessions(q: SessionsQuery) {
       q.project ?? '',
       q.hideEmpty ?? false,
       q.name ?? '',
+      // Every param the request varies by must be in the key, or React Query
+      // serves the previous filter's result and the list looks frozen.
+      q.tag ?? '',
       q.collapseChains ?? false,
     ],
     queryFn: ({ pageParam }) =>

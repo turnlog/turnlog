@@ -301,6 +301,25 @@ export function CloseIcon(props: IconProps) {
   return <SolarIcon body={CLOSE} {...props} />;
 }
 
+const PLUS =
+  '<path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M12 6v12M6 12h12"/>';
+
+export function PlusIcon(props: IconProps) {
+  return <SolarIcon body={PLUS} {...props} />;
+}
+
+/* fill="none" is load-bearing: SVG's initial fill is BLACK, not transparent,
+   so a stroked shape without it renders as a solid disc whatever the colour
+   says. The Solar icons above are filled path data and never hit this. */
+const INFO =
+  '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.4"/>' +
+  '<path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M12 11.5v4.5"/>' +
+  '<circle cx="12" cy="8" r="1" fill="currentColor"/>';
+
+export function InfoIcon(props: IconProps) {
+  return <SolarIcon body={INFO} {...props} />;
+}
+
 /* ── adapter brand marks ─────────────────────────────────────────────────
    Not Solar, and not ours: these are the Anthropic and OpenAI logos, used
    nominatively to say which agent wrote a session. Vendored as path data

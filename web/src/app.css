@@ -3699,9 +3699,46 @@ kbd {
    every row state, so only the neutral ones take the ground adaptation. */
 .side-item-badges {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 5px;
   margin-top: 4px;
+  /* Without this the row's flex child refuses to shrink and the badges run
+     off the card instead of wrapping. */
+  min-width: 0;
+}
+/* Tags are the user's own words and there can be several, so they get their
+   own line rather than competing with the identity badges above. */
+.side-item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  min-width: 0;
+}
+/* Sits with the badges, so it matches their scale rather than a row control's. */
+.side-item .side-item-info {
+  width: 24px;
+  height: 24px;
+  color: var(--tx2);
+}
+.side-item .side-item-info svg {
+  width: 16px;
+  height: 16px;
+}
+/* One fact per line inside the tooltip: label in the pill's dim ink, figure
+   in mono, because every one of them is a measurement. */
+.side-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+.side-facts em {
+  font-family: var(--mono);
+  font-style: normal;
+  color: var(--contrast-on);
 }
 
 /* ── agent identity (web/src/agents.ts registry) ────────────────────── */
@@ -3757,4 +3794,10 @@ kbd {
 .tag-badge-row {
   background: var(--bg2);
   color: var(--tx1);
+}
+
+/* The replay header's tag row is a second line under the meta strip, so it
+   needs the gap the strip's own children get from their flex gap. */
+.replay-heading .tag-editor {
+  margin-top: 8px;
 }
