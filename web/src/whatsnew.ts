@@ -18,6 +18,52 @@ export interface ReleaseNotes {
 
 export const RELEASES: ReleaseNotes[] = [
   {
+    version: '0.9.0',
+    date: '2026-08-03',
+    notes: [
+      {
+        kind: 'added',
+        text: 'Turnlog now reads OpenAI Codex sessions. Anything under ~/.codex/sessions is indexed automatically when that folder exists — search, replay, spend and disk all work the same, and the resume button copies codex resume <id>. Codex and Claude Code work on the same repo land in one project timeline, so a repo reads as a single history whichever agent you pointed at it.',
+      },
+      {
+        kind: 'added',
+        text: 'Every session now says which agent wrote it: a badge in the agent’s own brand colour in the sidebar and the replay header, and the right speaker names in the replay and in exports.',
+      },
+      {
+        kind: 'added',
+        text: 'The calendar can colour blocks by project or by agent — whichever one fills the block, the other becomes its edge stripe, so a mixed week reads at a glance either way.',
+      },
+      {
+        kind: 'added',
+        text: 'A quick filter on the sidebar: type a few letters and the session list narrows by name, title or project across your whole history, not just the rows already loaded. Project, sort order and the rest moved behind one filter button beside it, which shows a dot whenever something hidden is narrowing the list.',
+      },
+      {
+        kind: 'improved',
+        text: 'A new look. Fresh type — one face for the app’s own voice, another for anything quoted from your logs — and a palette where a colour means one thing: green is success, deletions and errors are their own red, and diffs moved to teal.',
+      },
+      {
+        kind: 'improved',
+        text: 'Buttons behave consistently now. Every control in the app frame — the header, the sidebar toggle, the search button, the stop button — is one size and one shape, and a toggle that is switched on fills solid instead of sitting a shade off its own hover.',
+      },
+      {
+        kind: 'improved',
+        text: 'Release notes — this page — group under one heading per kind instead of repeating a tag on every line, and sit in a readable column instead of running the full width of your window.',
+      },
+      {
+        kind: 'fixed',
+        text: 'The bookmark button in the log view was cut off at the left edge of the window. It sits in the margin where it belongs.',
+      },
+      {
+        kind: 'fixed',
+        text: 'Controls sitting straight on the page background — the Spend and calendar toggles, the calendar arrows and the “This week” button — were nearly invisible in the light theme.',
+      },
+      {
+        kind: 'fixed',
+        text: 'A to-do list in a tool result showed no difference between the task being worked on and the ones still queued. The live task now reads in full ink, ahead of the pending ones and the faded, finished ones.',
+      },
+    ],
+  },
+  {
     version: '0.8.0',
     date: '2026-07-29',
     notes: [
