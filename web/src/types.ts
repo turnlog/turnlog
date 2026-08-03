@@ -10,6 +10,8 @@ export type {
   DiskSessionInfo,
   DiskUsageResponse,
   FileHistoryResponse,
+  LiveResponse,
+  LiveSession,
   FileSummary,
   HealthResponse,
   IndexedEvent,

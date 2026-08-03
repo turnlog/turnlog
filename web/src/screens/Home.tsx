@@ -10,6 +10,7 @@ import {
 import { setProjectFilter } from '../filterStore';
 import Button from '../components/Button';
 import Badge from '../components/Badge';
+import NowCard from '../components/NowCard';
 import Primary from '../components/Primary';
 import SearchField from '../components/SearchField';
 import {
@@ -262,6 +263,10 @@ export default function Home() {
           </Primary>
         </form>
       </div>
+
+      {/* Above the bento, not in it: while something is running it is the
+          most important thing on the screen, and it is absent otherwise. */}
+      <NowCard />
 
       <div className="bento">
         <section className="card dark-card">

@@ -204,6 +204,40 @@ export interface SessionContextResponse {
   compactions: CompactionMark[];
 }
 
+/**
+ * One session that has been written to very recently — the "what are my
+ * agents doing right now" row.
+ *
+ * `contextTokens` is null wherever the agent does not report window fill:
+ * Codex rollouts carry per-response deltas, not a running total, and a number
+ * that means something different per agent is worse than no number. Every
+ * other field is agent-agnostic, so the panel reads the same whoever is
+ * running.
+ */
+export interface LiveSession {
+  id: string;
+  /** Not nullable: sessions.tool is NOT NULL with a 'claude-code' default. */
+  tool: string;
+  projectKey: string | null;
+  projectPath: string | null;
+  name: string;
+  /** Last indexed activity — how "live" this is. */
+  lastActivityAt: string | null;
+  turnCount: number;
+  costUsd: number | null;
+  /** The most recent thing the human asked, trimmed for one line. */
+  lastPrompt: string | null;
+  /** Tokens in the window at the latest response, where the agent says. */
+  contextTokens: number | null;
+}
+
+export interface LiveResponse {
+  /** Most recently active first. */
+  sessions: LiveSession[];
+  /** The window that counts as "now", so the UI can say it. */
+  withinMinutes: number;
+}
+
 /** A named, persisted search query (schema v5; survives rebuilds). */
 export interface SavedSearch {
   id: number;

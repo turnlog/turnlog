@@ -8,6 +8,14 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Added
 
+- A "Now" card on the home screen: while any session is being written to, it
+  shows what your agents are doing this minute — which agent, which project,
+  the last thing you asked, turns and cost so far, and how full the context
+  window is where the agent reports it. Click through to the live-tailing
+  replay. Two agents working at once show side by side. It appears only while
+  something is running and is absent otherwise, so it costs nothing when
+  you're not mid-flight.
+
 - Session tags: free-form labels on any session — `refactor`, `billing`,
   `wip`. Add them from the replay header, see them on sidebar rows, filter the
   sidebar to one from the filter popover, and narrow any search with

@@ -1,0 +1,85 @@
+/* NowCard — what is running this minute. Renders only while something is,
+   so it costs nothing when idle. */
+
+.now-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* The one moving thing on the home screen, and it earns it: the card means
+   "right now", so a static card would undercut its own claim. Same 1.6s
+   ambient beat the sidebar's live dot uses — calmer than the header's 1s
+   "working" pulse. */
+.now-pulse {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+.now-window {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+
+.now-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* A row is a list row like any other: rounded hover wash, no rules. */
+.now-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+}
+.now-row:hover {
+  background: var(--bg1);
+}
+
+.now-row-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.now-project {
+  font-size: var(--fs-14);
+  font-weight: 500;
+  color: var(--tx0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Measurements, so mono — and pushed to the right edge as a strip. */
+.now-figures {
+  margin-left: auto;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+
+/* The last thing the human asked — one line, because the row is a glance. */
+.now-prompt {
+  font-size: var(--fs-12);
+  color: var(--tx1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

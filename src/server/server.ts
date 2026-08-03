@@ -28,6 +28,7 @@ import {
   listMessages,
   listProjects,
   listSessionChildren,
+  getLiveSessions,
   listAllTags,
   listSavedSearches,
   listSessions,
@@ -646,6 +647,9 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
   }
   if (p === '/api/tags') {
     return sendJson(res, 200, { tags: listAllTags(db) });
+  }
+  if (p === '/api/live') {
+    return sendJson(res, 200, getLiveSessions(db, { limit: numParam(q, 'limit') }));
   }
   if (p === '/api/files/history') {
     const filePath = q.get('path');

@@ -26,6 +26,7 @@ import type {
   SessionContextResponse,
   SessionChainResponse,
   SessionChildrenResponse,
+  LiveResponse,
   SessionListResponse,
   SessionMeta,
   SessionMetaPatch,
@@ -173,7 +174,7 @@ type AppQueryClient = ReturnType<typeof useQueryClient>;
 
 /** Refresh everything derived from the index; target one session when known. */
 function invalidateIndexDerived(queryClient: AppQueryClient, sessionId: string | null): void {
-  for (const key of ['sessions', 'sessions-range', 'stats', 'projects', 'spend', 'health']) {
+  for (const key of ['sessions', 'sessions-range', 'stats', 'projects', 'spend', 'health', 'live']) {
     void queryClient.invalidateQueries({ queryKey: [key] });
   }
   if (sessionId !== null) {
@@ -233,6 +234,20 @@ export function useHealth() {
  * Housekeeping on Turnlog's own index: 'prune' forgets session files that no
  * longer exist, 'vacuum' repacks the database. Both refresh the health card.
  */
+/**
+ * Sessions written to in the last few minutes. Short staleTime because the
+ * whole point is recency; the SSE stream invalidates it on every write, so
+ * this is only the floor.
+ */
+export function useLive() {
+  return useQuery({
+    queryKey: ['live'],
+    queryFn: () => apiFetch<LiveResponse>('/api/live'),
+    staleTime: 5_000,
+    refetchInterval: 20_000,
+  });
+}
+
 /** Every tag in use, with counts — the sidebar filter and editor suggestions. */
 export function useTags() {
   return useQuery({

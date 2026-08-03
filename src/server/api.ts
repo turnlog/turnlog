@@ -13,6 +13,7 @@ import type {
   MessageListResponse,
   MessageRow,
   ProjectInfo,
+  LiveResponse,
   SavedSearch,
   SearchAggregates,
   SearchResponse,
@@ -283,6 +284,92 @@ export function setSessionMeta(
     ).run(id, pinned, customName, note, new Date().toISOString());
   }
   return getSession(db, id);
+}
+
+/* ── the now panel (sessions running this minute) ────────────────────── */
+
+/**
+ * How recently a session must have been written to to count as running. The
+ * sidebar's live dot uses the same five minutes — one definition of "active",
+ * not two that can disagree on screen.
+ */
+export const LIVE_WITHIN_MINUTES = 5;
+
+/**
+ * Sessions written to in the last few minutes, most recent first.
+ *
+ * Deliberately built from the same columns every adapter fills, so the panel
+ * reads identically whoever is running: the only agent-specific field is
+ * `contextTokens`, and it is null rather than wrong where an agent does not
+ * report window fill.
+ */
+export function getLiveSessions(
+  db: Database.Database,
+  opts: { withinMinutes?: number; limit?: number } = {},
+): LiveResponse {
+  const withinMinutes = opts.withinMinutes ?? LIVE_WITHIN_MINUTES;
+  const limit = Math.min(Math.max(opts.limit ?? 8, 1), 50);
+  const cutoff = new Date(Date.now() - withinMinutes * 60_000).toISOString();
+
+  // Parents only: a subagent transcript is the same work as the session that
+  // spawned it, and listing both would double-count one agent's activity.
+  const rows = db
+    .prepare(
+      `SELECT id, tool, project_key, project_path, started_at, ended_at,
+              turn_count, cost_usd, ai_title, cc_title, custom_name
+         FROM sessions LEFT JOIN session_meta ON session_meta.session_id = sessions.id
+        WHERE parent_session_id IS NULL AND ended_at IS NOT NULL AND ended_at >= ?
+        ORDER BY ended_at DESC
+        LIMIT ?`,
+    )
+    .all(cutoff, limit) as {
+    id: string;
+    tool: string;
+    project_key: string | null;
+    project_path: string | null;
+    started_at: string | null;
+    ended_at: string | null;
+    turn_count: number;
+    cost_usd: number | null;
+    ai_title: string | null;
+    cc_title: string | null;
+    custom_name: string | null;
+  }[];
+
+  const lastPromptStmt = db.prepare(
+    `SELECT text FROM messages
+      WHERE session_id = ? AND kind = 'prompt' AND text <> ''
+      ORDER BY idx DESC LIMIT 1`,
+  );
+  // Only Claude Code rows carry a running window total; see getSessionContext.
+  const contextStmt = db.prepare(
+    `SELECT tokens_in + cache_read_tokens + cache_write_tokens AS ctx
+       FROM messages
+      WHERE session_id = ? AND is_sidechain = 0
+        AND tokens_in + cache_read_tokens + cache_write_tokens > 0
+      ORDER BY idx DESC LIMIT 1`,
+  );
+
+  return {
+    withinMinutes,
+    sessions: rows.map((r) => {
+      const prompt = lastPromptStmt.get(r.id) as { text: string } | undefined;
+      const reportsWindow = r.tool === 'claude-code';
+      const ctx = reportsWindow ? (contextStmt.get(r.id) as { ctx: number } | undefined) : undefined;
+      return {
+        id: r.id,
+        tool: r.tool,
+        projectKey: r.project_key,
+        projectPath: r.project_path,
+        name: r.custom_name ?? r.cc_title ?? r.ai_title ?? '',
+        lastActivityAt: r.ended_at,
+        turnCount: r.turn_count,
+        costUsd: r.cost_usd,
+        lastPrompt: prompt?.text.replace(/\s+/g, ' ').trim().slice(0, 240) ?? null,
+        contextTokens: ctx?.ctx ?? null,
+      };
+    }),
+  };
 }
 
 /* ── session tags ────────────────────────────────────────────────────── */
