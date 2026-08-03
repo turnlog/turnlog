@@ -402,6 +402,32 @@ export default function Search({
             </span>
           )}
         </div>
+        {/* Refine by what the results actually contain, rather than knowing
+            the grammar. Appends the operator; the cheat line below still
+            teaches the full language. */}
+        {search.data?.facets && query !== '' && (
+          <div className="search-facets">
+            {[
+              ...search.data.facets.agents,
+              ...search.data.facets.tools,
+              ...search.data.facets.kinds,
+              ...search.data.facets.projects,
+            ].map((f) => (
+              <button
+                key={f.operator}
+                className="facet-chip"
+                onClick={() => {
+                  const next = `${query} ${f.operator}`.trim();
+                  setInput(next);
+                  navigate(searchHash(next, view));
+                }}
+              >
+                {f.value}
+                <em>{fmtCount(f.count)}</em>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="search-ops">
           narrow with <code>tool:Bash</code> <code>kind:prompt</code> <code>is:error</code>{' '}
           <code>is:pinned</code> <code>has:note</code> <code>has:bookmark</code>{' '}

@@ -21,6 +21,8 @@ export type {
   PrefsResponse,
   ProjectInfo,
   SavedSearch,
+  SearchFacet,
+  SearchFacets,
   SearchGroup,
   SearchHit,
   SearchResponse,

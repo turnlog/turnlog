@@ -8,6 +8,17 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Added
 
+- Refine chips on search results: under the result count, a row of what your
+  matches actually contain — which agents, tools, record kinds and projects,
+  with counts. Click one to narrow to it. The operator grammar is powerful and
+  invisible; this makes the common half of it a click, and the cheat line
+  still teaches the rest. A dimension that no longer distinguishes anything
+  (one agent left, say) stops being offered.
+
+- A new `agent:` operator to go with them — `agent:codex`, `agent:claude` —
+  narrowing any search to the agent that wrote the session. The short form
+  works as well as the stored one.
+
 - A "Now" card on the home screen: while any session is being written to, it
   shows what your agents are doing this minute — which agent, which project,
   the last thing you asked, turns and cost so far, and how full the context

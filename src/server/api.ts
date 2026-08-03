@@ -16,6 +16,8 @@ import type {
   LiveResponse,
   SavedSearch,
   SearchAggregates,
+  SearchFacet,
+  SearchFacets,
   SearchResponse,
   SearchTimelineResponse,
   SessionContextResponse,
@@ -979,6 +981,8 @@ export interface SearchFilters {
   path?: string;
   /** tag: — sessions carrying a user tag (exact, since tags are canonical). */
   tag?: string;
+  /** agent: — which tool wrote the session (`claude-code`, `codex`, …). */
+  agent?: string;
 }
 
 export interface ParsedQuery {
@@ -997,6 +1001,7 @@ const FILTER_OPS = new Set([
   'model',
   'path',
   'tag',
+  'agent',
   'before',
   'after',
 ]);
@@ -1045,6 +1050,9 @@ export function parseSearchQuery(input: string): ParsedQuery {
         break;
       case 'project':
         filters.project = value;
+        break;
+      case 'agent':
+        filters.agent = value.toLowerCase();
         break;
       case 'tag': {
         // Normalised the same way on the way in and the way out, so typing
@@ -1117,6 +1125,13 @@ function filterSql(f: SearchFilters, sessionAlias: string): { sql: string; param
     clauses.push(
       `EXISTS (SELECT 1 FROM session_meta sm WHERE sm.session_id = ${annotated} AND sm.pinned = 1)`,
     );
+  }
+  if (f.agent !== undefined) {
+    // Matched against the stored key AND its short form, so `agent:codex`
+    // works as well as the registry's own `codex`, and `agent:claude` finds
+    // `claude-code` without the user knowing the column's spelling.
+    clauses.push(`(${sessionAlias}.tool = ? OR ${sessionAlias}.tool LIKE ? || '-%')`);
+    params.push(f.agent, f.agent);
   }
   if (f.tag !== undefined) {
     clauses.push(
@@ -1195,6 +1210,68 @@ const matchedSessionsSql = (fts: FtsTable) => `SELECT DISTINCT COALESCE(ms.paren
   JOIN messages m ON m.rowid = ${fts}.rowid
   JOIN sessions ms ON ms.id = m.session_id
   WHERE ${fts} MATCH ?`;
+
+/** Rows offered per dimension — enough to refine, few enough to skim. */
+const FACET_LIMIT = 6;
+
+/**
+ * Facet the current match set so refining is a click rather than knowing the
+ * grammar. Same matched-message set the hits come from, one GROUP BY per
+ * dimension.
+ *
+ * Session-level dimensions (project, agent) count SESSIONS, message-level
+ * ones (tool, kind) count MESSAGES — a project with 300 hits in one session
+ * is one project, and saying "300" there would read as 300 projects.
+ */
+function searchFacets(
+  db: Database.Database,
+  match: string | null,
+  filters: SearchFilters,
+  fts: FtsTable,
+): SearchFacets {
+  const f = filterSql(filters, 's');
+  const from = match
+    ? `FROM ${fts}
+       JOIN messages m ON m.rowid = ${fts}.rowid
+       JOIN sessions s ON s.id = m.session_id
+       WHERE ${fts} MATCH ? ${f.sql}`
+    : `FROM messages m
+       JOIN sessions s ON s.id = m.session_id
+       WHERE 1=1 ${f.sql}`;
+  const params = match ? [match, ...f.params] : f.params;
+
+  const facet = (expr: string, operator: string, distinctSessions: boolean): SearchFacet[] => {
+    const counted = distinctSessions ? 'COUNT(DISTINCT COALESCE(s.parent_session_id, s.id))' : 'COUNT(*)';
+    try {
+      const rows = db
+        .prepare(
+          `SELECT ${expr} AS value, ${counted} AS n ${from}
+             AND ${expr} IS NOT NULL AND ${expr} <> ''
+           GROUP BY value ORDER BY n DESC, value LIMIT ${FACET_LIMIT}`,
+        )
+        .all(...params) as { value: string; n: number }[];
+      return rows.map((r) => ({
+        value: r.value,
+        count: r.n,
+        operator: `${operator}:${/\s/.test(r.value) ? `"${r.value}"` : r.value}`,
+      }));
+    } catch {
+      // A malformed FTS query is the caller's problem, not a 500 — the hits
+      // query reports it; facets just come back empty.
+      return [];
+    }
+  };
+
+  const agents = facet('s.tool', 'agent', true);
+  return {
+    tools: facet('m.tool_name', 'tool', false),
+    kinds: facet('m.kind', 'kind', false),
+    projects: facet('s.project_key', 'project', true),
+    // One agent is not a choice — offering it would be a chip that filters
+    // nothing away.
+    agents: agents.length > 1 ? agents : [],
+  };
+}
 
 function searchAggregates(
   db: Database.Database,
@@ -1285,7 +1362,13 @@ export function searchMessages(
   q: { query: string; limit?: number; sessionId?: string; deep?: boolean },
 ): SearchResponse {
   const { parsed, match, empty: nothing, fts } = parseForSearch(q.query, db, q.deep);
-  const empty: SearchResponse = { query: q.query, groups: [], totalHits: 0, aggregates: null };
+  const empty: SearchResponse = {
+    query: q.query,
+    groups: [],
+    totalHits: 0,
+    aggregates: null,
+    facets: null,
+  };
   if (nothing) return empty;
   const limit = Math.min(Math.max(q.limit ?? 100, 1), 500);
   const f = filterSql(parsed.filters, 's');
@@ -1362,6 +1445,8 @@ export function searchMessages(
     // Session-scoped find doesn't need money attached to it.
     aggregates:
       q.sessionId === undefined ? searchAggregates(db, match, parsed.filters, fts) : null,
+    // Nothing to refine inside one session — the find bar is already scoped.
+    facets: q.sessionId === undefined ? searchFacets(db, match, parsed.filters, fts) : null,
   };
 }
 

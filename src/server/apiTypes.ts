@@ -132,6 +132,33 @@ export interface SearchGroup {
  * "what did this kind of work cost me" number nobody without a content
  * index can compute.
  */
+/**
+ * One refinement offered for the current match set: a value, how many of the
+ * matches carry it, and the operator that narrows to it.
+ */
+export interface SearchFacet {
+  value: string;
+  count: number;
+  /** The token to append to the query — e.g. `tool:Bash`. */
+  operator: string;
+}
+
+/**
+ * Facets over the CURRENT match set, so refining is a click rather than
+ * knowing the grammar. Each list is capped and ordered by count; an empty
+ * list means the dimension does not distinguish these results.
+ */
+export interface SearchFacets {
+  /** Which tool calls appear — Bash, Read, Edit… */
+  tools: SearchFacet[];
+  /** Which record kinds — prompt, tool_use, diff… */
+  kinds: SearchFacet[];
+  /** Which projects the matches sit in. */
+  projects: SearchFacet[];
+  /** Which agent wrote them. Only offered when more than one appears. */
+  agents: SearchFacet[];
+}
+
 export interface SearchAggregates {
   matchedSessions: number;
   totalCostUsd: number;
@@ -146,6 +173,8 @@ export interface SearchResponse {
   groups: SearchGroup[];
   totalHits: number;
   aggregates: SearchAggregates | null;
+  /** Null for a session-scoped find, where there is nothing to refine. */
+  facets: SearchFacets | null;
 }
 
 /**

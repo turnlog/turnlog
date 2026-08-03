@@ -3801,3 +3801,37 @@ kbd {
 .replay-heading .tag-editor {
   margin-top: 8px;
 }
+
+/* Refine chips — what the current results actually contain, one click from
+   narrowing to it. Quiet by design: they sit under the result count and must
+   not compete with the hits themselves. */
+.search-facets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.facet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg2);
+  font-size: var(--fs-12);
+  color: var(--tx1);
+}
+.facet-chip:hover {
+  background: var(--bg3);
+  color: var(--tx0);
+}
+/* The count is a measurement, so mono — and dimmer than the value it counts. */
+.facet-chip em {
+  font-family: var(--mono);
+  font-style: normal;
+  font-size: var(--fs-10);
+  color: var(--tx2);
+}
+.facet-chip:hover em {
+  color: var(--tx1);
+}
