@@ -2,7 +2,7 @@
 
 # Turnlog
 
-**Search and replay every Claude Code session you've ever run — locally.**
+**Search and replay every coding-agent session you've ever run — locally.**
 
 ```sh
 npx turnlog
@@ -14,9 +14,12 @@ npx turnlog
 
 </div>
 
-Turnlog indexes your `~/.claude/projects/` history into full-text search and
-turn-by-turn replay, then opens a local web UI. Find that session from three
+Turnlog indexes your Claude Code and OpenAI Codex history into full-text search
+and turn-by-turn replay, then opens a local web UI. Find that session from three
 weeks ago in two seconds. **100% local — no accounts, no telemetry, no cloud.**
+
+Work on the same repo lands in one project timeline whichever agent you pointed
+at it — so a repo reads as a single history, not two.
 
 ## Install & run
 
@@ -25,7 +28,7 @@ npx turnlog          # try it now — indexes everything, opens the UI
 npm i -g turnlog     # or install globally
 ```
 
-Requires **Node.js 22+** (the runtime Claude Code already installs with).
+Requires **Node.js 22+** (the runtime your agent CLI already runs on).
 macOS, Linux, Windows. No build step, no installer, no postinstall scripts.
 
 ### Opening the UI
@@ -36,7 +39,11 @@ macOS, Linux, Windows. No build step, no installer, no postinstall scripts.
 turnlog <version>
   UI:       http://127.0.0.1:52431/?token=a1b2c3…
   Projects: /Users/you/.claude/projects
+  Codex:    /Users/you/.codex/sessions (read-only)
 ```
+
+The Codex line appears only if `~/.codex/sessions` exists; there is nothing to
+configure either way.
 
 Turnlog picks a random free port each run, so the URL is different every time.
 **If the browser doesn't open** — over SSH, on a headless box, or with no default
@@ -51,11 +58,16 @@ URL, not just `127.0.0.1:<port>`.
 
 ## What it does
 
+- **Two agents, one history** — Claude Code and OpenAI Codex sessions are both
+  indexed, read-only, and appear side by side. Every session says which agent
+  wrote it, and a repo you worked on with both reads as one timeline.
 - **Search everything** — full-text FTS5 across your whole history, grouped by
   session, jump straight to the match. Identifiers and `snake_case` included.
   Subagent transcripts (the separate files newer Claude Code versions write per
-  Task run) are indexed too. Also from the terminal: `turnlog search <query>`
-  prints hits with deep links into the running UI.
+  Task run) are indexed too. Filter by file (`path:api.ts`), by date in plain
+  words (`after:7d`), by tool, model, project or error. Flip to a **timeline**
+  to see when a topic kept coming up. Also from the terminal:
+  `turnlog search <query>` prints hits with deep links into the running UI.
 - **Turn spine** — a 5,000-message session collapses to ten scannable turns,
   each with a mechanical summary (reads, edits, commands, errors).
 - **Lenses & files** — collapse a session to just its diffs, commands, or
@@ -63,13 +75,22 @@ URL, not just `127.0.0.1:<port>`.
 - **Spend tracker** — cost by day, model, or project — and, uniquely, cost
   filtered by a search query ("what did *this kind of work* cost me"). Usage is
   counted once per API response (the logs repeat it per line), priced from a
-  shipped table, and always labeled an estimate.
+  shipped table, and always labeled an estimate. Codex usage is read exactly
+  from what its rollouts record; GPT prices aren't bundled, so add rates via
+  `modelPricing` in settings.json if you want costs rather than token counts.
 - **Calendar** — your sessions placed in time: a week timeline (days as rows,
-  sessions as blocks at their real hours) or a month heat-map.
-- **Live** — the UI refreshes within about a second as Claude Code writes,
-  over a local event stream. No reloads, no polling loops.
-- **Export** — `turnlog export <id>` prints a session as markdown; a copy
-  button does the same from the UI.
+  sessions as blocks at their real hours) or a month heat-map, coloured by
+  project or by agent.
+- **Live** — the UI refreshes within about a second as your agent writes, over
+  a local event stream. No reloads, no polling loops.
+- **Context window** — the replay's stats panel draws how full the context was
+  at every response, with compaction points marked on the curve and on the turn
+  where they happened.
+- **Keyboard-first** — `⌘K` opens a command palette over every session, screen
+  and saved search; `?` shows the cheat sheet.
+- **Export** — `turnlog export <id>` prints a session as markdown, HTML or JSON,
+  optionally redacted; a share panel does the same from the UI. Your pins,
+  names, notes and bookmarks travel with `turnlog annotations export|import`.
 - **Agent memory (MCP)** — `turnlog mcp` serves your history to Claude Code
   as a read-only MCP server, so your agent can search its own past sessions
   mid-task ("how did we fix this last month?").
@@ -115,17 +136,25 @@ result rides along on the local status API. Turn it off with
 
 ```
 turnlog                     Start the local server and open the UI
-turnlog index               Incrementally index ~/.claude/projects and exit
+turnlog index               Incrementally index your agent history and exit
 turnlog index --rebuild     Drop the index and rebuild from scratch
-turnlog export <id>         Print a session as markdown (id or unique prefix)
+turnlog export <id>         Print a session as markdown (id or unique prefix);
+                            --format html|json, --redact to scrub keys, emails
+                            and home paths, --from/--to for a message range
 turnlog search <query>      Search from the terminal (--limit n, --json);
                             same operators as the UI: tool: kind: is:error
-                            project: model: before: after:
+                            is:pinned has:note project: model: path:
+                            before: after:
+turnlog annotations export  Print pins, names, notes, bookmarks and saved
+                            searches as one JSON document
+turnlog annotations import <file>
+                            Merge a previous export back in
 turnlog mcp                 Serve the index to your agent over MCP (stdio, read-only)
 ```
 
-The index lives in `~/.config/turnlog/` (`%APPDATA%\turnlog` on Windows);
-override with `TURNLOG_DATA_DIR`.
+Turnlog reads `~/.claude/projects` and `~/.codex/sessions`, and never writes to
+either. The index lives in `~/.config/turnlog/` (`%APPDATA%\turnlog` on
+Windows); override with `TURNLOG_DATA_DIR`.
 
 ## License
 
@@ -141,7 +170,7 @@ npm run build          # tsc → dist/ + Vite → web/dist/
 npm run dev            # server + Vite together (scripts/dev.mjs)
 ```
 
-Claude Code's JSONL format is undocumented and changes without notice. The
+Both agents' log formats are undocumented and change without notice. The
 parser's rule is *never crash, never drop*: unrecognized records are stored as
 `kind='unknown'` with the raw line preserved. Adapter changes ship with corpus
 fixtures and regenerated golden files (`npm run golden:update`). Architecture and
@@ -149,4 +178,6 @@ conventions are documented in `CLAUDE.md`.
 
 ---
 
-*For Claude Code. Not affiliated with Anthropic.*
+*For Claude Code and OpenAI Codex. Not affiliated with Anthropic or OpenAI;
+product names and marks belong to their owners and are used only to say whose
+sessions Turnlog reads.*
