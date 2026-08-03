@@ -2665,9 +2665,17 @@
 }
 /* .screen already applies the shared --gutter; this only adds the vertical
    room the notes want. It used to add 18px of its own horizontally, so this
-   screen sat inset further than every other one. */
+   screen sat inset further than every other one.
+
+   The measure lives here, on the whole document, rather than on each note:
+   with it on the text alone the cards still spanned the window and the notes
+   sat in a column of empty card. This is the one screen that is prose rather
+   than data, so the full-bleed rule yields — it governs lists and screens,
+   not paragraphs. Left-aligned, not centered, so it still reads as part of a
+   full-bleed app. */
 .whatsnew-inner {
   width: 100%;
+  max-width: 680px;
   padding: 6px 0 64px;
 }
 .whatsnew-head {
@@ -2738,12 +2746,8 @@
   margin: 0;
   padding: 0;
 }
-/* Release notes are prose, and prose needs a measure — the full-bleed rule
-   governs lists and screens, not a paragraph. Without one these ran the whole
-   window, ~200 characters a line. */
 .wn-note {
   position: relative;
-  max-width: 78ch;
   padding: 5px 0 5px 20px;
   font-size: var(--fs-14);
   line-height: 1.6;
