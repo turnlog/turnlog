@@ -161,6 +161,9 @@ turnlog annotations export  Print pins, names, notes, bookmarks and saved
                             searches as one JSON document
 turnlog annotations import <file>
                             Merge a previous export back in
+turnlog doctor              Print a diagnostic report for a bug thread:
+                            versions, paths, settings, index facts per agent,
+                            integrity, index-vs-disk drift
 turnlog demo                Run against bundled sample sessions in a scratch
                             index — your own history is never read
 turnlog mcp                 Serve the index to your agent over MCP (stdio, read-only)

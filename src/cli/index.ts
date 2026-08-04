@@ -23,6 +23,7 @@ import {
   resolveSessionId,
 } from '../server/api.js';
 import { openDb } from '../indexer/db.js';
+import { runDoctor } from './doctor.js';
 import { Indexer } from '../indexer/indexer.js';
 import { WorkerDriver } from '../indexer/workerDriver.js';
 import { watchProjects } from '../indexer/watcher.js';
@@ -51,6 +52,9 @@ Usage:
   turnlog annotations import <file>
                               Merge a previous export back in (additive; the
                               file's pins/names/notes win on conflict)
+  turnlog doctor              Print a diagnostic report for a bug thread:
+                              versions, paths, settings, index facts per
+                              agent, integrity, index-vs-disk drift
   turnlog demo                Run against bundled sample sessions in a scratch
                               index — your own history is never read
   turnlog mcp                 Serve the index as a read-only MCP server (stdio)
@@ -136,6 +140,12 @@ async function main(): Promise<void> {
       });
     case 'annotations':
       return runAnnotations(positionals[1], positionals[2]);
+    case 'doctor': {
+      const { text, healthy } = runDoctor(projectsDir, codexDir);
+      console.log(text);
+      if (!healthy) process.exitCode = 1;
+      return;
+    }
     case 'demo':
       return runDemo({
         port: values.port ? Number(values.port) : undefined,

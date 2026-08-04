@@ -4,6 +4,17 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `turnlog doctor` prints everything a bug report needs in one paste:
+  versions, resolved paths, your settings, index facts split per agent,
+  SQLite's own integrity verdict, and whether the index has drifted from
+  what's on disk. It is strictly read-only — it will not create, migrate, or
+  touch an index, so it is safe to run against a broken one (and exits
+  non-zero if the integrity check fails, for scripts).
+
 ## [0.10.1] — 2026-08-04
 
 ### Fixed
