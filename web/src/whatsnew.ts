@@ -18,6 +18,48 @@ export interface ReleaseNotes {
 
 export const RELEASES: ReleaseNotes[] = [
   {
+    version: '0.10.0',
+    date: '2026-08-04',
+    notes: [
+      {
+        kind: 'added',
+        text: 'Deep search: an opt-in index that matches inside words — a fragment like eWebSock, half an error string, or part of a UUID now finds its session. Build it from the health card’s Maintain row (it costs a few times your index’s size, which is why it’s a choice), then flip the words | inside words toggle on the search screen.',
+      },
+      {
+        kind: 'added',
+        text: 'Session tags: free-form labels on any session, added from the replay header. They show on sidebar rows, filter the sidebar, narrow any search as tag:billing, and travel with your annotations export. Casing and spacing are normalised, so Refactor and refactor are one tag.',
+      },
+      {
+        kind: 'added',
+        text: 'A “Now” card on the home screen while anything is running: which agent, which project, the last thing you asked, and cost so far — one click into the live replay. Two agents working at once show side by side.',
+      },
+      {
+        kind: 'added',
+        text: 'Refine chips under search results: what your matches actually contain — agents, tools, kinds, projects, with counts — each one click from narrowing to it. A new agent:codex / agent:claude operator rides along.',
+      },
+      {
+        kind: 'added',
+        text: 'turnlog demo runs the real app against bundled sample sessions in a scratch index — see everything Turnlog does before you have any history, without it reading yours.',
+      },
+      {
+        kind: 'added',
+        text: 'The replay spine is keyboard-navigable: j and k move between turns, enter expands, e cycles the turns that errored. A fresh index also starts with three example saved searches that teach the query grammar.',
+      },
+      {
+        kind: 'improved',
+        text: 'Sidebar rows lead with whatever you sorted by — sort by cost and you read costs — with the other figures behind an info button. Tooltips across spend and the calendar line their facts up as label/value pairs instead of one run-on line.',
+      },
+      {
+        kind: 'fixed',
+        text: 'The count everything called “turns” never counted turns — it counts events, and now says so. Operator values with a space work quoted (tag:"needs review"), the Spend filter understands operators instead of searching them as words, and the search timeline honours deep search.',
+      },
+      {
+        kind: 'fixed',
+        text: 'The MCP tools say which agent wrote each session and advertise the tag: and agent: operators — an agent recalling past work can tell whether the work was its own.',
+      },
+    ],
+  },
+  {
     version: '0.9.1',
     date: '2026-08-03',
     notes: [

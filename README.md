@@ -65,9 +65,13 @@ URL, not just `127.0.0.1:<port>`.
   session, jump straight to the match. Identifiers and `snake_case` included.
   Subagent transcripts (the separate files newer Claude Code versions write per
   Task run) are indexed too. Filter by file (`path:api.ts`), by date in plain
-  words (`after:7d`), by tool, model, project or error. Flip to a **timeline**
-  to see when a topic kept coming up. Also from the terminal:
-  `turnlog search <query>` prints hits with deep links into the running UI.
+  words (`after:7d`), by agent (`agent:codex`), by your own tags
+  (`tag:billing`), by tool, model, project or error — or click a **refine
+  chip** to narrow by what the results actually contain. Flip to a
+  **timeline** to see when a topic kept coming up, or build the opt-in **deep
+  search** index to match inside words — `eWebSock` finds `useWebSocket`.
+  Also from the terminal: `turnlog search <query>` prints hits with deep
+  links into the running UI.
 - **Turn spine** — a 5,000-message session collapses to ten scannable turns,
   each with a mechanical summary (reads, edits, commands, errors).
 - **Lenses & files** — collapse a session to just its diffs, commands, or
@@ -90,7 +94,8 @@ URL, not just `127.0.0.1:<port>`.
   and saved search; `?` shows the cheat sheet.
 - **Export** — `turnlog export <id>` prints a session as markdown, HTML or JSON,
   optionally redacted; a share panel does the same from the UI. Your pins,
-  names, notes and bookmarks travel with `turnlog annotations export|import`.
+  names, notes, **tags** and bookmarks travel with
+  `turnlog annotations export|import`.
 - **Agent memory (MCP)** — `turnlog mcp` serves your history to any MCP-capable
   agent as a read-only server, so it can search its own past sessions mid-task
   ("how did we fix this last month?").
@@ -110,8 +115,9 @@ servers — `npx` with the arguments `turnlog mcp`, no port and no URL, because
 it speaks over stdio rather than a socket.
 
 From then on the agent can consult your session history mid-task through five
-read-only tools: `search` (same operators as the UI — `tool:`, `is:error`,
-`is:pinned`, `has:note`, `project:`, `before:`/`after:`…), `list_sessions`,
+read-only tools: `search` (same operators as the UI — `tool:`, `agent:`,
+`tag:`, `is:error`, `is:pinned`, `has:note`, `project:`, `before:`/`after:`…),
+`list_sessions`,
 `get_session` (the turn spine), `get_messages` (read the context around a
 hit), and `file_history` (every session that ever touched a file).
 
@@ -149,8 +155,8 @@ turnlog export <id>         Print a session as markdown (id or unique prefix);
                             and home paths, --from/--to for a message range
 turnlog search <query>      Search from the terminal (--limit n, --json);
                             same operators as the UI: tool: kind: is:error
-                            is:pinned has:note project: model: path:
-                            before: after:
+                            is:pinned has:note tag: agent: project: model:
+                            path: before: after:
 turnlog annotations export  Print pins, names, notes, bookmarks and saved
                             searches as one JSON document
 turnlog annotations import <file>
