@@ -30,6 +30,9 @@ const REGISTRY: Record<string, AgentInfo> = {
     Mark: ClaudeMark,
   },
   codex: { id: 'codex', label: 'Codex', colorClass: 'agent-codex', Mark: OpenAIMark },
+  // No Mark yet — the label-only badge the registry already promises. Covers
+  // both Cursor sources (CLI transcripts and IDE composers).
+  cursor: { id: 'cursor', label: 'Cursor', colorClass: 'agent-cursor' },
 };
 
 /**

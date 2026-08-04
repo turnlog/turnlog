@@ -32,7 +32,7 @@ afterEach(() => {
 
 describe('turnlog doctor', () => {
   it('reports versions, schema, and integrity', () => {
-    const { text, healthy } = runDoctor(projectsDir, codexDir);
+    const { text, healthy } = runDoctor({ projectsDir, codexDir });
     expect(healthy).toBe(true);
     expect(text).toContain('turnlog');
     expect(text).toContain('sqlite');
@@ -41,20 +41,20 @@ describe('turnlog doctor', () => {
   });
 
   it('names every agent separately — a lump sum hides where a problem lives', () => {
-    const { text } = runDoctor(projectsDir, codexDir);
+    const { text } = runDoctor({ projectsDir, codexDir });
     expect(text).toContain('sessions·claude-code');
     expect(text).toContain('sessions·codex');
   });
 
   it('sees drift when a file lands that the index has not caught up on', () => {
-    const before = runDoctor(projectsDir, codexDir);
+    const before = runDoctor({ projectsDir, codexDir });
     expect(before.text).not.toContain('drift');
 
     const proj = fs.readdirSync(projectsDir).find((d) =>
       fs.statSync(path.join(projectsDir, d)).isDirectory(),
     )!;
     fs.writeFileSync(path.join(projectsDir, proj, 'fresh-session.jsonl'), '{}\n');
-    const after = runDoctor(projectsDir, codexDir);
+    const after = runDoctor({ projectsDir, codexDir });
     expect(after.text).toContain('drift');
   });
 
@@ -66,21 +66,21 @@ describe('turnlog doctor', () => {
       .flatMap((d) => fs.readdirSync(d).map((f) => path.join(d, f)))
       .find((f) => f.endsWith('.jsonl'))!;
     fs.rmSync(victim);
-    const { text } = runDoctor(projectsDir, codexDir);
+    const { text } = runDoctor({ projectsDir, codexDir });
     expect(text).toMatch(/files gone\s+[1-9]/);
   });
 
   it('never writes: the index is byte-identical after a run', () => {
     const indexPath = path.join(dataDir, 'index.sqlite');
     const before = fs.statSync(indexPath).mtimeMs;
-    runDoctor(projectsDir, codexDir);
+    runDoctor({ projectsDir, codexDir });
     expect(fs.statSync(indexPath).mtimeMs).toBe(before);
   });
 
   it('handles a machine with no index yet instead of creating one', () => {
     const empty = tmpDir('turnlog-doctor-empty-');
     process.env.TURNLOG_DATA_DIR = empty;
-    const { text, healthy } = runDoctor(projectsDir, codexDir);
+    const { text, healthy } = runDoctor({ projectsDir, codexDir });
     expect(healthy).toBe(true);
     expect(text).toContain('none yet');
     // The read-only promise, tested at its sharpest point: doctor on a fresh

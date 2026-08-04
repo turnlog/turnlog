@@ -14,9 +14,18 @@ function shellQuote(p: string): string {
  * Claude Code. A resumed chain continues from its latest part — that file
  * carries the whole copied history — so the tip's id is what gets copied.
  */
+/** Each tool's resume verb. A tool with no terminal resume (Cursor — IDE
+ *  composers reopen in the IDE, not a shell) gets no button at all. */
+const RESUME_VERBS: Record<string, (id: string) => string> = {
+  'claude-code': (id) => `claude --resume ${id}`,
+  codex: (id) => `codex resume ${id}`,
+};
+
 export default function ResumeButton({ session }: { session: SessionMeta }) {
   const [copied, setCopied] = useState(false);
-  const chain = useSessionChain(session.id, session.chainLen > 1);
+  const canResume = RESUME_VERBS[session.tool] !== undefined;
+  const chain = useSessionChain(session.id, canResume && session.chainLen > 1);
+  if (!canResume) return null;
   const parts = chain.data?.chain;
   const tip = parts && parts.length > 0 ? parts[parts.length - 1]! : session;
   const isElsewhere = tip.id !== session.id;
@@ -24,8 +33,7 @@ export default function ResumeButton({ session }: { session: SessionMeta }) {
   const copy = async () => {
     const cd = tip.projectPath ? `cd ${shellQuote(tip.projectPath)} && ` : '';
     // Each tool has its own resume verb; the id is the session id either way.
-    const resume =
-      session.tool === 'codex' ? `codex resume ${tip.id}` : `claude --resume ${tip.id}`;
+    const resume = RESUME_VERBS[session.tool]!(tip.id);
     try {
       await navigator.clipboard.writeText(`${cd}${resume}`);
       setCopied(true);

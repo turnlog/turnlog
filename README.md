@@ -14,9 +14,10 @@ npx turnlog
 
 </div>
 
-Turnlog indexes your Claude Code and OpenAI Codex history into full-text search
-and turn-by-turn replay, then opens a local web UI. Find that session from three
-weeks ago in two seconds. **100% local — no accounts, no telemetry, no cloud.**
+Turnlog indexes your Claude Code, OpenAI Codex, and Cursor history into
+full-text search and turn-by-turn replay, then opens a local web UI. Find that
+session from three weeks ago in two seconds. **100% local — no accounts, no
+telemetry, no cloud.**
 
 Work on the same repo lands in one project timeline whichever agent you pointed
 at it — so a repo reads as a single history, not two.
@@ -40,10 +41,14 @@ turnlog <version>
   UI:       http://127.0.0.1:52431/?token=a1b2c3…
   Projects: /Users/you/.claude/projects
   Codex:    /Users/you/.codex/sessions (read-only)
+  Cursor:   /Users/you/.cursor/projects (read-only)
 ```
 
-The Codex line appears only if `~/.codex/sessions` exists; there is nothing to
-configure either way.
+The Codex and Cursor lines appear only if those histories exist; there is
+nothing to configure either way. Cursor comes in two flavors and both are
+read: cursor-agent CLI transcripts, and the IDE's own chats — the IDE's
+state database is copied before it is read, so the original is never even
+opened.
 
 Turnlog picks a random free port each run, so the URL is different every time.
 **If the browser doesn't open** — over SSH, on a headless box, or with no default
@@ -58,9 +63,10 @@ URL, not just `127.0.0.1:<port>`.
 
 ## What it does
 
-- **Two agents, one history** — Claude Code and OpenAI Codex sessions are both
-  indexed, read-only, and appear side by side. Every session says which agent
-  wrote it, and a repo you worked on with both reads as one timeline.
+- **Every agent, one history** — Claude Code, OpenAI Codex, and Cursor
+  sessions are all indexed, read-only, and appear side by side. Every session
+  says which agent wrote it, and a repo you worked on with several reads as
+  one timeline.
 - **Search everything** — full-text FTS5 across your whole history, grouped by
   session, jump straight to the match. Identifiers and `snake_case` included.
   Subagent transcripts (the separate files newer Claude Code versions write per
@@ -79,9 +85,10 @@ URL, not just `127.0.0.1:<port>`.
 - **Spend tracker** — cost by day, model, or project — and, uniquely, cost
   filtered by a search query ("what did *this kind of work* cost me"). Usage is
   counted once per API response (the logs repeat it per line), priced from a
-  shipped table, and always labeled an estimate. Codex usage is read exactly
-  from what its rollouts record; GPT prices aren't bundled, so add rates via
-  `modelPricing` in settings.json if you want costs rather than token counts.
+  shipped table covering Anthropic and OpenAI rates, and always labeled an
+  estimate. Cursor IDE sessions use the cost Cursor itself recorded. Rates
+  wrong for you (Bedrock, Vertex, enterprise)? Override any model via
+  `modelPricing` in settings.json.
 - **Calendar** — your sessions placed in time: a week timeline (days as rows,
   sessions as blocks at their real hours) or a month heat-map, coloured by
   project or by agent.
@@ -170,9 +177,11 @@ turnlog demo                Run against bundled sample sessions in a scratch
 turnlog mcp                 Serve the index to your agent over MCP (stdio, read-only)
 ```
 
-Turnlog reads `~/.claude/projects` and `~/.codex/sessions`, and never writes to
-either. The index lives in `~/.config/turnlog/` (`%APPDATA%\turnlog` on
-Windows); override with `TURNLOG_DATA_DIR`.
+Turnlog reads `~/.claude/projects`, `~/.codex/sessions`, `~/.cursor/projects`,
+and the Cursor IDE's state databases (via a copy — the originals are never
+opened), and never writes to any of them. The index lives in
+`~/.config/turnlog/` (`%APPDATA%\turnlog` on Windows); override with
+`TURNLOG_DATA_DIR`.
 
 ## License
 
@@ -188,7 +197,7 @@ npm run build          # tsc → dist/ + Vite → web/dist/
 npm run dev            # server + Vite together (scripts/dev.mjs)
 ```
 
-Both agents' log formats are undocumented and change without notice. The
+Every agent's log format is undocumented and changes without notice. The
 parser's rule is *never crash, never drop*: unrecognized records are stored as
 `kind='unknown'` with the raw line preserved. Adapter changes ship with corpus
 fixtures and regenerated golden files (`npm run golden:update`).
@@ -199,6 +208,6 @@ document.
 
 ---
 
-*For Claude Code and OpenAI Codex. Not affiliated with Anthropic or OpenAI;
-product names and marks belong to their owners and are used only to say whose
-sessions Turnlog reads.*
+*For Claude Code, OpenAI Codex, and Cursor. Not affiliated with Anthropic,
+OpenAI, or Anysphere; product names and marks belong to their owners and are
+used only to say whose sessions Turnlog reads.*

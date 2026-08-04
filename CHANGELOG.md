@@ -8,6 +8,18 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Added
 
+- Turnlog now reads Cursor sessions — both kinds. Cursor CLI (cursor-agent)
+  transcripts under `~/.cursor/projects` index like any other agent's logs,
+  including their subagent runs, nested in the parent replay. Cursor IDE
+  chats are extracted from the IDE's own state database: the file is copied
+  before it is ever opened — Turnlog never touches the original — and each
+  composer becomes a session with its title, its workspace's project, and
+  the cost Cursor itself recorded. Sessions from every era of the IDE's
+  storage format are read, `agent:cursor` narrows searches to them, and
+  Cursor work on a repo lands in the same project as the Claude Code and
+  Codex work on that repo — one timeline per repo, whichever agent you
+  pointed at it.
+
 - A sixth MCP tool, `get_context`: how full a session's context window was
   and where it was compacted — so an agent can check whether a past session's
   late answers came after its early context was summarized away, before

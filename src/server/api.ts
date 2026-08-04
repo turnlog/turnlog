@@ -589,17 +589,27 @@ export function getDiskUsage(db: Database.Database, limit = 200): DiskUsageRespo
     sessions: rows.map((r) => ({
       ...rowToSession(r),
       bytes: (r as { bytes: number }).bytes,
-      missing: !fs.existsSync((r as { file_path: string }).file_path),
+      missing: !fs.existsSync(sessionFileOnDisk((r as { file_path: string }).file_path)),
     })),
   };
 }
 
-/** The on-disk JSONL behind a session — for the reveal-in-file-manager action. */
+/**
+ * The real file behind a session's file_path. Cursor IDE composers are
+ * virtual sessions — their path is `<state.vscdb path>#<composerId>` — so
+ * existence checks and reveal must look at the DB file, not the full string.
+ */
+export function sessionFileOnDisk(filePath: string): string {
+  const i = filePath.indexOf('#');
+  return i === -1 ? filePath : filePath.slice(0, i);
+}
+
+/** The on-disk file behind a session — for the reveal-in-file-manager action. */
 export function getSessionFilePath(db: Database.Database, id: string): string | null {
   const row = db.prepare(`SELECT file_path FROM sessions WHERE id = ?`).get(id) as
     | { file_path: string }
     | undefined;
-  return row?.file_path ?? null;
+  return row ? sessionFileOnDisk(row.file_path) : null;
 }
 
 const DIFF_TOOLS_SQL = `('Edit','MultiEdit','Write','NotebookEdit')`;
@@ -2030,7 +2040,9 @@ export function getIndexHealth(db: Database.Database): {
   const filePaths = db.prepare(`SELECT file_path FROM sessions`).all() as {
     file_path: string;
   }[];
-  const missingFiles = filePaths.filter((f) => !fs.existsSync(f.file_path)).length;
+  const missingFiles = filePaths.filter(
+    (f) => !fs.existsSync(sessionFileOnDisk(f.file_path)),
+  ).length;
   const events = db.prepare(`SELECT COUNT(*) AS n FROM messages`).get() as { n: number };
   const unknown = db
     .prepare(`SELECT COUNT(*) AS n FROM messages WHERE kind = 'unknown'`)
@@ -2080,7 +2092,9 @@ export function pruneMissingSessions(db: Database.Database): { pruned: number } 
     id: string;
     file_path: string;
   }[];
-  const gone = rows.filter((r) => !fs.existsSync(r.file_path)).map((r) => r.id);
+  // sessionFileOnDisk: a Cursor IDE composer lives as long as its vscdb —
+  // pruning on the raw '#'-suffixed path would wipe every one of them.
+  const gone = rows.filter((r) => !fs.existsSync(sessionFileOnDisk(r.file_path))).map((r) => r.id);
   if (gone.length === 0) return { pruned: 0 };
 
   // messages_fts is an external-content table: every row must be withdrawn

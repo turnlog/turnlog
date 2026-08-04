@@ -114,6 +114,7 @@
   /* Registry: web/src/agents.ts — true brand hues, one per adapter. */
   --agent-claude: #de7356; /* Anthropic clay */
   --agent-codex: #10a37f; /* OpenAI green */
+  --agent-cursor: #6e56cf; /* Cursor violet */
 
   /* Keycaps. Their own tokens even though the values match --bg2/--bg3/--tx1:
      a key is a raised object, not a control surface, and the pressed edge has

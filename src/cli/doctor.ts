@@ -2,7 +2,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import { dataDir, loadSettings } from '../config.js';
-import { ADAPTER_VERSION, APP_VERSION, CODEX_ADAPTER_VERSION } from '../version.js';
+import { sessionFileOnDisk } from '../server/api.js';
+import {
+  ADAPTER_VERSION,
+  APP_VERSION,
+  CODEX_ADAPTER_VERSION,
+  CURSOR_ADAPTER_VERSION,
+  CURSOR_IDE_ADAPTER_VERSION,
+} from '../version.js';
 
 /**
  * `turnlog doctor` — the beta bug report, generated.
@@ -50,7 +57,13 @@ export interface DoctorReport {
   healthy: boolean;
 }
 
-export function runDoctor(projectsDir: string, codexDir: string | undefined): DoctorReport {
+export function runDoctor(dirs: {
+  projectsDir: string;
+  codexDir?: string;
+  cursorCliDir?: string;
+  cursorIdeUserDir?: string;
+}): DoctorReport {
+  const { projectsDir, codexDir, cursorCliDir, cursorIdeUserDir } = dirs;
   const lines: string[] = [];
   const out = (label: string, value: string) => lines.push(`${label.padEnd(18)} ${value}`);
   let healthy = true;
@@ -59,7 +72,11 @@ export function runDoctor(projectsDir: string, codexDir: string | undefined): Do
   lines.push('');
   out('turnlog', APP_VERSION);
   out('node', `${process.version} (${process.platform} ${process.arch})`);
-  out('adapters', `claude v${ADAPTER_VERSION} · codex v${CODEX_ADAPTER_VERSION}`);
+  out(
+    'adapters',
+    `claude v${ADAPTER_VERSION} · codex v${CODEX_ADAPTER_VERSION} · ` +
+      `cursor v${CURSOR_ADAPTER_VERSION} · cursor-ide v${CURSOR_IDE_ADAPTER_VERSION}`,
+  );
   lines.push('');
 
   const dir = dataDir();
@@ -68,6 +85,8 @@ export function runDoctor(projectsDir: string, codexDir: string | undefined): Do
   out('data dir', dir);
   out('projects dir', `${projectsDir}${fs.existsSync(projectsDir) ? '' : '  (missing)'}`);
   out('codex dir', codexDir ? codexDir : '(none — ~/.codex/sessions not present)');
+  out('cursor cli dir', cursorCliDir ? cursorCliDir : '(none — ~/.cursor/projects not present)');
+  out('cursor ide dir', cursorIdeUserDir ? cursorIdeUserDir : '(none — no state.vscdb found)');
   out('settings', fs.existsSync(settingsPath) ? settingsPath : '(none — defaults)');
   // settings.json holds no secrets by design (pricing rates, booleans, an
   // editor command template) — echo it verbatim so a report shows the real
@@ -117,10 +136,15 @@ export function runDoctor(projectsDir: string, codexDir: string | undefined): Do
     const filePaths = db.prepare(`SELECT file_path FROM sessions`).all() as {
       file_path: string;
     }[];
-    const missing = filePaths.filter((f) => !fs.existsSync(f.file_path)).length;
-    const onDisk = (countJsonl(projectsDir) ?? 0) + (countJsonl(codexDir) ?? 0);
+    // Virtual sessions (Cursor IDE composers) exist as long as their vscdb
+    // does — sessionFileOnDisk strips the '#composerId' fragment.
+    const missing = filePaths.filter((f) => !fs.existsSync(sessionFileOnDisk(f.file_path))).length;
+    // Composers aren't files on disk; drift compares .jsonl sources only.
+    const jsonlIndexed = filePaths.filter((f) => !f.file_path.includes('#')).length;
+    const onDisk =
+      (countJsonl(projectsDir) ?? 0) + (countJsonl(codexDir) ?? 0) + (countJsonl(cursorCliDir) ?? 0);
     out('indexed files', String(filePaths.length));
-    out('on disk now', `${onDisk}${onDisk > filePaths.length ? '  (drift — turnlog index catches up)' : ''}`);
+    out('on disk now', `${onDisk}${onDisk > jsonlIndexed ? '  (drift — turnlog index catches up)' : ''}`);
     out('files gone', `${missing}${missing > 0 ? '  (prune forgets them)' : ''}`);
 
     // SQLite's own verdict, last — a corrupt index is the headline.
