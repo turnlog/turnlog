@@ -13,5 +13,7 @@ export const ADAPTER_VERSION = 4;
 /**
  * Version of the Codex rollout adapter. Per-tool on purpose: bumping one
  * tool's adapter must not reindex the other tool's files.
+ * v2: no normalization change — reindex reprices rows now that the pricing
+ * table covers OpenAI models (costs are baked in at index time).
  */
-export const CODEX_ADAPTER_VERSION = 1;
+export const CODEX_ADAPTER_VERSION = 2;

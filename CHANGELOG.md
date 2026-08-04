@@ -27,6 +27,16 @@ All notable changes to Turnlog are documented here. The format follows
   touch an index, so it is safe to run against a broken one (and exits
   non-zero if the integrity check fails, for scripts).
 
+### Fixed
+
+- Codex sessions showed no costs at all: the pricing table only knew Claude
+  models, so every OpenAI model fell through unpriced. It now covers the
+  gpt-5.6 family (Sol/Terra/Luna), the gpt-5 line including the Codex
+  variants, and the earlier o3/o4-mini/codex-mini/gpt-4.1 era — with
+  OpenAI's own cache economics (10% cached reads on gpt-5.x, free cache
+  writes before that). Existing indexes reprice themselves on the next scan;
+  costs remain labeled estimates.
+
 ## [0.10.1] — 2026-08-04
 
 ### Fixed
