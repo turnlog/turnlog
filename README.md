@@ -114,12 +114,13 @@ Anywhere else, register the same command however your client takes MCP
 servers — `npx` with the arguments `turnlog mcp`, no port and no URL, because
 it speaks over stdio rather than a socket.
 
-From then on the agent can consult your session history mid-task through five
+From then on the agent can consult your session history mid-task through six
 read-only tools: `search` (same operators as the UI — `tool:`, `agent:`,
 `tag:`, `is:error`, `is:pinned`, `has:note`, `project:`, `before:`/`after:`…),
-`list_sessions`,
-`get_session` (the turn spine), `get_messages` (read the context around a
-hit), and `file_history` (every session that ever touched a file).
+`list_sessions`, `get_session` (the turn spine), `get_messages` (read the
+context around a hit), `get_context` (how full the window was, and where it
+was compacted — worth checking before trusting a session's late-conversation
+memory), and `file_history` (every session that ever touched a file).
 
 It runs on your machine — no server port, no network — and is **strictly
 read-only, with no flag that changes that**: an agent can read your history

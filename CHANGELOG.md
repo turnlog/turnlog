@@ -8,6 +8,12 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Added
 
+- A sixth MCP tool, `get_context`: how full a session's context window was
+  and where it was compacted — so an agent can check whether a past session's
+  late answers came after its early context was summarized away, before
+  trusting them. Read-only like the other five; agents that don't log a
+  running window total (Codex) get honest nulls rather than a wrong curve.
+
 - The HTML export learned the spine: each prompt is a folding turn — the ask
   plus tool and error counts on the summary line — so a shared 300-turn
   session reads as 300 scannable lines instead of an endless scroll. Native
