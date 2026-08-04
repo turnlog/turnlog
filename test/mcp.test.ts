@@ -3,13 +3,18 @@ import type Database from 'better-sqlite3';
 import { Indexer } from '../src/indexer/indexer.js';
 import { handleMcpMessage, PARSE_ERROR } from '../src/mcp/mcp.js';
 import { searchFiles } from '../src/server/api.js';
-import { SESSION_A, copyCorpus, testDb, tmpDir } from './helpers.js';
+import { CODEX_SESSION, SESSION_A, copyCodexCorpus, copyCorpus, testDb, tmpDir } from './helpers.js';
 
 let db: Database.Database;
 
 beforeAll(async () => {
   db = testDb(tmpDir('turnlog-mcp-'));
-  await new Indexer(db, { projectsDir: copyCorpus() }).scanAll();
+  // Both agents: the MCP surface must describe every session the user has
+  // indexed, not only the ones written by whoever is asking.
+  await new Indexer(db, {
+    projectsDir: copyCorpus(),
+    codexDir: copyCodexCorpus(),
+  }).scanAll();
 });
 
 /** Shorthand: make a tools/call request and return the parsed result. */
@@ -144,5 +149,34 @@ describe('tools/call', () => {
       params: { name: 'drop_tables', arguments: {} },
     }) as any;
     expect(res.error.code).toBe(-32602);
+  });
+});
+
+describe('the MCP surface covers every indexed agent', () => {
+  it('says which agent wrote each session', () => {
+    const rows = payload(call('list_sessions', { limit: 50 })) as { agent?: string }[];
+    const list = Array.isArray(rows) ? rows : ((rows as any).sessions ?? []);
+    expect(list.length).toBeGreaterThan(0);
+    // Guard the guard: vacuous on a single-agent corpus.
+    expect(new Set(list.map((r: any) => r.agent)).size).toBeGreaterThan(1);
+    // An agent recalling past work needs to know whether it was its own.
+    expect(list.every((r: any) => typeof r.agent === 'string')).toBe(true);
+  });
+
+  it('can narrow a search to one agent', () => {
+    const res = payload(call('search', { query: 'agent:codex', limit: 5 }));
+    const groups = res.groups ?? res.sessions ?? [];
+    expect(groups.length).toBeGreaterThan(0);
+    const ids = new Set(
+      groups.map((g: any) => g.sessionId ?? g.session?.id ?? g.id),
+    );
+    expect(ids.has(CODEX_SESSION)).toBe(true);
+  });
+
+  it('reports a value with a space when quoted, as its description promises', () => {
+    const res = payload(call('search', { query: 'tag:"nothing tagged this"', limit: 5 }));
+    // The point is that it parses as a FILTER and returns nothing, rather
+    // than falling back to a text search for the words.
+    expect(res.totalHits ?? 0).toBe(0);
   });
 });

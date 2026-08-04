@@ -71,6 +71,11 @@ function compactSession(s: SessionMeta) {
     startedAt: s.startedAt,
     endedAt: s.endedAt,
     model: s.model ?? undefined,
+    // Which agent wrote it: with more than one indexed, a row that does not
+    // say is ambiguous — and an agent recalling its own past work needs to
+    // know whether the past work was its own.
+    agent: s.tool,
+    tags: s.tags.length > 0 ? s.tags : undefined,
     events: s.eventCount,
     costUsd: s.costUsd ?? undefined,
     // Resume chains: this session is one of N files of the same conversation.
@@ -93,13 +98,16 @@ const TOOLS: McpTool[] = [
   {
     name: 'search',
     description:
-      'Full-text search across every indexed Claude Code session on this machine. ' +
+      'Full-text search across every indexed coding-agent session on this machine ' +
+      '(Claude Code, Codex, and any other adapter the user has indexed). ' +
       'Call this when you need to recall how something was done, discussed, or fixed in a past session. ' +
       'Supports operators combinable with text (or usable alone): tool:Bash, kind:prompt, is:error, ' +
       'project:<name>, model:<name>, path:<touched-file fragment>, ' +
+      'agent:<claude|codex> (which agent wrote it), tag:<user label>, ' +
       'before:/after:<ISO date prefix, or 7d / today / yesterday>, ' +
       'is:pinned (user-pinned sessions), has:note (sessions the user annotated), ' +
       'has:bookmark (moments the user bookmarked). ' +
+      'A value containing a space must be quoted: tag:"needs review". ' +
       'Returns hits grouped by session; use each hit’s sessionId + idx with get_messages to read the surrounding context.',
     inputSchema: {
       type: 'object',
@@ -137,7 +145,9 @@ const TOOLS: McpTool[] = [
   {
     name: 'list_sessions',
     description:
-      'List recent Claude Code sessions, most recently active first. ' +
+      'List recent coding-agent sessions, most recently active first — every ' +
+      'agent the user has indexed, not just your own. Each row says which ' +
+      'agent wrote it. ' +
       'Call this to orient yourself before searching, or to find the latest session for a project. ' +
       'Empty sessions are hidden. The project filter matches a fragment of the project path.',
     inputSchema: {

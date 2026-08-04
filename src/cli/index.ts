@@ -436,6 +436,7 @@ async function runAnnotations(sub: string | undefined, fileArg: string | undefin
     console.log(
       `Imported ${counts.sessionMeta} session annotation${counts.sessionMeta === 1 ? '' : 's'}, ` +
         `${counts.bookmarks} bookmark${counts.bookmarks === 1 ? '' : 's'}, ` +
+        `${counts.tags} tag${counts.tags === 1 ? '' : 's'}, ` +
         `${counts.savedSearches} saved search${counts.savedSearches === 1 ? '' : 'es'}.`,
     );
   } finally {

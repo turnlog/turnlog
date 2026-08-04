@@ -8,6 +8,16 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Fixed
 
+- The MCP tools caught up with the last two releases: `list_sessions` now
+  says which **agent** wrote each session and lists its tags, and `search`
+  advertises the `agent:` and `tag:` operators (and that a value with a space
+  needs quoting). An agent recalling past work can now tell whether the work
+  was its own.
+
+- `turnlog annotations import` was silently importing tags without saying so
+  — its summary line never mentioned them, so restoring on a new machine gave
+  no sign they had arrived.
+
 - Operator values containing a space now work if you quote them:
   `tag:"needs review"`, `project:"my project"`. They used to split on the
   space and silently match nothing, which made multi-word tags look broken.
