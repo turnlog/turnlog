@@ -4,6 +4,14 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.1] — 2026-08-04
+
+### Fixed
+
+- `turnlog demo` failed on Windows: the bundled sample sessions were resolved
+  through a file URL's pathname, which on Windows yields `/C:/…` and points
+  nowhere. Nothing else was affected — every other command was fine.
+
 ## [0.10.0] — 2026-08-04
 
 ### Fixed

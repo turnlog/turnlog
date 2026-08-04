@@ -18,6 +18,16 @@ export interface ReleaseNotes {
 
 export const RELEASES: ReleaseNotes[] = [
   {
+    version: '0.10.1',
+    date: '2026-08-04',
+    notes: [
+      {
+        kind: 'fixed',
+        text: 'turnlog demo works on Windows — the bundled sample sessions were resolved through a path form Windows does not use, so the command could not find its own corpus there.',
+      },
+    ],
+  },
+  {
     version: '0.10.0',
     date: '2026-08-04',
     notes: [
