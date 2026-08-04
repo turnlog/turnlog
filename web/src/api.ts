@@ -404,11 +404,15 @@ export function useSearch(q: string, sessionId?: string, deep?: boolean) {
 }
 
 /** The full match set placed on the time axis — "when did this keep coming up?". */
-export function useSearchTimeline(q: string, enabled = true) {
+export function useSearchTimeline(q: string, enabled = true, deep = false) {
   return useQuery({
-    queryKey: ['search-timeline', q],
+    // deep is in the key for the same reason it is in the request: the two
+    // views of one query must come from the same match set.
+    queryKey: ['search-timeline', q, deep],
     queryFn: () =>
-      apiFetch<SearchTimelineResponse>(`/api/search/timeline?q=${encodeURIComponent(q)}`),
+      apiFetch<SearchTimelineResponse>(
+        `/api/search/timeline?q=${encodeURIComponent(q)}${deep ? '&deep=1' : ''}`,
+      ),
     enabled: enabled && q.trim().length > 0,
     placeholderData: keepPreviousData,
     staleTime: 30_000,

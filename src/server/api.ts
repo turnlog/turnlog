@@ -1291,19 +1291,23 @@ function searchFacets(
     }
   };
 
-  const agents = facet('s.tool', 'agent', true);
+  // One value is not a choice, in ANY dimension — a chip that filters
+  // nothing away is noise pretending to be a control. This also cleans up
+  // after a click: refining by tool:Bash collapses the tools dimension to
+  // one value, which then drops instead of re-offering the chip just used.
+  const choice = (list: SearchFacet[]): SearchFacet[] => (list.length > 1 ? list : []);
   return {
-    tools: facet('m.tool_name', 'tool', false),
-    kinds: facet('m.kind', 'kind', false),
+    tools: choice(facet('m.tool_name', 'tool', false)),
+    kinds: choice(facet('m.kind', 'kind', false)),
     // Keys are path-derived; the chip shows the folder, the operator keeps
     // the exact key so the count it promises is the count you get.
-    projects: facet('s.project_key', 'project', true, (key) => {
-      const segs = key.split('-').filter(Boolean);
-      return segs.length > 0 ? segs[segs.length - 1]! : key;
-    }),
-    // One agent is not a choice — offering it would be a chip that filters
-    // nothing away.
-    agents: agents.length > 1 ? agents : [],
+    projects: choice(
+      facet('s.project_key', 'project', true, (key) => {
+        const segs = key.split('-').filter(Boolean);
+        return segs.length > 0 ? segs[segs.length - 1]! : key;
+      }),
+    ),
+    agents: choice(facet('s.tool', 'agent', true)),
   };
 }
 
@@ -1798,7 +1802,14 @@ export function getSpend(
 ): SpendResponse {
   const sinceDays = Math.min(Math.max(Math.floor(q.days ?? 30), 1), 3650);
   const cutoff = new Date(Date.now() - sinceDays * 86_400_000).toISOString();
-  const match = q.query ? toFtsQuery(q.query) : null;
+  // The full query language, not just text: the spend filter fed the raw
+  // string to toFtsQuery, so `tool:Bash` or `agent:codex` was searched as the
+  // literal phrase instead of narrowing — silently, and only here. Parsed the
+  // same way search parses it, minus deep (the word index answers "what did
+  // this KIND of work cost" fine, and spend must not require the trigram
+  // build).
+  const parsedQ = parseForSearch(q.query ?? '');
+  const match = parsedQ.match;
 
   // Chain-aware money: resuming a session copies its whole history into the
   // new file — same message uuids under a new session id — so summing session
@@ -1859,16 +1870,30 @@ export function getSpend(
     .prepare(`SELECT id, parent_session_id, project_key, started_at, cost_usd FROM sessions`)
     .all() as SessionRowLite[];
   const byId = new Map(sessions.map((s) => [s.id, s]));
-  // Spend's query filter stays on the word index: it answers "what did this
-  // KIND of work cost", a coarse question, and building the trigram index is
-  // not a precondition for the spend screen.
-  const matchedRoots = match
-    ? new Set(
-        (db.prepare(matchedSessionsSql('messages_fts')).raw().all(match) as [string][]).map(
-          (r) => r[0],
-        ),
-      )
-    : null;
+  // Filters narrow even with no text (`agent:codex` alone is a real spend
+  // question); null only when the query says nothing at all.
+  const spendFilter = filterSql(parsedQ.parsed.filters, 'ms');
+  const matchedSql = match
+    ? `SELECT DISTINCT COALESCE(ms.parent_session_id, ms.id)
+       FROM messages_fts
+       JOIN messages m ON m.rowid = messages_fts.rowid
+       JOIN sessions ms ON ms.id = m.session_id
+       WHERE messages_fts MATCH ? ${spendFilter.sql}`
+    : `SELECT DISTINCT COALESCE(ms.parent_session_id, ms.id)
+       FROM messages m
+       JOIN sessions ms ON ms.id = m.session_id
+       WHERE 1=1 ${spendFilter.sql}`;
+  const matchedRoots =
+    match !== null || parsedQ.parsed.hasFilters
+      ? new Set(
+          (db
+            .prepare(matchedSql)
+            .raw()
+            .all(...(match ? [match, ...spendFilter.params] : spendFilter.params)) as [
+            string,
+          ][]).map((r) => r[0]),
+        )
+      : null;
 
   // date(..., 'localtime') semantics, in JS: the machine's calendar day —
   // the server always runs on the user's own machine, so its timezone is

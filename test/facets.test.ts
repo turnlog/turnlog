@@ -65,6 +65,15 @@ describe('search facets', () => {
     expect(refined.aggregates!.matchedSessions).toBe(project.count);
   });
 
+  it('drops any dimension that collapses to one value after refining', () => {
+    const first = searchMessages(db, { query: 'the' });
+    const kind = first.facets!.kinds[0]!;
+    const refined = searchMessages(db, { query: `the ${kind.operator}` });
+    // Narrowed to one kind, that dimension stops being a choice — the chip
+    // just clicked must not be re-offered as if it still did something.
+    expect(refined.facets!.kinds).toEqual([]);
+  });
+
   it('is null for a session-scoped find — nothing to refine', () => {
     const scoped = searchMessages(db, { query: 'the', sessionId: 'anything' });
     expect(scoped.facets).toBeNull();

@@ -134,8 +134,10 @@ function monthSpans(buckets: TimelineBucket[]): { label: string; span: number }[
   return out;
 }
 
-function TimelineView({ query }: { query: string }) {
-  const timeline = useSearchTimeline(query);
+function TimelineView({ query, deep }: { query: string; deep: boolean }) {
+  // Same deep flag as the hits view: the timeline is the SAME match set on a
+  // time axis, and two views of one query disagreeing is worse than either.
+  const timeline = useSearchTimeline(query, true, deep);
   const sessions = timeline.data?.sessions ?? [];
   const { buckets, weekly } = useMemo(() => buildBuckets(sessions), [sessions]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -319,6 +321,14 @@ export default function Search({
   const health = useHealth();
   const deepBuilt = health.data?.deepSearch === true;
   const search = useSearch(query, undefined, deep && deepBuilt);
+  const facetChips = search.data?.facets
+    ? [
+        ...search.data.facets.agents,
+        ...search.data.facets.tools,
+        ...search.data.facets.kinds,
+        ...search.data.facets.projects,
+      ]
+    : [];
   const groups = search.data?.groups ?? [];
 
   // Flat list of hits for keyboard navigation.
@@ -404,15 +414,11 @@ export default function Search({
         </div>
         {/* Refine by what the results actually contain, rather than knowing
             the grammar. Appends the operator; the cheat line below still
-            teaches the full language. */}
-        {search.data?.facets && query !== '' && (
+            teaches the full language. Skipped entirely when no dimension has
+            a choice to offer — an empty band is a stray gap. */}
+        {facetChips.length > 0 && query !== '' && (
           <div className="search-facets">
-            {[
-              ...search.data.facets.agents,
-              ...search.data.facets.tools,
-              ...search.data.facets.kinds,
-              ...search.data.facets.projects,
-            ].map((f) => (
+            {facetChips.map((f) => (
               <button
                 key={f.operator}
                 className="facet-chip"
@@ -463,7 +469,7 @@ export default function Search({
       </div>
 
       {view === 'timeline' ? (
-        <TimelineView query={query} />
+        <TimelineView query={query} deep={deep && deepBuilt} />
       ) : (
         <div className="search-results">
           {search.isLoading && groups.length === 0 && query !== '' && (

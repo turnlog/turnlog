@@ -256,7 +256,7 @@ export default function Spend({ view = 'overview' }: { view?: 'overview' | 'cale
             <SearchField
               value={q}
               onChange={setQ}
-              placeholder="Only work matching… (e.g. websocket)"
+              placeholder="Only work matching… (e.g. websocket, tool:Bash, agent:codex)"
               ariaLabel="Filter spend by search query"
             />
           </form>

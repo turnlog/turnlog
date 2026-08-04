@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import type Database from 'better-sqlite3';
 import { Indexer } from '../src/indexer/indexer.js';
 import { getSpend, listProjects, searchMessages } from '../src/server/api.js';
-import { SESSION_C, SESSION_D, SUBAGENT_D, copyCorpus, testDb, tmpDir } from './helpers.js';
+import { SESSION_C, SESSION_D, SUBAGENT_D, copyCodexCorpus, copyCorpus, testDb, tmpDir } from './helpers.js';
 
 let db: Database.Database;
 let corpusDir: string;
@@ -171,5 +171,40 @@ describe('listSessions date range', () => {
     expect(after?.customName).toBe('Keeper');
     expect(after?.note).toBe('survives');
     setSessionMeta(db, SESSION_C, { pinned: false, customName: null, note: null });
+  });
+});
+
+describe('spend accepts the query language, not just text', () => {
+  let db2: Database.Database;
+
+  beforeAll(async () => {
+    db2 = testDb(tmpDir('turnlog-spend-ops-'));
+    // Both agents: `agent:` narrowing on a one-agent corpus proves nothing.
+    await new Indexer(db2, {
+      projectsDir: copyCorpus(),
+      codexDir: copyCodexCorpus(),
+    }).scanAll();
+  });
+
+  const tokens = (r: ReturnType<typeof getSpend>) =>
+    r.totals.inputTokens + r.totals.outputTokens;
+
+  it('narrows by an operator with no text at all', () => {
+    const all = getSpend(db2, { days: WIDE });
+    const claude = getSpend(db2, { days: WIDE, query: 'agent:claude' });
+    const codex = getSpend(db2, { days: WIDE, query: 'agent:codex' });
+    expect(tokens(claude)).toBeGreaterThan(0);
+    expect(tokens(codex)).toBeGreaterThan(0);
+    expect(tokens(claude)).toBeLessThan(tokens(all));
+  });
+
+  it('treats tool:Bash as a filter, not the phrase "tool Bash"', () => {
+    const all = getSpend(db2, { days: WIDE });
+    // Before: the raw string went to toFtsQuery, so this matched sessions
+    // that happened to CONTAIN those words. As a filter it must narrow.
+    const bash = getSpend(db2, { days: WIDE, query: 'tool:Bash' });
+    expect(tokens(bash)).toBeGreaterThan(0);
+    expect(tokens(bash)).toBeLessThanOrEqual(tokens(all));
+    expect(bash.totals.sessions).toBeLessThanOrEqual(all.totals.sessions);
   });
 });

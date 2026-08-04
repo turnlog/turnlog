@@ -8,6 +8,20 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Fixed
 
+- The Spend screen's "only work matching…" filter now understands the full
+  query language, not just text — `tool:Bash`, `agent:codex`, `is:error` and
+  the rest narrow the spend the way they narrow a search. They used to be
+  searched as literal words, silently, only on this screen.
+
+- With deep search on, the search timeline now shows the same match set as
+  the hits view — it used to quietly fall back to word matching, so the two
+  views of one query could disagree.
+
+- Refine chips tidy up after themselves: any dimension left with a single
+  value is dropped (the rule that already applied to agents), so clicking
+  `tool:Bash` no longer re-offers a Bash chip that filters nothing, and a
+  search with nothing to refine shows no empty band.
+
 - The MCP tools caught up with the last two releases: `list_sessions` now
   says which **agent** wrote each session and lists its tags, and `search`
   advertises the `agent:` and `tag:` operators (and that a value with a space
