@@ -1228,12 +1228,6 @@ export function toTrigramQuery(input: string): string | null {
 // Matches resolve to the ROOT session: a hit inside a subagent transcript
 // counts as its parent, whose row carries the family's rolled-up totals —
 // summing both parent and child rows would double count.
-const matchedSessionsSql = (fts: FtsTable) => `SELECT DISTINCT COALESCE(ms.parent_session_id, ms.id)
-  FROM ${fts}
-  JOIN messages m ON m.rowid = ${fts}.rowid
-  JOIN sessions ms ON ms.id = m.session_id
-  WHERE ${fts} MATCH ?`;
-
 /** Rows offered per dimension — enough to refine, few enough to skim. */
 const FACET_LIMIT = 6;
 
