@@ -52,8 +52,45 @@ jobs:
             echo "release=true" >> "$GITHUB_OUTPUT"
           fi
 
-  publish:
+  # The publish gate is the FULL matrix — every OS and Node line the CI
+  # workflow tests, run inside the release itself. Before 0.10.1 the publish
+  # job checked on ubuntu alone while ci.yml's matrix ran in parallel and
+  # gated nothing, so a Windows-only failure could not block a publish (and
+  # v0.10.0 shipped a Windows-broken `turnlog demo` exactly that way). A
+  # release now cannot happen unless all six legs pass at the release commit.
+  test:
     needs: gate
+    if: needs.gate.outputs.release == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [22, 24]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      # Same prebuild verification as ci.yml: a runner with a toolchain would
+      # silently compile better-sqlite3, which end users cannot.
+      - name: Verify better-sqlite3 prebuild
+        shell: bash
+        run: |
+          cd node_modules/better-sqlite3
+          rm -rf build
+          ../.bin/prebuild-install --verbose
+          cd ../..
+          node -e "require('better-sqlite3')(':memory:').prepare('select 1').get(); console.log('prebuild OK')"
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test
+
+  publish:
+    needs: [gate, test]
     if: needs.gate.outputs.release == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -65,12 +102,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      # Install + gates run on the runner's bundled npm 10 — npm 12 skips the
-      # install scripts that build better-sqlite3's native binding.
+      # Install runs on the runner's bundled npm 10 — npm 12 skips the
+      # install scripts that build better-sqlite3's native binding. The
+      # quality gates already ran in the matrix above.
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm test
       # Trusted publishing needs npm >= 11.5, so upgrade for this step only.
       # prepack runs `npm run build`, so publish packs a fresh bin/dist/web/dist.
       # publishConfig sets access:public + provenance (repo must stay public —
