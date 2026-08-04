@@ -152,3 +152,31 @@ describe('json export (the machine format)', () => {
     expect(getSessionJsonExport(db, 'nope')).toBeNull();
   });
 });
+
+describe('html export: the spine', () => {
+  it('wraps each prompt in a folding turn with the ask in the summary', () => {
+    const html = getSessionHtmlExport(db, SESSION_C)!;
+    // Native <details>, no script — the no-JS promise holds.
+    expect(html).toContain('<details class="fold"');
+    expect(html).not.toContain('<script');
+    // The mechanical summary: the ask plus tool/error counts. SESSION_C runs
+    // a failing Bash then an Edit, so both facts must be on the line.
+    expect(html).toMatch(/<summary>.*2 tools.*<\/summary>/);
+    expect(html).toMatch(/<summary>.*1 error.*<\/summary>/);
+  });
+
+  it('has one fold per prompt, and the content still inside', () => {
+    const html = getSessionHtmlExport(db, SESSION_C)!;
+    const folds = (html.match(/<details class="fold"/g) ?? []).length;
+    const prompts = (html.match(/class="turn you"/g) ?? []).length;
+    expect(folds).toBe(prompts);
+    expect(folds).toBeGreaterThan(0);
+    // The turn body did not get lost in the wrapping.
+    expect(html).toContain('class="turn claude"');
+  });
+
+  it('ships a small session open — nothing to scan past', () => {
+    const html = getSessionHtmlExport(db, SESSION_C)!;
+    expect(html).toContain('<details class="fold" open>');
+  });
+});

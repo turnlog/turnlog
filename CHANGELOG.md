@@ -8,6 +8,12 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Added
 
+- The HTML export learned the spine: each prompt is a folding turn — the ask
+  plus tool and error counts on the summary line — so a shared 300-turn
+  session reads as 300 scannable lines instead of an endless scroll. Native
+  `<details>`, no script, so the no-JS promise holds. Small sessions arrive
+  expanded; big ones arrive folded, which is the case the fold exists for.
+
 - `turnlog doctor` prints everything a bug report needs in one paste:
   versions, resolved paths, your settings, index facts split per agent,
   SQLite's own integrity verdict, and whether the index has drifted from
