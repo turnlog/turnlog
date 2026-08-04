@@ -1,4 +1,5 @@
 import os from 'node:os';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
 import type { ModelPricing } from './cost/pricing.js';
@@ -42,8 +43,10 @@ export function demoDataDir(): string {
  */
 export function demoCorpusDir(): { projectsDir: string; codexDir: string } {
   // dist/config.js at runtime, src/config.ts under tsx — both sit one level
-  // below the package root.
-  const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+  // below the package root. fileURLToPath, not URL.pathname: on Windows the
+  // pathname of a file URL is /C:/…, which resolves to a directory that does
+  // not exist — this broke `turnlog demo` (and its test) on the CI matrix.
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   return {
     projectsDir: path.join(root, 'fixtures', 'corpus'),
     codexDir: path.join(root, 'fixtures', 'codex'),
