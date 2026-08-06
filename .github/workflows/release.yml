@@ -74,20 +74,16 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
-      # Same prebuild verification as ci.yml: v13 bundles prebuilds in the
-      # tarball — assert this platform's binary shipped and loads, with no
-      # locally-compiled build/ masking a gap end users would hit.
+      # Same prebuild verification as ci.yml: a runner with a toolchain would
+      # silently compile better-sqlite3, which end users cannot.
       - name: Verify better-sqlite3 prebuild
         shell: bash
         run: |
-          rm -rf node_modules/better-sqlite3/build
-          node -e "
-            const fs = require('fs');
-            const p = 'node_modules/better-sqlite3/prebuilds/' + process.platform + '-' + process.arch + '.node';
-            if (!fs.existsSync(p)) throw new Error('missing bundled prebuild: ' + p);
-            require('better-sqlite3')(':memory:').prepare('select 1').get();
-            console.log('prebuild OK:', p);
-          "
+          cd node_modules/better-sqlite3
+          rm -rf build
+          ../.bin/prebuild-install --verbose
+          cd ../..
+          node -e "require('better-sqlite3')(':memory:').prepare('select 1').get(); console.log('prebuild OK')"
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build

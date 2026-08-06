@@ -46,22 +46,20 @@ jobs:
             }
             console.log('::error::no ci log among: ' + files.map((f) => path.basename(f)).join(', '));
           " "$LOGDIR"
-      # better-sqlite3 v13 bundles its prebuilds inside the tarball (no
-      # install script, nothing fetched at install time). Verify the binary
-      # for this runner's platform actually shipped and loads, with no
-      # locally-compiled build/ around to mask a gap — a missing prebuild
-      # must fail here, not on an end user's machine.
+      # npm ci alone doesn't verify prebuilds: on runners with a toolchain,
+      # better-sqlite3 falls back to node-gyp and compiles silently — which end
+      # users can't do. Re-fetch the prebuild explicitly (no fallback) and load it.
+      # (v12 mechanism on purpose: v13's implicit node-gyp no-op needs a
+      # VS18-aware node-gyp on Windows, which Node 22's bundled npm 10 lacks —
+      # end-user installs would fail. Revisit when that reaches npm 10.)
       - name: Verify better-sqlite3 prebuild
         shell: bash
         run: |
-          rm -rf node_modules/better-sqlite3/build
-          node -e "
-            const fs = require('fs');
-            const p = 'node_modules/better-sqlite3/prebuilds/' + process.platform + '-' + process.arch + '.node';
-            if (!fs.existsSync(p)) throw new Error('missing bundled prebuild: ' + p);
-            require('better-sqlite3')(':memory:').prepare('select 1').get();
-            console.log('prebuild OK:', p);
-          "
+          cd node_modules/better-sqlite3
+          rm -rf build
+          ../.bin/prebuild-install --verbose
+          cd ../..
+          node -e "require('better-sqlite3')(':memory:').prepare('select 1').get(); console.log('prebuild OK')"
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build

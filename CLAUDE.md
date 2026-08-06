@@ -26,7 +26,7 @@ Conventions: any adapter change ships with corpus fixtures + regenerated goldens
 
 ## Stack
 
-- **CLI/server:** Node 22+ (20 is EOL, and better-sqlite3 13 — which bundles its prebuilds in the tarball, no install scripts — requires ≥22), TypeScript, ESM. Server is bare `node:http` (chosen over Fastify — zero runtime deps beyond better-sqlite3 + chokidar), binds 127.0.0.1 only, serves the built React bundle + JSON API.
+- **CLI/server:** Node 22+ (20 is EOL and better-sqlite3 ≥12.10 ships no prebuilds for it), TypeScript, ESM. better-sqlite3 is **pinned to 12 deliberately** (2026-08-06): v13 replaced its install script with an implicit `node-gyp rebuild` that no-ops when its bundled prebuild exists — but on Windows even the no-op needs node-gyp to find Visual Studio, and Node 22's bundled npm 10 ships a node-gyp too old for VS 18, so end-user installs fail (npm's `prebuild-install is deprecated` warning on install is the accepted cost). Revisit when Node 22's npm carries a VS18-aware node-gyp. Server is bare `node:http` (chosen over Fastify — zero runtime deps beyond better-sqlite3 + chokidar), binds 127.0.0.1 only, serves the built React bundle + JSON API.
 - **Indexer:** worker thread (or child process) — JSONL parsing and SQLite writes must never block the API.
 - **Data:** better-sqlite3, WAL mode, single writer. FTS5 with `unicode61 tokenchars '_$.'` + `prefix='2 3'`. Message text stored in the DB. Incremental indexing via per-file byte offsets. DB in `~/.config/turnlog/` (XDG on Linux, `%APPDATA%` on Windows).
 - **Frontend:** React + TypeScript + Vite, shipped prebuilt inside the npm package. React Query over the local API. react-virtuoso for session lists (virtualization is mandatory), Shiki in a web worker for highlighting.

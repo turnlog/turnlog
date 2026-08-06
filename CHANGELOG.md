@@ -49,10 +49,6 @@ All notable changes to Turnlog are documented here. The format follows
   it finds without deleting them. The update itself always succeeded; this
   ends the disk-eating droppings and the mystery warning.
 
-- Installing no longer prints npm's `prebuild-install is deprecated`
-  warning: better-sqlite3 was bumped to v13, which dropped that installer.
-  Same Node 22+ floor as before.
-
 - Codex sessions showed no costs at all: the pricing table only knew Claude
   models, so every OpenAI model fell through unpriced. It now covers the
   gpt-5.6 family (Sol/Terra/Luna), the gpt-5 line including the Codex
