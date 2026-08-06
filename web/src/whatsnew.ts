@@ -18,6 +18,40 @@ export interface ReleaseNotes {
 
 export const RELEASES: ReleaseNotes[] = [
   {
+    version: '0.11.0',
+    date: '2026-08-06',
+    notes: [
+      {
+        kind: 'added',
+        text: 'Turnlog now reads Cursor — both the cursor-agent CLI and the IDE. IDE chats are read from a copy of Cursor’s own database (the original is never opened), each conversation becomes a session with its title and the cost Cursor recorded, and Cursor work on a repo joins the Claude Code and Codex work on that repo: one timeline per repo, whichever agent you pointed at it. agent:cursor narrows any search.',
+      },
+      {
+        kind: 'added',
+        text: 'turnlog doctor prints everything a bug report needs in one paste — versions, paths, settings, index facts per agent, an integrity check — and never touches the index, so it is safe to run against a broken one.',
+      },
+      {
+        kind: 'added',
+        text: 'Shared HTML exports fold like the app: each prompt is a collapsible turn with its tool and error counts, so a long session arrives scannable instead of as an endless scroll. No scripts — it works with JavaScript off.',
+      },
+      {
+        kind: 'added',
+        text: 'Agents using Turnlog as memory (MCP) can now ask how full a past session’s context window was and where it was compacted — worth checking before trusting that session’s late answers.',
+      },
+      {
+        kind: 'improved',
+        text: 'Agent badges wear the official brand marks. Cursor’s is monochrome by brand, so it flips with your theme — black on light, white on dark.',
+      },
+      {
+        kind: 'fixed',
+        text: 'Codex sessions now show costs. The pricing table covers OpenAI models (the gpt-5.6 family through the o3 era), with OpenAI’s own cache economics; existing indexes reprice themselves on the next scan. Still labeled estimates.',
+      },
+      {
+        kind: 'fixed',
+        text: 'Updating on Windows no longer strands the old version as a leftover directory when a running Turnlog had it locked — the next start cleans it up, and doctor reports any it finds.',
+      },
+    ],
+  },
+  {
     version: '0.10.1',
     date: '2026-08-04',
     notes: [

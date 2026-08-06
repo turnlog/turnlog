@@ -20,9 +20,38 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
+      # A failed npm ci on a runner is otherwise a blind spot (job logs need
+      # auth to download): surface the npm debug log tail as a check
+      # annotation, which is public.
+      - name: Surface npm failure
+        if: failure()
+        shell: bash
+        run: |
+          # The log dir is platform-specific (%LOCALAPPDATA%\npm-cache on
+          # Windows) — ask npm instead of guessing.
+          LOGDIR="$(npm config get cache)/_logs"
+          node -e "
+            const fs = require('fs'), path = require('path');
+            const dir = process.argv[1];
+            let files = [];
+            try { files = fs.readdirSync(dir).map((f) => path.join(dir, f)).sort().reverse(); } catch {}
+            // Newest log is often our own 'config get cache' above — take the
+            // newest one that belongs to the failed 'ci' run instead.
+            for (const log of files) {
+              const text = fs.readFileSync(log, 'utf8');
+              if (!/\"argv\" \"ci\"|argv.*\bci\b|npm error/i.test(text)) continue;
+              const tail = text.split(/\r?\n/).slice(-60).join('%0A');
+              console.log('::error title=npm log tail (' + path.basename(log) + ')::' + tail);
+              process.exit(0);
+            }
+            console.log('::error::no ci log among: ' + files.map((f) => path.basename(f)).join(', '));
+          " "$LOGDIR"
       # npm ci alone doesn't verify prebuilds: on runners with a toolchain,
       # better-sqlite3 falls back to node-gyp and compiles silently — which end
       # users can't do. Re-fetch the prebuild explicitly (no fallback) and load it.
+      # (v12 mechanism on purpose: v13's implicit node-gyp no-op needs a
+      # VS18-aware node-gyp on Windows, which Node 22's bundled npm 10 lacks —
+      # end-user installs would fail. Revisit when that reaches npm 10.)
       - name: Verify better-sqlite3 prebuild
         shell: bash
         run: |

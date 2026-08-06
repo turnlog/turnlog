@@ -4,6 +4,65 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] — 2026-08-06
+
+### Added
+
+- Turnlog now reads Cursor sessions — both kinds. Cursor CLI (cursor-agent)
+  transcripts under `~/.cursor/projects` index like any other agent's logs,
+  including their subagent runs, nested in the parent replay. Cursor IDE
+  chats are extracted from the IDE's own state database: the file is copied
+  before it is ever opened — Turnlog never touches the original — and each
+  composer becomes a session with its title, its workspace's project, and
+  the cost Cursor itself recorded. Sessions from every era of the IDE's
+  storage format are read, `agent:cursor` narrows searches to them, and
+  Cursor work on a repo lands in the same project as the Claude Code and
+  Codex work on that repo — one timeline per repo, whichever agent you
+  pointed at it.
+
+- A sixth MCP tool, `get_context`: how full a session's context window was
+  and where it was compacted — so an agent can check whether a past session's
+  late answers came after its early context was summarized away, before
+  trusting them. Read-only like the other five; agents that don't log a
+  running window total (Codex) get honest nulls rather than a wrong curve.
+
+- The HTML export learned the spine: each prompt is a folding turn — the ask
+  plus tool and error counts on the summary line — so a shared 300-turn
+  session reads as 300 scannable lines instead of an endless scroll. Native
+  `<details>`, no script, so the no-JS promise holds. Small sessions arrive
+  expanded; big ones arrive folded, which is the case the fold exists for.
+
+- `turnlog doctor` prints everything a bug report needs in one paste:
+  versions, resolved paths, your settings, index facts split per agent,
+  SQLite's own integrity verdict, and whether the index has drifted from
+  what's on disk. It is strictly read-only — it will not create, migrate, or
+  touch an index, so it is safe to run against a broken one (and exits
+  non-zero if the integrity check fails, for scripts).
+
+### Changed
+
+- Agent badges wear the official brand marks — Claude, OpenAI, and Cursor —
+  on one 24×24 grid. Cursor's mark is monochrome by brand, so it and its
+  badge flip with the theme: black on light, white on dark.
+
+### Fixed
+
+- Updating on Windows could leave the old install behind as a
+  `.turnlog-<random>` directory (npm can't delete the native module while a
+  running Turnlog — or an agent's MCP process — has it loaded, and warns
+  `EPERM` mid-update). Turnlog now sweeps those leftovers on its next start,
+  when nothing holds the old file anymore, and `turnlog doctor` reports any
+  it finds without deleting them. The update itself always succeeded; this
+  ends the disk-eating droppings and the mystery warning.
+
+- Codex sessions showed no costs at all: the pricing table only knew Claude
+  models, so every OpenAI model fell through unpriced. It now covers the
+  gpt-5.6 family (Sol/Terra/Luna), the gpt-5 line including the Codex
+  variants, and the earlier o3/o4-mini/codex-mini/gpt-4.1 era — with
+  OpenAI's own cache economics (10% cached reads on gpt-5.x, free cache
+  writes before that). Existing indexes reprice themselves on the next scan;
+  costs remain labeled estimates.
+
 ## [0.10.1] — 2026-08-04
 
 ### Fixed

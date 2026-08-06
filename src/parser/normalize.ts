@@ -1,5 +1,7 @@
 import type { NormalizedRecord } from './types.js';
 import { normalizeCodex, type CodexParseState } from './adapters/codex.js';
+import { normalizeCursorCli } from './adapters/cursorCli.js';
+import { normalizeCursorIde, type CursorIdeEnvelope } from './adapters/cursorIde.js';
 import { normalizeV1 } from './adapters/v1.js';
 
 /**
@@ -61,6 +63,45 @@ export function normalizeCodexLine(
     return normalizeCodex(obj, trimmed, fallbackId, state);
   } catch {
     return unknownRecord(trimmed, fallbackId);
+  }
+}
+
+/** The Cursor CLI flavor — stateless like CC, one transcript line in. */
+export function normalizeCursorCliLine(
+  text: string,
+  fallbackId: string,
+): NormalizedRecord | null {
+  const trimmed = text.trim();
+  if (trimmed === '') return null;
+
+  let obj: unknown;
+  try {
+    obj = JSON.parse(trimmed);
+  } catch {
+    return unknownRecord(trimmed, fallbackId);
+  }
+
+  try {
+    return normalizeCursorCli(obj, trimmed, fallbackId);
+  } catch {
+    return unknownRecord(trimmed, fallbackId);
+  }
+}
+
+/**
+ * The Cursor IDE flavor. Input is an extractor-built envelope rather than a
+ * file line; the cardinal rule holds all the same — an adapter bug degrades
+ * to kind 'unknown' carrying the envelope, never a crash, never a drop.
+ */
+export function normalizeCursorIdeEnvelope(
+  env: CursorIdeEnvelope,
+  fallbackId: string,
+): NormalizedRecord {
+  const raw = JSON.stringify(env);
+  try {
+    return normalizeCursorIde(env, raw, fallbackId);
+  } catch {
+    return unknownRecord(raw, fallbackId);
   }
 }
 

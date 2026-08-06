@@ -1,6 +1,6 @@
 {
   "name": "turnlog",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "description": "Search and replay every Claude Code session you've ever run — locally.",
   "license": "MIT",
   "type": "module",
@@ -13,7 +13,10 @@
     "url": "https://github.com/turnlog/turnlog/issues"
   },
   "keywords": [
+    "turnlog",
     "claude-code",
+    "codex",
+    "cursor",
     "search",
     "replay",
     "sessions",
@@ -33,7 +36,8 @@
     "dist",
     "web/dist",
     "fixtures/corpus",
-    "fixtures/codex"
+    "fixtures/codex",
+    "fixtures/cursor-cli"
   ],
   "publishConfig": {
     "access": "public",

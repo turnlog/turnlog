@@ -28,6 +28,8 @@ export class WorkerDriver implements IndexDriver {
     dbPath: string;
     projectsDir: string;
     codexDir?: string;
+    cursorCliDir?: string;
+    cursorIdeUserDir?: string;
     pricingOverrides?: Record<string, Partial<ModelPricing>>;
   }) {
     this.worker = new Worker(new URL('./worker.js', import.meta.url), { workerData: opts });

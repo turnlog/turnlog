@@ -76,10 +76,17 @@ describe('protocol handshake', () => {
 });
 
 describe('tools/list', () => {
-  it('exposes the five read-only tools with schemas', () => {
+  it('exposes the six read-only tools with schemas', () => {
     const res = handleMcpMessage(db, { jsonrpc: '2.0', id: 1, method: 'tools/list' }) as any;
     const names = res.result.tools.map((t: any) => t.name);
-    expect(names).toEqual(['search', 'list_sessions', 'get_session', 'get_messages', 'file_history']);
+    expect(names).toEqual([
+      'search',
+      'list_sessions',
+      'get_session',
+      'get_messages',
+      'get_context',
+      'file_history',
+    ]);
     for (const tool of res.result.tools) {
       expect(tool.description.length).toBeGreaterThan(20);
       expect(tool.inputSchema).toHaveProperty('type', 'object');
@@ -178,5 +185,46 @@ describe('the MCP surface covers every indexed agent', () => {
     // The point is that it parses as a FILTER and returns nothing, rather
     // than falling back to a text search for the words.
     expect(res.totalHits ?? 0).toBe(0);
+  });
+});
+
+describe('get_context', () => {
+  it('is on the tool list — the sixth read-only tool', () => {
+    const res = handleMcpMessage(db, {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/list',
+    }) as any;
+    const names = res.result.tools.map((t: any) => t.name);
+    expect(names).toContain('get_context');
+    expect(names).toHaveLength(6);
+  });
+
+  it('reports the window curve for a session that logs one', () => {
+    const res = payload(call('get_context', { sessionId: SESSION_A }));
+    expect(res.responses).toBeGreaterThan(0);
+    expect(res.peakTokens).toBeGreaterThan(0);
+    expect(res.finalTokens).toBeGreaterThan(0);
+    expect(typeof res.compacted).toBe('boolean');
+  });
+
+  it('says null rather than wrong for an agent with no running total', () => {
+    const res = payload(call('get_context', { sessionId: CODEX_SESSION }));
+    // Codex logs per-response deltas; a curve built from them would be
+    // confidently wrong, so the honest answer is no curve at all.
+    expect(res.responses).toBe(0);
+    expect(res.peakTokens).toBeNull();
+    expect(res.finalTokens).toBeNull();
+    expect(res.note).toContain('does not log');
+  });
+
+  it('errors on an unknown session', () => {
+    const res = handleMcpMessage(db, {
+      jsonrpc: '2.0',
+      id: 9,
+      method: 'tools/call',
+      params: { name: 'get_context', arguments: { sessionId: 'nope' } },
+    }) as any;
+    expect(res.result.isError).toBe(true);
   });
 });

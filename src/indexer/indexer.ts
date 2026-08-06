@@ -2,11 +2,22 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type Database from 'better-sqlite3';
 import { readLines } from '../parser/lineReader.js';
-import { normalizeCodexLine, normalizeLine } from '../parser/normalize.js';
+import {
+  normalizeCodexLine,
+  normalizeCursorCliLine,
+  normalizeCursorIdeEnvelope,
+  normalizeLine,
+} from '../parser/normalize.js';
 import { newCodexState } from '../parser/adapters/codex.js';
 import type { NormalizedRecord } from '../parser/types.js';
 import { computeCost, type ModelPricing } from '../cost/pricing.js';
-import { ADAPTER_VERSION, CODEX_ADAPTER_VERSION } from '../version.js';
+import {
+  ADAPTER_VERSION,
+  CODEX_ADAPTER_VERSION,
+  CURSOR_ADAPTER_VERSION,
+  CURSOR_IDE_ADAPTER_VERSION,
+} from '../version.js';
+import { extractCursorIdeComposers } from './cursorIde.js';
 import { resumeDeepIndex, suspendDeepIndex } from './deepSearch.js';
 
 export interface IndexProgress {
@@ -30,10 +41,24 @@ export interface IndexerOptions {
    * simply off. Read-only, exactly like `~/.claude/projects`.
    */
   codexDir?: string;
+  /**
+   * Cursor CLI transcript root (`~/.cursor/projects`), holding
+   * `<dir-id>/agent-transcripts/<uuid>/<uuid>.jsonl` (+ subagents/).
+   * Same posture: absent = off, read-only always.
+   */
+  cursorCliDir?: string;
+  /**
+   * Cursor IDE user dir (state.vscdb trees). Composers are extracted via
+   * copy-then-read — the originals are never opened — and indexed as virtual
+   * sessions whose file_path is `<vscdb path>#<composerId>`.
+   */
+  cursorIdeUserDir?: string;
   pricingOverrides?: Record<string, Partial<ModelPricing>>;
 }
 
-export type SessionTool = 'claude-code' | 'codex';
+/** 'cursor' covers both Cursor sources — the CLI transcripts and the IDE's
+ *  composers. One agent to the user; the file_path tells them apart. */
+export type SessionTool = 'claude-code' | 'codex' | 'cursor';
 
 /** `/Users/dev/projects/webapp` → `-Users-dev-projects-webapp` — the same
  *  munging CC uses for its project dir names, so a Codex session in the same
@@ -129,11 +154,21 @@ export class Indexer {
     // its subagent transcripts (parent_session_id children) — the same totals
     // older CC versions produced when sidechains were inline records.
     // `model` stays main-file-only, and skips '<synthetic>'-style placeholders.
+    // started/ended fall back to file mtime when messages exist but none
+    // carries a timestamp — Cursor CLI transcripts have no ts at all, and a
+    // NULL started_at would drop the session from every date-ordered view.
+    // A session with no messages keeps NULL: nothing happened at no time.
     this.updateAggregates = db.prepare(
       `WITH family(id) AS (SELECT id FROM sessions WHERE id = @id OR parent_session_id = @id)
        UPDATE sessions SET
-         started_at = (SELECT MIN(ts) FROM messages WHERE session_id IN (SELECT id FROM family) AND ts IS NOT NULL),
-         ended_at   = (SELECT MAX(ts) FROM messages WHERE session_id IN (SELECT id FROM family) AND ts IS NOT NULL),
+         started_at = COALESCE(
+           (SELECT MIN(ts) FROM messages WHERE session_id IN (SELECT id FROM family) AND ts IS NOT NULL),
+           (SELECT strftime('%Y-%m-%dT%H:%M:%fZ', file_mtime_ms / 1000.0, 'unixepoch')
+              WHERE EXISTS (SELECT 1 FROM messages WHERE session_id IN (SELECT id FROM family)))),
+         ended_at   = COALESCE(
+           (SELECT MAX(ts) FROM messages WHERE session_id IN (SELECT id FROM family) AND ts IS NOT NULL),
+           (SELECT strftime('%Y-%m-%dT%H:%M:%fZ', file_mtime_ms / 1000.0, 'unixepoch')
+              WHERE EXISTS (SELECT 1 FROM messages WHERE session_id IN (SELECT id FROM family)))),
          event_count = (SELECT COUNT(*) FROM messages WHERE session_id IN (SELECT id FROM family)),
          input_tokens       = (SELECT COALESCE(SUM(tokens_in), 0) FROM messages WHERE session_id IN (SELECT id FROM family)),
          output_tokens      = (SELECT COALESCE(SUM(tokens_out), 0) FROM messages WHERE session_id IN (SELECT id FROM family)),
@@ -234,7 +269,66 @@ export class Indexer {
       }
     }
     out.push(...(await this.listCodexFiles()));
+    out.push(...(await this.listCursorCliFiles()));
     return out.sort();
+  }
+
+  /**
+   * Cursor CLI transcripts: `<root>/<dir-id>/agent-transcripts/<uuid>/
+   * <uuid>.jsonl` plus `subagents/*.jsonl` beside them. Structured walk, not
+   * a recursive glob — `~/.cursor` also holds extensions and caches that a
+   * blind walk would pointlessly stat.
+   */
+  private async listCursorCliFiles(): Promise<string[]> {
+    const root = this.opts.cursorCliDir;
+    if (!root) return [];
+    const out: string[] = [];
+    let projectDirs: fs.Dirent[];
+    try {
+      projectDirs = await fs.promises.readdir(root, { withFileTypes: true });
+    } catch {
+      return out;
+    }
+    for (const project of projectDirs) {
+      if (!project.isDirectory() || project.name.startsWith('.')) continue;
+      const transcripts = path.join(root, project.name, 'agent-transcripts');
+      let sessionDirs: fs.Dirent[];
+      try {
+        sessionDirs = await fs.promises.readdir(transcripts, { withFileTypes: true });
+      } catch {
+        continue; // project dir without transcripts
+      }
+      for (const session of sessionDirs) {
+        if (!session.isDirectory()) continue;
+        const sessionDir = path.join(transcripts, session.name);
+        let entries: fs.Dirent[];
+        try {
+          entries = await fs.promises.readdir(sessionDir, { withFileTypes: true });
+        } catch {
+          continue;
+        }
+        for (const entry of entries) {
+          if (entry.isFile() && entry.name.endsWith('.jsonl')) {
+            out.push(path.join(sessionDir, entry.name));
+          } else if (entry.isDirectory() && entry.name === 'subagents') {
+            let subs: fs.Dirent[];
+            try {
+              subs = await fs.promises.readdir(path.join(sessionDir, 'subagents'), {
+                withFileTypes: true,
+              });
+            } catch {
+              continue;
+            }
+            for (const sub of subs) {
+              if (sub.isFile() && sub.name.endsWith('.jsonl')) {
+                out.push(path.join(sessionDir, 'subagents', sub.name));
+              }
+            }
+          }
+        }
+      }
+    }
+    return out;
   }
 
   /**
@@ -269,10 +363,12 @@ export class Indexer {
 
   /** Which tool wrote a session file — by which discovery root it lives under. */
   private toolFor(filePath: string): SessionTool {
-    const root = this.opts.codexDir;
-    return root && (filePath === root || filePath.startsWith(root + path.sep))
-      ? 'codex'
-      : 'claude-code';
+    const codex = this.opts.codexDir;
+    if (codex && (filePath === codex || filePath.startsWith(codex + path.sep))) return 'codex';
+    const cursor = this.opts.cursorCliDir;
+    if (cursor && (filePath === cursor || filePath.startsWith(cursor + path.sep)))
+      return 'cursor';
+    return 'claude-code';
   }
 
   async scanAll(onProgress?: (p: IndexProgress) => void): Promise<ScanSummary> {
@@ -297,8 +393,87 @@ export class Indexer {
       }
       done += 1;
     }
+    this.indexCursorIde(summary);
     onProgress?.({ filesTotal: files.length, filesDone: done, currentFile: '' });
     return summary;
+  }
+
+  /**
+   * Index Cursor IDE composers as virtual sessions. The incremental unit is
+   * the composer: its stored file_mtime_ms is the composer's lastUpdatedAt,
+   * so an unchanged composer is one row lookup, and a changed one is a full
+   * cheap re-extract (composers are small). file_path is
+   * `<vscdb path>#<composerId>` — real enough for reveal, unique per session.
+   */
+  private indexCursorIde(summary: ScanSummary): void {
+    const userDir = this.opts.cursorIdeUserDir;
+    if (!userDir) return;
+    let composers;
+    try {
+      composers = extractCursorIdeComposers(userDir);
+    } catch (err) {
+      summary.errors.push({
+        file: userDir,
+        message: err instanceof Error ? err.message : String(err),
+      });
+      return;
+    }
+    for (const composer of composers) {
+      summary.filesSeen += 1;
+      // Composers with no conversation at all (draft panes) would index as
+      // permanently-empty sessions; skip them the way empty files are skipped.
+      if (composer.envelopes.length <= 1) continue;
+      const mtime = composer.lastUpdatedAt ?? composer.createdAt ?? 0;
+      const filePath = `${composer.dbPath}#${composer.composerId}`;
+      const row = this.selByPath.get(filePath) as SessionFileRow | undefined;
+      if (
+        row &&
+        row.adapter_version === CURSOR_IDE_ADAPTER_VERSION &&
+        row.file_mtime_ms === mtime
+      ) {
+        continue;
+      }
+      if (row) this.deleteSessionData(row.id);
+
+      let batch: Array<{ rec: NormalizedRecord; idx: number; dupUsage: boolean }> = [];
+      let firstCwd: string | null = null;
+      let rootUuid: string | null = null;
+      let idx = 0;
+      for (const env of composer.envelopes) {
+        const rec = normalizeCursorIdeEnvelope(env, `${composer.composerId}:${idx}`);
+        if (firstCwd === null && rec.cwd) firstCwd = rec.cwd;
+        if (rootUuid === null && (rec.role === 'user' || rec.role === 'assistant')) {
+          rootUuid = rec.uuid;
+        }
+        batch.push({ rec, idx, dupUsage: false });
+        idx += 1;
+        if (batch.length >= BATCH_SIZE) {
+          this.insertBatchTx(composer.composerId, batch);
+          batch = [];
+        }
+      }
+      if (batch.length > 0) this.insertBatchTx(composer.composerId, batch);
+
+      this.upsertSession.run({
+        id: composer.composerId,
+        projectKey: composer.cwd ? mungeCwd(composer.cwd) : 'cursor-ide',
+        projectPath: composer.cwd,
+        filePath,
+        parentSessionId: null,
+        rootUuid,
+        aiTitle: composer.name,
+        ccTitle: null,
+        tool: 'cursor' satisfies SessionTool,
+        adapterVersion: CURSOR_IDE_ADAPTER_VERSION,
+        offset: 0,
+        mtimeMs: mtime,
+        size: idx,
+        lineCount: idx,
+      });
+      this.updateAggregates.run({ id: composer.composerId });
+      summary.filesIndexed += 1;
+      summary.linesParsed += idx;
+    }
   }
 
   /**
@@ -314,7 +489,12 @@ export class Indexer {
     }
 
     const tool = this.toolFor(filePath);
-    const toolAdapterVersion = tool === 'codex' ? CODEX_ADAPTER_VERSION : ADAPTER_VERSION;
+    const toolAdapterVersion =
+      tool === 'codex'
+        ? CODEX_ADAPTER_VERSION
+        : tool === 'cursor'
+          ? CURSOR_ADAPTER_VERSION
+          : ADAPTER_VERSION;
     let sessionId = path.basename(filePath, '.jsonl');
     const dir = path.dirname(filePath);
     let projectKey = path.basename(dir);
@@ -326,6 +506,18 @@ export class Indexer {
       // munged CC-style so both tools' work on one repo is one project.
       sessionId = ROLLOUT_ID_RE.exec(path.basename(filePath))?.[1] ?? sessionId;
       projectKey = 'codex';
+    } else if (tool === 'cursor') {
+      // <root>/<dir-id>/agent-transcripts/<session>/<session>.jsonl, with
+      // subagents/ one level deeper. <dir-id> is the cwd dash-munged the same
+      // way CC munges its project dirs (minus the leading dash) — normalize
+      // to CC's form so all agents' work on one repo is one project.
+      let sessionDir = dir;
+      if (projectKey === 'subagents') {
+        sessionDir = path.dirname(dir);
+        parentSessionId = path.basename(sessionDir);
+      }
+      const dirId = path.basename(path.dirname(path.dirname(sessionDir)));
+      projectKey = dirId.startsWith('-') ? dirId : `-${dirId}`;
     } else if (projectKey === 'subagents') {
       // <projects>/<project>/<parent-session>/subagents/<agent>.jsonl
       const sessionDir = path.dirname(dir);
@@ -420,7 +612,9 @@ export class Indexer {
       const fallbackId = `${sessionId}:${lineNo}`;
       const rec = codexState
         ? normalizeCodexLine(chunk.text, fallbackId, codexState)
-        : normalizeLine(chunk.text, fallbackId);
+        : tool === 'cursor'
+          ? normalizeCursorCliLine(chunk.text, fallbackId)
+          : normalizeLine(chunk.text, fallbackId);
       lineNo += 1;
       newOffset = chunk.end;
       if (rec) {

@@ -161,6 +161,15 @@ color:var(--tx2);margin-top:10px}
 blockquote.task{margin:10px 0 0;padding:2px 0 2px 14px;border-left:3px solid var(--bg2);
 color:var(--tx1);white-space:pre-wrap;overflow-wrap:anywhere}
 .summary-row{color:var(--tx1);font-style:italic;padding:0 26px}
+details.fold{margin:14px 0}
+details.fold>summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:10px;
+padding:10px 14px;border-radius:12px;background:var(--bg1)}
+details.fold>summary::before{content:"▸";color:var(--tx2);flex:none}
+details.fold[open]>summary::before{content:"▾"}
+details.fold>summary .n{color:var(--tx2);font-variant-numeric:tabular-nums;flex:none}
+details.fold>summary .q{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+details.fold>summary .facts{margin-left:auto;flex:none;color:var(--tx2);font-size:12.5px}
+details.fold>summary .facts .err{color:var(--danger-tx)}
 footer{color:var(--tx2);font-size:12.5px;text-align:center;padding:10px 0 20px}
 footer a{color:var(--tx1)}
 `;
@@ -206,14 +215,37 @@ export function sessionToHtml(
   }
 
   const COMMAND_RE = /<command-name>([^<]*)<\/command-name>/;
-  const body: string[] = [];
+
+  /**
+   * The export mirrors the app's defining structure: the spine. Each prompt
+   * opens a turn that FOLDS — native <details>, no script, so the no-JS
+   * promise holds — with the mechanical summary in the <summary>: the ask,
+   * then tool-call and error counts. A shared 300-turn session reads as 300
+   * scannable lines instead of an unbounded scroll.
+   *
+   * Small sessions ship open (there is nothing to scan past); big ones ship
+   * closed, which is the case the fold exists for.
+   */
+  interface Turn {
+    /** The <summary> line's ask — command chip text or the prompt's first line. */
+    ask: string;
+    isCommand: boolean;
+    parts: string[];
+    tools: number;
+    errors: number;
+  }
+  const turns: Turn[] = [];
+  /** Rows before the first prompt — session prelude, kept flat and rare. */
+  const prelude: string[] = [];
+  const cur = (): Turn | undefined => turns[turns.length - 1];
 
   // Group everything between two prompts into one "claude" card — CC writes
   // one line per content block, and a label per line would be noise.
   let claude: string[] = [];
   const flush = () => {
     if (claude.length === 0) return;
-    body.push(`<section class="turn claude"><div class="label">${agent}</div>${claude.join('\n')}</section>`);
+    const html = `<section class="turn claude"><div class="label">${agent}</div>${claude.join('\n')}</section>`;
+    (cur()?.parts ?? prelude).push(html);
     claude = [];
   };
 
@@ -226,14 +258,24 @@ export function sessionToHtml(
         const content = cmd
           ? `<span class="chip">${esc(cmd)}</span>`
           : `<div class="prose">${esc(red(row.text))}</div>`;
-        body.push(`<section class="turn you"><div class="label">you</div>${content}</section>`);
+        const ask = cmd ?? red(row.text).replace(/\s+/g, ' ').trim().slice(0, 120);
+        turns.push({
+          ask,
+          isCommand: cmd !== undefined,
+          parts: [`<section class="turn you"><div class="label">you</div>${content}</section>`],
+          tools: 0,
+          errors: 0,
+        });
         break;
       }
       case 'tool_result':
         break; // folded under its tool_use
       case 'summary':
         flush();
-        if (row.text) body.push(`<div class="summary-row">Summary: ${esc(red(row.text))}</div>`);
+        if (row.text)
+          (cur()?.parts ?? prelude).push(
+            `<div class="summary-row">Summary: ${esc(red(row.text))}</div>`,
+          );
         break;
       case 'system':
       case 'meta':
@@ -255,6 +297,11 @@ export function sessionToHtml(
         for (const use of view.toolUses) {
           const toolBody = toolBodyHtml(use.name, use.input, red);
           const result = use.id ? resultByUseId.get(use.id) : undefined;
+          const turn = cur();
+          if (turn) {
+            turn.tools++;
+            if (result?.isError) turn.errors++;
+          }
           const parts: string[] = [
             `<details><summary><span class="tdot ${result?.isError ? 'err' : ''}"></span>${esc(red(toolSummary(use.name, use.input)))}</summary>`,
           ];
@@ -272,6 +319,22 @@ export function sessionToHtml(
     }
   }
   flush();
+
+  // ≤8 turns: nothing to scan past, ship them open. More: the fold is the
+  // point — the summary lines ARE the session until a reader opens one.
+  const open = turns.length <= 8 ? ' open' : '';
+  const body: string[] = [...prelude];
+  turns.forEach((t, i) => {
+    const facts: string[] = [];
+    if (t.tools > 0) facts.push(`${t.tools} tool${t.tools === 1 ? '' : 's'}`);
+    if (t.errors > 0) facts.push(`<span class="err">${t.errors} error${t.errors === 1 ? '' : 's'}</span>`);
+    body.push(
+      `<details class="fold"${open}><summary><span class="n">${i + 1}</span>` +
+        `<span class="q">${t.isCommand ? `<span class="chip">${esc(t.ask)}</span>` : esc(t.ask)}</span>` +
+        (facts.length > 0 ? `<span class="facts">${facts.join(' · ')}</span>` : '') +
+        `</summary>${t.parts.join('\n')}</details>`,
+    );
+  });
 
   const footer =
     opts.attribution !== false

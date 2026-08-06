@@ -41,15 +41,27 @@ export function demoDataDir(): string {
  * Both agents, deliberately: the differentiator is one timeline per repo
  * whichever agent you pointed at it, and a single-agent demo hides it.
  */
-export function demoCorpusDir(): { projectsDir: string; codexDir: string } {
-  // dist/config.js at runtime, src/config.ts under tsx — both sit one level
-  // below the package root. fileURLToPath, not URL.pathname: on Windows the
-  // pathname of a file URL is /C:/…, which resolves to a directory that does
-  // not exist — this broke `turnlog demo` (and its test) on the CI matrix.
-  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+/**
+ * The package root (`…/node_modules/turnlog` when npm-installed, the repo
+ * when running from a checkout). dist/config.js at runtime, src/config.ts
+ * under tsx — both sit one level below it. fileURLToPath, not URL.pathname:
+ * on Windows the pathname of a file URL is /C:/…, which resolves to a
+ * directory that does not exist — this broke `turnlog demo` on the matrix.
+ */
+export function packageRoot(): string {
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+}
+
+export function demoCorpusDir(): {
+  projectsDir: string;
+  codexDir: string;
+  cursorCliDir: string;
+} {
+  const root = packageRoot();
   return {
     projectsDir: path.join(root, 'fixtures', 'corpus'),
     codexDir: path.join(root, 'fixtures', 'codex'),
+    cursorCliDir: path.join(root, 'fixtures', 'cursor-cli'),
   };
 }
 
@@ -63,6 +75,34 @@ export function defaultProjectsDir(): string {
  */
 export function defaultCodexDir(): string {
   return process.env.TURNLOG_CODEX_DIR ?? path.join(os.homedir(), '.codex', 'sessions');
+}
+
+/**
+ * Cursor CLI (cursor-agent) transcript root: `~/.cursor/projects/<dir-id>/
+ * agent-transcripts/<uuid>/<uuid>.jsonl`, plus `subagents/*.jsonl` next to
+ * them. Plain JSONL — read-only, same posture as the other roots.
+ */
+export function defaultCursorCliDir(): string {
+  return process.env.TURNLOG_CURSOR_CLI_DIR ?? path.join(os.homedir(), '.cursor', 'projects');
+}
+
+/**
+ * Cursor IDE user-data dir (holds globalStorage/state.vscdb and
+ * workspaceStorage/<hash>/state.vscdb). The DBs are copied to a scratch file
+ * before reading — the originals are never opened, let alone written.
+ */
+export function defaultCursorIdeUserDir(): string {
+  if (process.env.TURNLOG_CURSOR_IDE_DIR) return process.env.TURNLOG_CURSOR_IDE_DIR;
+  if (process.platform === 'win32') {
+    const appData = process.env.APPDATA ?? path.join(os.homedir(), 'AppData', 'Roaming');
+    return path.join(appData, 'Cursor', 'User');
+  }
+  if (process.platform === 'darwin') {
+    return path.join(os.homedir(), 'Library', 'Application Support', 'Cursor', 'User');
+  }
+  const xdg = process.env.XDG_CONFIG_HOME;
+  const base = xdg && xdg.trim() !== '' ? xdg : path.join(os.homedir(), '.config');
+  return path.join(base, 'Cursor', 'User');
 }
 
 /**

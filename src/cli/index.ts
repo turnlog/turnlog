@@ -6,12 +6,16 @@ import readline from 'node:readline';
 import {
   dbPath,
   defaultCodexDir,
+  defaultCursorCliDir,
+  defaultCursorIdeUserDir,
   defaultProjectsDir,
   demoCorpusDir,
   demoDataDir,
   loadSettings,
+  packageRoot,
   serverInfoPath,
 } from '../config.js';
+import { sweepUpdateLeftovers } from './updateCleanup.js';
 import { renderSearch } from './search.js';
 import {
   seedStarterSearches,
@@ -23,9 +27,10 @@ import {
   resolveSessionId,
 } from '../server/api.js';
 import { openDb } from '../indexer/db.js';
+import { runDoctor } from './doctor.js';
 import { Indexer } from '../indexer/indexer.js';
 import { WorkerDriver } from '../indexer/workerDriver.js';
-import { watchProjects } from '../indexer/watcher.js';
+import { watchCursorIde, watchProjects } from '../indexer/watcher.js';
 import { SseHub, startServer } from '../server/server.js';
 import { openBrowser } from './open.js';
 import { checkForUpdate, updateCheckEnabled } from './updateCheck.js';
@@ -51,6 +56,9 @@ Usage:
   turnlog annotations import <file>
                               Merge a previous export back in (additive; the
                               file's pins/names/notes win on conflict)
+  turnlog doctor              Print a diagnostic report for a bug thread:
+                              versions, paths, settings, index facts per
+                              agent, integrity, index-vs-disk drift
   turnlog demo                Run against bundled sample sessions in a scratch
                               index — your own history is never read
   turnlog mcp                 Serve the index as a read-only MCP server (stdio)
@@ -109,17 +117,26 @@ async function main(): Promise<void> {
 
   const command = positionals[0] ?? 'start';
   const projectsDir = path.resolve(values.projects ?? defaultProjectsDir());
-  // Codex sessions ride along when the dir exists — read-only, like ~/.claude.
+  // Other agents' sessions ride along when their dirs exist — read-only,
+  // like ~/.claude. The Cursor IDE dir counts only when it holds the DB.
   const codexDir = fs.existsSync(defaultCodexDir()) ? defaultCodexDir() : undefined;
+  const cursorCliDir = fs.existsSync(defaultCursorCliDir()) ? defaultCursorCliDir() : undefined;
+  const ideCandidate = defaultCursorIdeUserDir();
+  const cursorIdeUserDir = fs.existsSync(
+    path.join(ideCandidate, 'globalStorage', 'state.vscdb'),
+  )
+    ? ideCandidate
+    : undefined;
+  const dirs: SourceDirs = { projectsDir, codexDir, cursorCliDir, cursorIdeUserDir };
 
   switch (command) {
     case 'start':
-      return start(projectsDir, codexDir, {
+      return start(dirs, {
         port: values.port ? Number(values.port) : undefined,
         open: values['no-open'] !== true,
       });
     case 'index':
-      return runIndex(projectsDir, codexDir, values.rebuild === true);
+      return runIndex(dirs, values.rebuild === true);
     case 'export':
       return runExport(positionals[1], {
         noFooter: values['no-footer'] === true,
@@ -136,13 +153,19 @@ async function main(): Promise<void> {
       });
     case 'annotations':
       return runAnnotations(positionals[1], positionals[2]);
+    case 'doctor': {
+      const { text, healthy } = runDoctor(dirs);
+      console.log(text);
+      if (!healthy) process.exitCode = 1;
+      return;
+    }
     case 'demo':
       return runDemo({
         port: values.port ? Number(values.port) : undefined,
         open: values['no-open'] !== true,
       });
     case 'mcp':
-      return runMcp(projectsDir, codexDir);
+      return runMcp(dirs);
     default:
       fail(`Unknown command "${command}". Run turnlog --help.`);
   }
@@ -158,7 +181,7 @@ async function main(): Promise<void> {
  * a temp tree before anything opens the database.
  */
 async function runDemo(opts: { port?: number; open: boolean }): Promise<void> {
-  const { projectsDir, codexDir } = demoCorpusDir();
+  const { projectsDir, codexDir, cursorCliDir } = demoCorpusDir();
   if (!fs.existsSync(projectsDir)) {
     fail(
       `Demo sessions are missing from this install (looked in ${projectsDir}).\n` +
@@ -173,14 +196,22 @@ async function runDemo(opts: { port?: number; open: boolean }): Promise<void> {
 
   console.log('Demo mode — bundled sample sessions, in a scratch index.');
   console.log('Your own history is not read and not touched.\n');
-  return start(projectsDir, codexDir, { ...opts, demo: true });
+  return start({ projectsDir, codexDir, cursorCliDir }, { ...opts, demo: true });
+}
+
+/** The read-only roots one launch indexes. Undefined = that source is off. */
+interface SourceDirs {
+  projectsDir: string;
+  codexDir?: string;
+  cursorCliDir?: string;
+  cursorIdeUserDir?: string;
 }
 
 async function start(
-  projectsDir: string,
-  codexDir: string | undefined,
+  dirs: SourceDirs,
   opts: { port?: number; open: boolean; demo?: boolean },
 ): Promise<void> {
+  const { projectsDir, codexDir, cursorCliDir, cursorIdeUserDir } = dirs;
   if (!opts.demo && !fs.existsSync(projectsDir)) {
     console.warn(
       `Note: ${projectsDir} does not exist yet — no Claude Code sessions found.\n` +
@@ -201,6 +232,8 @@ async function start(
     dbPath: dbFile,
     projectsDir,
     codexDir,
+    cursorCliDir,
+    cursorIdeUserDir,
     pricingOverrides: settings.modelPricing,
   });
 
@@ -241,11 +274,24 @@ async function start(
   console.log(`  UI:       ${url}`);
   console.log(`  Projects: ${projectsDir}`);
   if (codexDir) console.log(`  Codex:    ${codexDir} (read-only)`);
+  if (cursorCliDir) console.log(`  Cursor:   ${cursorCliDir} (read-only)`);
+  if (cursorIdeUserDir)
+    console.log(`  Cursor IDE: ${cursorIdeUserDir} (read-only, copied before reading)`);
   console.log(`  Index:    ${dbFile}`);
   console.log(`  Bound to 127.0.0.1 only — verify with: lsof -iTCP -sTCP:LISTEN | grep node`);
   if (firstRun) {
     console.log('\nFirst run — building the index. This is a one-time pass;');
     console.log('sessions appear in the UI as they are parsed.');
+  }
+
+  // Sweep npm's failed-update droppings (Windows locks the native addon
+  // while an old instance runs; see updateCleanup.ts). By now that old
+  // process is gone, so the leftover dirs finally delete.
+  const swept = sweepUpdateLeftovers(packageRoot());
+  if (swept.length > 0) {
+    console.log(
+      `Cleaned up ${swept.length} leftover director${swept.length === 1 ? 'y' : 'ies'} from a previous npm update.`,
+    );
   }
 
   // Let `turnlog search` print deep links into this instance. Token-bearing,
@@ -305,22 +351,34 @@ async function start(
     () => events.broadcast('indexed', { sessionId: null, at: new Date().toISOString() }),
   );
 
-  // Codex rollouts live under a second root (date-nested, within the
-  // watcher's depth); their session ids come from the filename, so a broad
-  // refresh is the honest broadcast.
+  // Codex rollouts and Cursor CLI transcripts live under further roots
+  // (nested within the watcher's depth); their session ids come from the
+  // filename, so a broad refresh is the honest broadcast.
+  const broadRefresh = (filePath: string) => {
+    driver
+      .indexFile(filePath)
+      .then(() => events.broadcast('indexed', { sessionId: null, at: new Date().toISOString() }))
+      .catch(() => undefined);
+  };
+  const onSourceGone = () =>
+    events.broadcast('indexed', { sessionId: null, at: new Date().toISOString() });
   const stopWatchingCodex = codexDir
-    ? watchProjects(
-        codexDir,
-        (filePath) => {
-          driver
-            .indexFile(filePath)
-            .then(() =>
-              events.broadcast('indexed', { sessionId: null, at: new Date().toISOString() }),
-            )
-            .catch(() => undefined);
-        },
-        () => events.broadcast('indexed', { sessionId: null, at: new Date().toISOString() }),
-      )
+    ? watchProjects(codexDir, broadRefresh, onSourceGone)
+    : null;
+  const stopWatchingCursorCli = cursorCliDir
+    ? watchProjects(cursorCliDir, broadRefresh, onSourceGone)
+    : null;
+  // The IDE's DBs change as one blob — a debounced scan lets the per-composer
+  // freshness check find the few that actually moved.
+  const stopWatchingCursorIde = cursorIdeUserDir
+    ? watchCursorIde(cursorIdeUserDir, () => {
+        driver
+          .scan()
+          .then(() =>
+            events.broadcast('indexed', { sessionId: null, at: new Date().toISOString() }),
+          )
+          .catch(() => undefined);
+      })
     : null;
 
   let shuttingDown = false;
@@ -335,6 +393,8 @@ async function start(
     }
     await stopWatching();
     await stopWatchingCodex?.();
+    await stopWatchingCursorCli?.();
+    await stopWatchingCursorIde?.();
     await driver.close();
     events.close(); // open SSE responses would otherwise block server.close
     server.close();
@@ -345,15 +405,11 @@ async function start(
   process.on('SIGTERM', shutdown);
 }
 
-async function runIndex(
-  projectsDir: string,
-  codexDir: string | undefined,
-  rebuild: boolean,
-): Promise<void> {
+async function runIndex(dirs: SourceDirs, rebuild: boolean): Promise<void> {
   const started = Date.now();
   const db = openDb(dbPath());
   const settings = loadSettings();
-  const indexer = new Indexer(db, { projectsDir, codexDir, pricingOverrides: settings.modelPricing });
+  const indexer = new Indexer(db, { ...dirs, pricingOverrides: settings.modelPricing });
 
   const onProgress = (p: { filesTotal: number; filesDone: number }) => {
     if (process.stdout.isTTY) {
@@ -501,7 +557,7 @@ async function runSearch(
  * MCP server mode: the index as read-only agent memory over stdio.
  * stdout is the protocol channel — every diagnostic here goes to stderr.
  */
-async function runMcp(projectsDir: string, codexDir: string | undefined): Promise<void> {
+async function runMcp(dirs: SourceDirs): Promise<void> {
   const db = openDb(dbPath());
   // The main app may be running and writing; wait out its locks briefly.
   db.pragma('busy_timeout = 5000');
@@ -514,7 +570,7 @@ async function runMcp(projectsDir: string, codexDir: string | undefined): Promis
     // first build belongs to `turnlog index` — MCP clients time out on it.
     try {
       const settings = loadSettings();
-      await new Indexer(db, { projectsDir, codexDir, pricingOverrides: settings.modelPricing }).scanAll();
+      await new Indexer(db, { ...dirs, pricingOverrides: settings.modelPricing }).scanAll();
     } catch (err) {
       console.error(
         `turnlog mcp: index refresh failed (serving the existing index): ${

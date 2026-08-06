@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import {
   getFileHistory,
+  getSessionContext,
   getSession,
   isLens,
   listMessages,
@@ -250,6 +251,46 @@ const TOOLS: McpTool[] = [
           isError: m.isError || undefined,
           text: capText(m.text),
         })),
+      };
+    },
+  },
+  {
+    name: 'get_context',
+    description:
+      'How full the context window was across one session, and where it was compacted. ' +
+      'Call this before trusting a session’s late-conversation memory: work after a compaction ' +
+      'happened with earlier context summarized away, and a window near its limit degrades recall. ' +
+      'Returns response count, peak and final window tokens, and each compaction (message idx + ' +
+      'pre-compaction size) — jump to one with get_messages. ' +
+      'Only sessions whose agent logs a running window total have a curve; for others (e.g. Codex, ' +
+      'which logs per-response deltas) the numbers are null rather than wrong.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sessionId: { type: 'string', description: 'Session id (from search or list_sessions)' },
+      },
+      required: ['sessionId'],
+    },
+    run(db, args) {
+      const id = requireStr(args, 'sessionId');
+      const ctx = getSessionContext(db, id);
+      if (!ctx) throw new Error(`session "${id}" not found`);
+      const peak = ctx.points.reduce((m, p) => Math.max(m, p.context), 0);
+      const last = ctx.points[ctx.points.length - 1];
+      return {
+        sessionId: id,
+        responses: ctx.points.length,
+        peakTokens: ctx.points.length > 0 ? peak : null,
+        finalTokens: last ? last.context : null,
+        compacted: ctx.compactions.length > 0,
+        compactions: ctx.compactions.map((c) => ({
+          idx: c.idx,
+          ts: c.ts ?? undefined,
+          preTokens: c.preTokens ?? undefined,
+        })),
+        ...(ctx.points.length === 0
+          ? { note: 'this agent does not log a running window total — no curve exists' }
+          : {}),
       };
     },
   },

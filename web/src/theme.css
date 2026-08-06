@@ -111,9 +111,14 @@
      never does — one token rather than an -on beside every category. */
   --c-on: #14161b;
 
-  /* Registry: web/src/agents.ts — true brand hues, one per adapter. */
+  /* Registry: web/src/agents.ts — true brand hues, one per adapter. Claude
+     and Codex are theme-invariant; Cursor's brand is MONOCHROME, so its
+     fill/ink pair flips with the theme (white-on-dark here, black-on-light
+     in the light block below) — the pair always travels together. */
   --agent-claude: #de7356; /* Anthropic clay */
   --agent-codex: #10a37f; /* OpenAI green */
+  --agent-cursor: #ffffff;
+  --agent-cursor-on: #14161b;
 
   /* Keycaps. Their own tokens even though the values match --bg2/--bg3/--tx1:
      a key is a raised object, not a control surface, and the pressed edge has
@@ -249,6 +254,11 @@
   /* Flipped: these category hues are saturated, so the glyph on them is white
      where the dark theme's pastels take near-black. */
   --c-on: #ffffff;
+
+  /* Cursor's monochrome brand flips with the theme: black mark/fill on light
+     surfaces, white ink on the fill. (Claude and Codex stay invariant.) */
+  --agent-cursor: #000000;
+  --agent-cursor-on: #ffffff;
 
   /* --danger-fill is theme-invariant and stays at its dark-block value. */
   --success: #2a9760;

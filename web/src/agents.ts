@@ -9,7 +9,7 @@
  * vermilion accent semantics).
  */
 import type { ComponentType } from 'react';
-import { ClaudeMark, OpenAIMark } from './icons';
+import { ClaudeMark, CursorMark, OpenAIMark } from './icons';
 
 export interface AgentInfo {
   /** The `sessions.tool` value the server stamps. */
@@ -30,6 +30,9 @@ const REGISTRY: Record<string, AgentInfo> = {
     Mark: ClaudeMark,
   },
   codex: { id: 'codex', label: 'Codex', colorClass: 'agent-codex', Mark: OpenAIMark },
+  // Covers both Cursor sources (CLI transcripts and IDE composers). The brand
+  // is monochrome: --agent-cursor flips black/white with the theme.
+  cursor: { id: 'cursor', label: 'Cursor', colorClass: 'agent-cursor', Mark: CursorMark },
 };
 
 /**

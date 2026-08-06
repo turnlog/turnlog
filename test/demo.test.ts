@@ -15,9 +15,10 @@ import { testDb, tmpDir } from './helpers.js';
  */
 describe('demo mode', () => {
   it('ships a corpus inside the package', () => {
-    const { projectsDir, codexDir } = demoCorpusDir();
+    const { projectsDir, codexDir, cursorCliDir } = demoCorpusDir();
     expect(fs.existsSync(projectsDir)).toBe(true);
     expect(fs.existsSync(codexDir)).toBe(true);
+    expect(fs.existsSync(cursorCliDir)).toBe(true);
   });
 
   it('is listed in package.json files, or npm would not ship it', () => {
@@ -26,6 +27,7 @@ describe('demo mode', () => {
     ) as { files: string[] };
     expect(pkg.files).toContain('fixtures/corpus');
     expect(pkg.files).toContain('fixtures/codex');
+    expect(pkg.files).toContain('fixtures/cursor-cli');
   });
 
   it('keeps its index out of the real data dir', () => {
@@ -36,16 +38,16 @@ describe('demo mode', () => {
     expect(demoDataDir()).toContain('turnlog-demo');
   });
 
-  it('indexes into sessions worth showing, from both agents', async () => {
-    const { projectsDir, codexDir } = demoCorpusDir();
+  it('indexes into sessions worth showing, from every agent', async () => {
+    const { projectsDir, codexDir, cursorCliDir } = demoCorpusDir();
     const db = testDb(tmpDir('turnlog-demo-'));
-    await new Indexer(db, { projectsDir, codexDir }).scanAll();
+    await new Indexer(db, { projectsDir, codexDir, cursorCliDir }).scanAll();
 
     const { sessions } = listSessions(db, { limit: 100 });
     expect(sessions.length).toBeGreaterThan(0);
     // The differentiator is one timeline whichever agent you pointed at a
     // repo — a single-agent demo hides exactly what makes Turnlog different.
-    expect(new Set(sessions.map((s) => s.tool)).size).toBeGreaterThan(1);
+    expect(new Set(sessions.map((s) => s.tool)).size).toBe(3);
     // Something to actually look at: turns, not just empty shells.
     expect(sessions.some((s) => s.eventCount > 0)).toBe(true);
     db.close();

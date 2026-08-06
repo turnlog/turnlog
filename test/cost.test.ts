@@ -73,6 +73,31 @@ describe('computeCost', () => {
     ).toBeCloseTo(10);
   });
 
+  it('matches OpenAI Codex model families', () => {
+    expect(pricingForModel('gpt-5.6-terra')?.input).toBe(2);
+    expect(pricingForModel('gpt-5.6-terra')?.output).toBe(12);
+    expect(pricingForModel('gpt-5.6-sol')?.input).toBe(5);
+    expect(pricingForModel('gpt-5.6-luna')?.output).toBeCloseTo(1.2);
+    expect(pricingForModel('gpt-5.3-codex')?.output).toBe(14);
+    expect(pricingForModel('gpt-5-codex')?.input).toBe(1.25);
+    expect(pricingForModel('gpt-5.1-codex-max')?.input).toBe(1.25);
+    expect(pricingForModel('gpt-5-mini')?.input).toBe(0.25);
+    expect(pricingForModel('o4-mini')?.input).toBeCloseTo(1.1);
+    expect(pricingForModel('o3')?.input).toBe(2);
+    expect(pricingForModel('gpt-4.1')?.output).toBe(8);
+  });
+
+  it('prices OpenAI caching by era: 10% reads for gpt-5.x, free writes before', () => {
+    expect(pricingForModel('gpt-5.6-terra')?.cacheRead).toBeCloseTo(0.2);
+    expect(pricingForModel('gpt-5.6-terra')?.cacheWrite5m).toBeCloseTo(2.5);
+    expect(pricingForModel('o3')?.cacheRead).toBe(0.5);
+    expect(pricingForModel('o3')?.cacheWrite5m).toBe(0);
+    expect(pricingForModel('gpt-4.1')?.cacheWrite5m).toBe(0);
+    expect(
+      computeCost(usage({ model: 'gpt-5.6-terra', tokensIn: 500_000, tokensOut: 250_000 })),
+    ).toBeCloseTo(0.5 * 2 + 0.25 * 12);
+  });
+
   it('applies user pricing overrides and re-derives cache rates', () => {
     const overrides = { 'claude-opus-4-8': { input: 2, output: 8 } };
     expect(computeCost(usage({ tokensIn: 1_000_000 }), overrides)).toBeCloseTo(2);

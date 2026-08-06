@@ -3760,11 +3760,18 @@ kbd {
 .calendar-block:not(.mode-agent).agent-codex:not(.tier-bar) {
   box-shadow: inset 3px 0 0 var(--agent-codex);
 }
+.calendar-block:not(.mode-agent).agent-cursor:not(.tier-bar) {
+  box-shadow: inset 3px 0 0 var(--agent-cursor);
+}
 .calendar-block.mode-agent.agent-claude {
   background: var(--agent-claude);
 }
 .calendar-block.mode-agent.agent-codex {
   background: var(--agent-codex);
+}
+.calendar-block.mode-agent.agent-cursor {
+  background: var(--agent-cursor);
+  color: var(--agent-cursor-on);
 }
 .calendar-block.mode-agent.agent-unknown {
   background: var(--bg3);
@@ -3776,6 +3783,9 @@ kbd {
 }
 .tile-dot.agent-codex {
   background: var(--agent-codex);
+}
+.tile-dot.agent-cursor {
+  background: var(--agent-cursor);
 }
 .tile-dot.agent-unknown {
   background: var(--bg3);
