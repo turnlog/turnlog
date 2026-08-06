@@ -1,9 +1,10 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import Database from 'better-sqlite3';
 import { extractCursorIdeComposers } from '../src/indexer/cursorIde.js';
-import { Indexer } from '../src/indexer/indexer.js';
+import { Indexer, mungeCwd } from '../src/indexer/indexer.js';
 import {
   getSession,
   getSessionFilePath,
@@ -17,7 +18,11 @@ import { testDb, tmpDir } from './helpers.js';
 const MODERN = 'aaaa0000-1111-4222-8333-444455556666';
 const LEGACY = 'bbbb0000-1111-4222-8333-444455556666';
 const DRAFT = 'cccc0000-1111-4222-8333-444455556666';
-const WS_FOLDER = '/Users/dev/projects/webapp';
+// Platform-shaped on purpose: a drive-letter-less file:// URL throws in
+// fileURLToPath on Windows, which is exactly what real Cursor never writes
+// there — the fixture must look like the platform's own workspace.json.
+const WS_FOLDER =
+  process.platform === 'win32' ? 'C:\\Users\\dev\\projects\\webapp' : '/Users/dev/projects/webapp';
 
 /**
  * Build a synthetic Cursor IDE user dir with the shapes observed on real
@@ -117,7 +122,7 @@ function buildCursorUserDir(): string {
   fs.mkdirSync(wsDir, { recursive: true });
   fs.writeFileSync(
     path.join(wsDir, 'workspace.json'),
-    JSON.stringify({ folder: `file://${WS_FOLDER}` }),
+    JSON.stringify({ folder: pathToFileURL(WS_FOLDER).href }),
   );
   const ws = new Database(path.join(wsDir, 'state.vscdb'));
   ws.exec(`CREATE TABLE ItemTable (key TEXT PRIMARY KEY, value TEXT)`);
@@ -187,7 +192,7 @@ describe('cursor ide indexing', () => {
     const s = getSession(db, MODERN)!;
     expect(s.tool).toBe('cursor');
     expect(s.aiTitle).toBe('Cap websocket reconnect backoff');
-    expect(s.projectKey).toBe('-Users-dev-projects-webapp');
+    expect(s.projectKey).toBe(mungeCwd(WS_FOLDER));
     expect(s.startedAt).toBe(new Date(1754300000000).toISOString());
     expect(s.endedAt).toBe(new Date(1754303600000).toISOString());
   });
