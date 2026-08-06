@@ -27,16 +27,19 @@ jobs:
         if: failure()
         shell: bash
         run: |
+          # The log dir is platform-specific (%LOCALAPPDATA%\npm-cache on
+          # Windows) — ask npm instead of guessing.
+          LOGDIR="$(npm config get cache)/_logs"
           node -e "
-            const fs = require('fs'), os = require('os'), path = require('path');
-            const dir = path.join(os.homedir(), '.npm', '_logs');
+            const fs = require('fs'), path = require('path');
+            const dir = process.argv[1];
             let files = [];
             try { files = fs.readdirSync(dir).map((f) => path.join(dir, f)).sort(); } catch {}
             const log = files.pop();
-            if (!log) process.exit(0);
-            const tail = fs.readFileSync(log, 'utf8').split(/\r?\n/).slice(-40).join('%0A');
+            if (!log) { console.log('::error::no npm log found in ' + dir); process.exit(0); }
+            const tail = fs.readFileSync(log, 'utf8').split(/\r?\n/).slice(-60).join('%0A');
             console.log('::error title=npm log tail::' + tail);
-          "
+          " "$LOGDIR"
       # better-sqlite3 v13 bundles its prebuilds inside the tarball (no
       # install script, nothing fetched at install time). Verify the binary
       # for this runner's platform actually shipped and loads, with no
