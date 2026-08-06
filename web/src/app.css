@@ -3771,6 +3771,7 @@ kbd {
 }
 .calendar-block.mode-agent.agent-cursor {
   background: var(--agent-cursor);
+  color: var(--agent-cursor-on);
 }
 .calendar-block.mode-agent.agent-unknown {
   background: var(--bg3);

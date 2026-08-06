@@ -39,6 +39,12 @@ All notable changes to Turnlog are documented here. The format follows
   touch an index, so it is safe to run against a broken one (and exits
   non-zero if the integrity check fails, for scripts).
 
+### Changed
+
+- Agent badges wear the official brand marks — Claude, OpenAI, and Cursor —
+  on one 24×24 grid. Cursor's mark is monochrome by brand, so it and its
+  badge flip with the theme: black on light, white on dark.
+
 ### Fixed
 
 - Updating on Windows could leave the old install behind as a
