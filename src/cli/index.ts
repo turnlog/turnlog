@@ -12,8 +12,10 @@ import {
   demoCorpusDir,
   demoDataDir,
   loadSettings,
+  packageRoot,
   serverInfoPath,
 } from '../config.js';
+import { sweepUpdateLeftovers } from './updateCleanup.js';
 import { renderSearch } from './search.js';
 import {
   seedStarterSearches,
@@ -280,6 +282,16 @@ async function start(
   if (firstRun) {
     console.log('\nFirst run — building the index. This is a one-time pass;');
     console.log('sessions appear in the UI as they are parsed.');
+  }
+
+  // Sweep npm's failed-update droppings (Windows locks the native addon
+  // while an old instance runs; see updateCleanup.ts). By now that old
+  // process is gone, so the leftover dirs finally delete.
+  const swept = sweepUpdateLeftovers(packageRoot());
+  if (swept.length > 0) {
+    console.log(
+      `Cleaned up ${swept.length} leftover director${swept.length === 1 ? 'y' : 'ies'} from a previous npm update.`,
+    );
   }
 
   // Let `turnlog search` print deep links into this instance. Token-bearing,

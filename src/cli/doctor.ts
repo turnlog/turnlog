@@ -1,8 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
-import { dataDir, loadSettings } from '../config.js';
+import { dataDir, loadSettings, packageRoot } from '../config.js';
 import { sessionFileOnDisk } from '../server/api.js';
+import { findUpdateLeftovers } from './updateCleanup.js';
 import {
   ADAPTER_VERSION,
   APP_VERSION,
@@ -88,6 +89,15 @@ export function runDoctor(dirs: {
   out('cursor cli dir', cursorCliDir ? cursorCliDir : '(none — ~/.cursor/projects not present)');
   out('cursor ide dir', cursorIdeUserDir ? cursorIdeUserDir : '(none — no state.vscdb found)');
   out('settings', fs.existsSync(settingsPath) ? settingsPath : '(none — defaults)');
+  // Doctor reports, never deletes (strictly read-only) — the sweep itself
+  // runs on `turnlog` start.
+  const leftovers = findUpdateLeftovers(packageRoot());
+  if (leftovers.length > 0) {
+    out(
+      'update leftovers',
+      `${leftovers.map((p) => path.basename(p)).join(', ')} — start turnlog once to clean up`,
+    );
+  }
   // settings.json holds no secrets by design (pricing rates, booleans, an
   // editor command template) — echo it verbatim so a report shows the real
   // config instead of the user's paraphrase of it.

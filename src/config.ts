@@ -41,16 +41,23 @@ export function demoDataDir(): string {
  * Both agents, deliberately: the differentiator is one timeline per repo
  * whichever agent you pointed at it, and a single-agent demo hides it.
  */
+/**
+ * The package root (`…/node_modules/turnlog` when npm-installed, the repo
+ * when running from a checkout). dist/config.js at runtime, src/config.ts
+ * under tsx — both sit one level below it. fileURLToPath, not URL.pathname:
+ * on Windows the pathname of a file URL is /C:/…, which resolves to a
+ * directory that does not exist — this broke `turnlog demo` on the matrix.
+ */
+export function packageRoot(): string {
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+}
+
 export function demoCorpusDir(): {
   projectsDir: string;
   codexDir: string;
   cursorCliDir: string;
 } {
-  // dist/config.js at runtime, src/config.ts under tsx — both sit one level
-  // below the package root. fileURLToPath, not URL.pathname: on Windows the
-  // pathname of a file URL is /C:/…, which resolves to a directory that does
-  // not exist — this broke `turnlog demo` (and its test) on the CI matrix.
-  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const root = packageRoot();
   return {
     projectsDir: path.join(root, 'fixtures', 'corpus'),
     codexDir: path.join(root, 'fixtures', 'codex'),

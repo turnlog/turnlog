@@ -61,6 +61,15 @@ URL, not just `127.0.0.1:<port>`.
   port-forwarding from a remote machine: `ssh -L 52431:127.0.0.1:52431 …`).
 - `Ctrl-C` stops the server.
 
+### Updating on Windows
+
+If `npm i -g turnlog@latest` prints an `EPERM … better_sqlite3.node` cleanup
+warning, the update still succeeded: a running Turnlog (or the MCP process
+your agent keeps alive) had the old native module loaded, and Windows won't
+delete a loaded library. npm leaves the old copy behind as a
+`.turnlog-<random>` directory — Turnlog removes it automatically the next
+time it starts, once nothing is holding the old file.
+
 ## What it does
 
 - **Every agent, one history** — Claude Code, OpenAI Codex, and Cursor
