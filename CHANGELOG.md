@@ -4,6 +4,18 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Screenshots you shared with an agent now show in the replay. The images
+  were always in your logs — and in the index — but the replay only ever
+  said "[image]"; they render as thumbnails you click to enlarge, both the
+  ones you pasted into a prompt and the ones a tool handed back. Decoded
+  from the record you already have: nothing is fetched, nothing new is
+  stored, and a payload whose type can't be verified is still shown as text
+  rather than dropped.
+
 ## [0.11.0] — 2026-08-06
 
 ### Added

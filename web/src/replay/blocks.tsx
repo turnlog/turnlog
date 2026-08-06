@@ -13,7 +13,7 @@ import type { ChildSessionSummary, MessageRow } from '../types';
 import { BookmarkContext, type BookmarkState } from './bookmarkContext';
 import { ChildSessionsContext, matchChildSession } from './childSessions';
 import { EditDiff, WriteDiff } from './DiffView';
-import { parseRaw, prettyRaw, type ToolResultView } from './raw';
+import { parseRaw, prettyRaw, type ImageView, type ToolResultView } from './raw';
 import { buildChildBlocks, type Block } from './thread';
 
 /* ── shared bits ─────────────────────────────────────────────────────── */
@@ -45,6 +45,36 @@ function ClampedText({ text, mono = true }: { text: string; mono?: boolean }) {
   );
 }
 
+/**
+ * Images the log carried inline — a pasted screenshot, or one a tool
+ * returned. Thumbnails until clicked, so a session full of screenshots still
+ * scrolls; the bytes are already in the record, decoded here as a data: URI.
+ * Nothing is fetched, and nothing is written — same promise as every pixel
+ * in this app.
+ */
+function Thumbs({ images, label }: { images: ImageView[]; label: string }) {
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
+  if (images.length === 0) return null;
+  return (
+    <div className="thumbs">
+      {images.map((img, i) => {
+        const open = openIdx === i;
+        return (
+          <button
+            key={i}
+            className={`thumb ${open ? 'open' : ''}`}
+            onClick={() => setOpenIdx(open ? null : i)}
+            title={open ? 'Click to shrink' : 'Click to view full size'}
+          >
+            <img src={img.src} alt={`${label}${images.length > 1 ? ` ${i + 1}` : ''}`} loading="lazy" />
+            <span className="thumb-size">{Math.max(1, Math.round(img.bytes / 1024))} KB</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function RawDetails({ raw }: { raw: string }) {
   const [open, setOpen] = useState(false);
   return (
@@ -65,6 +95,7 @@ const STDOUT_RE = /<local-command-stdout>([\s\S]*?)<\/local-command-stdout>/;
 const PromptBlock = memo(function PromptBlock({ row }: { row: MessageRow }) {
   const command = COMMAND_RE.exec(row.text)?.[1]?.trim();
   const stdout = STDOUT_RE.exec(row.text)?.[1]?.trim();
+  const { images } = parseRaw(row);
 
   return (
     <div className="block block-user">
@@ -78,8 +109,9 @@ const PromptBlock = memo(function PromptBlock({ row }: { row: MessageRow }) {
           {stdout && stdout !== '' && <ClampedText text={stdout} />}
         </div>
       ) : (
-        <ClampedText text={row.text} />
+        row.text !== '' && <ClampedText text={row.text} />
       )}
+      <Thumbs images={images} label="pasted image" />
     </div>
   );
 });
@@ -244,14 +276,16 @@ function ResultBody({ result }: { result: MessageRow }) {
   const first: ToolResultView | undefined = view.toolResults[0];
   const text = first?.text !== undefined && first.text !== '' ? first.text : result.text;
   const isError = first?.isError === true;
+  const images = first?.images ?? [];
   return (
     <div className={`tool-result ${isError ? 'error' : ''}`}>
       <div className="tool-result-label">{isError ? 'result · error' : 'result'}</div>
-      {text === '' ? (
+      {text === '' && images.length === 0 ? (
         <div className="tool-note">(empty)</div>
       ) : (
-        <ClampedText text={text} />
+        text !== '' && <ClampedText text={text} />
       )}
+      <Thumbs images={images} label="tool screenshot" />
     </div>
   );
 }

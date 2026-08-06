@@ -1483,6 +1483,62 @@
   color: var(--tx1);
   word-break: break-all;
 }
+/* Inline images (pasted screenshots, tool captures). Thumbnails until
+   clicked: a session full of screenshots has to stay scrollable, and the
+   virtualizer measures rows, so growth must come from a click and not from
+   an image finishing its decode. The checkerboard reads through transparent
+   PNGs, which are otherwise invisible on either theme. */
+.thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.thumb {
+  position: relative;
+  display: block;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background:
+    repeating-conic-gradient(var(--bg2) 0% 25%, var(--bg1) 0% 50%) 50% / 14px 14px;
+  cursor: zoom-in;
+  transition: border-color 0.15s ease;
+}
+.thumb:hover {
+  border-color: var(--tx2);
+}
+.thumb.open {
+  cursor: zoom-out;
+}
+.thumb img {
+  display: block;
+  max-height: 180px;
+  max-width: 100%;
+  border-radius: calc(var(--radius-sm) - 3px);
+}
+.thumb.open img {
+  max-height: none;
+}
+.thumb-size {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+  line-height: 1.4;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.thumb:hover .thumb-size,
+.thumb:focus-visible .thumb-size {
+  opacity: 1;
+}
+
 .tool-result {
   border-top: 1px dashed var(--line-soft);
   padding-top: 6px;
