@@ -6,7 +6,24 @@ All notable changes to Turnlog are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Codex tool output was missing from the index entirely.** Codex writes a
+  tool's result as a list of text blocks, a shape the adapter did not read,
+  so every `exec` result was stored with empty search text — command output,
+  file contents, test results, none of it findable. It is indexed now, and
+  the next scan after updating repairs existing indexes automatically.
+
 ### Added
+
+- **Codex and Cursor sessions replay as richly as Claude Code ones.** Their
+  tool calls now show what they actually ran (Codex's `exec` as highlighted
+  code, Cursor's tools with their real arguments) and pair with their
+  results; Codex reasoning becomes a collapsible thinking block. The replay
+  used to understand only Claude Code's record shape and fall back to plain
+  text for everyone else — it now recognises each agent from the record
+  itself, and an unfamiliar shape still degrades to plain text rather than
+  breaking.
 
 - A **bookmarks page** (`#/bookmarks`, or ⌘K → Bookmarks): every moment you
   ever marked, across every session, newest first — filter them, and click

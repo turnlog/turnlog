@@ -94,6 +94,23 @@ describe('codex indexing', () => {
     expect(ctx.compactions).toHaveLength(0);
   });
 
+  it('indexes tool output that arrives as a list of text blocks', () => {
+    // The common shape on real rollouts. It used to index as empty text —
+    // asRecord() rejects arrays — so everything an exec printed was
+    // unsearchable. Searchability is the assertion that matters.
+    const row = db
+      .prepare(
+        `SELECT text FROM messages WHERE session_id = ? AND tool_use_id = 'call_003'
+           AND kind = 'tool_result'`,
+      )
+      .get(CODEX_SESSION) as { text: string };
+    expect(row.text).toContain('Wall time');
+    expect(row.text).toContain('75b809e reconnect backoff groundwork');
+
+    const hit = searchMessages(db, { query: 'reconnect backoff groundwork' });
+    expect(hit.groups.map((g) => g.session.id)).toContain(CODEX_SESSION);
+  });
+
   it('keeps world_state and friends under the cardinal rule', () => {
     const unknown = db
       .prepare(

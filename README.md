@@ -91,6 +91,9 @@ time it starts, once nothing is holding the old file.
   links into the running UI. Search `is:error` and you also get **recurring
   failures**: the same error grouped across runs, ranked by how many sessions
   hit it — "this happened in 13 sessions across 3 projects".
+- **Rich replay, every agent** — tool calls show the command or arguments
+  they actually ran and pair with their output, and thinking folds away,
+  whichever agent wrote the session.
 - **Turn spine** — a 5,000-message session collapses to ten scannable turns,
   each with a mechanical summary (reads, edits, commands, errors). Any prompt
   copies with one click, because finding what you asked is usually the first

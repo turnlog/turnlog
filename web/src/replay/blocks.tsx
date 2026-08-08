@@ -231,7 +231,21 @@ function TodoList({ todos }: { todos: unknown[] }) {
   );
 }
 
-function ToolBody({ name, input }: { name: string; input: Record<string, unknown> }) {
+function ToolBody({
+  name,
+  input,
+  body,
+}: {
+  name: string;
+  input: Record<string, unknown>;
+  /** Free-form call body (Codex exec's JavaScript) — code, not arguments. */
+  body?: string;
+}) {
+  // A call whose payload is a snippet reads as the snippet, not as a JSON
+  // string with escaped newlines.
+  if (body !== undefined && body !== '') {
+    return <CodeBlock code={body} langHint="javascript" />;
+  }
   switch (name) {
     case 'Bash': {
       const cmd = str(input.command);
@@ -477,7 +491,14 @@ const ToolBlockView = memo(function ToolBlockView({
   const use = useMemo(
     () =>
       view.toolUses.find((t) => t.id === block.use.toolUseId) ??
-      view.toolUses[0] ?? { id: null, name: block.use.toolName ?? 'tool', input: {} },
+      view.toolUses[0] ?? {
+        id: null,
+        name: block.use.toolName ?? 'tool',
+        input: {},
+        // Nothing structured to show: fall back to the indexed text, which
+        // for an unrecognized agent is the whole call.
+        body: block.use.text || undefined,
+      },
     [view, block.use.toolUseId, block.use.toolName],
   );
   const isOpen = open || forceOpen;
@@ -512,7 +533,7 @@ const ToolBlockView = memo(function ToolBlockView({
       </button>
       {isOpen && (
         <div className="tool-body">
-          <ToolBody name={use.name} input={use.input} />
+          <ToolBody name={use.name} input={use.input} body={use.body} />
           {block.result && <ResultBody result={block.result} />}
           <RawDetails raw={block.use.raw} />
         </div>

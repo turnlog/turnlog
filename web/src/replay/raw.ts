@@ -12,6 +12,12 @@ export interface ToolUseView {
   id: string | null;
   name: string;
   input: Record<string, unknown>;
+  /**
+   * The call's own body when it is free-form rather than key/value — Codex's
+   * `exec` carries a snippet of JavaScript, not arguments. Rendered as code;
+   * `input` stays the structured half.
+   */
+  body?: string;
 }
 
 /** A base64 image carried inline by the log — a pasted screenshot, or one a
@@ -138,9 +144,176 @@ export function parseRaw(row: MessageRow): RawView {
   return view;
 }
 
+/** A fresh, empty view — never the shared EMPTY, which callers mutate. */
+function newView(): RawView {
+  return { textParts: [], thinkingParts: [], toolUses: [], toolResults: [], images: [] };
+}
+
+/** Parse a JSON string into an object, or null. Tool arguments arrive as
+ *  strings from every agent that is not Claude Code. */
+function parseObject(v: unknown): Record<string, unknown> | null {
+  if (typeof v !== 'string' || v.trim() === '') return null;
+  try {
+    const parsed = JSON.parse(v);
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Which agent wrote this record, from the record's own shape.
+ *
+ * The same posture the server-side parser takes (RawLine → VersionSniffer →
+ * Adapter), and more robust than threading the session's agent down through
+ * the component tree: a record renders correctly wherever it is shown. An
+ * unrecognized shape falls through to the Claude Code reader, which itself
+ * degrades to the indexed plain text — the cardinal rule, on the UI side.
+ */
 function extract(record: unknown): RawView {
   const rec = asRecord(record);
   if (!rec) return EMPTY;
+  if (rec.source === 'cursor-ide') return extractCursorIde(rec);
+  if (asRecord(rec.payload) !== null && typeof rec.type === 'string') return extractCodex(rec);
+  // Claude Code — and Cursor CLI, whose transcripts are the same shape.
+  return extractClaude(rec);
+}
+
+/**
+ * Codex rollout records: `{timestamp, type, payload}`. Reasoning becomes a
+ * thinking block, tool calls carry their arguments, outputs pair back by
+ * call_id — the same structure the replay already draws for Claude Code.
+ */
+function extractCodex(rec: Record<string, unknown>): RawView {
+  const view = newView();
+  const payload = asRecord(rec.payload);
+  if (!payload) return view;
+  const type = payload.type;
+
+  switch (type) {
+    case 'agent_message':
+    case 'user_message': {
+      const text = payload.message ?? payload.text;
+      if (typeof text === 'string' && text !== '') view.textParts.push(text);
+      return view;
+    }
+    case 'reasoning': {
+      // summary is a list of {text} blocks; often empty, since Codex only
+      // records a summary when the model produced one.
+      const summary = Array.isArray(payload.summary) ? payload.summary : [];
+      for (const part of summary) {
+        const text = asRecord(part)?.text;
+        if (typeof text === 'string' && text !== '') view.thinkingParts.push(text);
+      }
+      return view;
+    }
+    case 'custom_tool_call':
+    case 'function_call':
+    case 'local_shell_call': {
+      const raw = payload.input ?? payload.arguments;
+      const structured = parseObject(raw);
+      view.toolUses.push({
+        id: typeof payload.call_id === 'string' ? payload.call_id : null,
+        name: typeof payload.name === 'string' ? payload.name : String(type),
+        input: structured ?? {},
+        // exec calls carry JavaScript, not arguments — keep it as code.
+        ...(structured === null && typeof raw === 'string' && raw !== ''
+          ? { body: raw }
+          : {}),
+      });
+      return view;
+    }
+    case 'custom_tool_call_output':
+    case 'function_call_output': {
+      const output = payload.output;
+      // Three shapes on real rollouts: a plain string, a list of
+      // {type:'input_text', text} blocks (the common one), or an object.
+      let text = '';
+      if (typeof output === 'string') {
+        text = output;
+      } else if (Array.isArray(output)) {
+        text = output
+          .map((b) => {
+            const part = asRecord(b);
+            return typeof part?.text === 'string' ? part.text : '';
+          })
+          .filter(Boolean)
+          .join('\n');
+      } else {
+        const out = asRecord(output);
+        const inner = out?.output ?? out?.content;
+        if (typeof inner === 'string') text = inner;
+      }
+      view.toolResults.push({
+        toolUseId: typeof payload.call_id === 'string' ? payload.call_id : null,
+        text,
+        isError: asRecord(output)?.success === false,
+        images: [],
+      });
+      return view;
+    }
+    default:
+      return view; // token_count, session_meta, world_state — nothing to draw
+  }
+}
+
+/**
+ * Cursor IDE envelopes, built by the extractor that reads the IDE's own
+ * database: `{source, t, data}`. A `bubble` is one message; its
+ * `toolFormerData` is the call, split out as a `bubble_result` for pairing.
+ */
+function extractCursorIde(rec: Record<string, unknown>): RawView {
+  const view = newView();
+  const data = asRecord(rec.data);
+  if (!data) return view;
+
+  if (rec.t === 'bubble_result') {
+    const tf = asRecord(data.toolFormerData) ?? {};
+    const status = tf.status;
+    view.toolResults.push({
+      toolUseId: typeof tf.toolCallId === 'string' ? tf.toolCallId : null,
+      text: typeof tf.result === 'string' ? tf.result : '',
+      isError: typeof status === 'string' && /error|fail/i.test(status),
+      images: [],
+    });
+    return view;
+  }
+
+  const tf = asRecord(data.toolFormerData);
+  if (tf) {
+    // rawArgs is what the model actually sent; params is Cursor's expanded
+    // form. Prefer the former, fall back to the latter.
+    const input = parseObject(tf.rawArgs) ?? parseObject(tf.params);
+    view.toolUses.push({
+      id: typeof tf.toolCallId === 'string' ? tf.toolCallId : null,
+      name: typeof tf.name === 'string' ? tf.name : 'tool',
+      input: input ?? {},
+    });
+    return view;
+  }
+
+  if (typeof data.text === 'string' && data.text !== '') view.textParts.push(data.text);
+  const thinking = asRecord(data.thinking)?.text ?? data.thinking;
+  if (typeof thinking === 'string' && thinking !== '') view.thinkingParts.push(thinking);
+  const blocks = Array.isArray(data.allThinkingBlocks) ? data.allThinkingBlocks : [];
+  for (const b of blocks) {
+    const text = asRecord(b)?.text;
+    if (typeof text === 'string' && text !== '') view.thinkingParts.push(text);
+  }
+  // Pasted images live on the bubble itself.
+  const images = Array.isArray(data.images) ? data.images : [];
+  for (const img of images) {
+    const part = asRecord(img);
+    if (!part) continue;
+    const image = toImage(part);
+    if (image) view.images.push(image);
+  }
+  return view;
+}
+
+function extractClaude(rec: Record<string, unknown>): RawView {
   const message = asRecord(rec.message);
   const content = message?.content ?? rec.content;
 

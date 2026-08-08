@@ -190,6 +190,12 @@ export function normalizeCodex(
           const output = payload?.output;
           if (typeof output === 'string') {
             rec.text = output;
+          } else if (Array.isArray(output)) {
+            // The common shape on real rollouts: a list of
+            // {type:'input_text', text} blocks. Missing this left every
+            // exec result with EMPTY search text — a tool's whole output
+            // unfindable — because asRecord() rejects arrays.
+            rec.text = contentText(output);
           } else {
             const out = asRecord(output);
             rec.text = str(out?.output) ?? str(out?.content) ?? '';

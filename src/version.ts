@@ -15,8 +15,10 @@ export const ADAPTER_VERSION = 4;
  * tool's adapter must not reindex the other tool's files.
  * v2: no normalization change — reindex reprices rows now that the pricing
  * table covers OpenAI models (costs are baked in at index time).
+ * v3: tool output arrives as a list of text blocks on real rollouts, which
+ * the adapter dropped — every exec result indexed with empty search text.
  */
-export const CODEX_ADAPTER_VERSION = 2;
+export const CODEX_ADAPTER_VERSION = 3;
 
 /** Version of the Cursor CLI (agent-transcripts JSONL) adapter. */
 export const CURSOR_ADAPTER_VERSION = 1;
