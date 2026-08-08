@@ -8,6 +8,14 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Added
 
+- Diffs can be read **side by side**: a unified | split toggle sits wherever
+  diffs are the point — the replay's diffs lens and the file-history screen —
+  and every diff in the app follows the choice, which is remembered between
+  launches. Unified stays the default.
+
+- A **copy button on every prompt**, on hover. Finding what you asked three
+  weeks ago is usually the first half of asking it again.
+
 - Every repo now has a page: **one place per project**, with every agent's
   sessions interleaved newest-first, who worked there and how much, what it
   cost, the files it touched most, its tags, and a live row when something

@@ -7,7 +7,7 @@ import { fmtTime } from '../format';
 import { CodeFileIcon } from '../icons';
 import { filesHash, navigate, sessionHash } from '../router';
 import type { MessageRow } from '../types';
-import { EditDiff, WriteDiff } from './DiffView';
+import { DiffModeToggle, EditDiff, WriteDiff } from './DiffView';
 import { parseRaw } from './raw';
 import { buildBlocks, type Block } from './thread';
 
@@ -200,6 +200,7 @@ export default function FilesView({ sessionId }: { sessionId: string }) {
           >
             history across sessions ↗
           </a>
+          <DiffModeToggle />
         </div>
         <div className="file-diffs-body">
           {current.edits.map((edit, i) => (

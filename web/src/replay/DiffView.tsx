@@ -1,13 +1,16 @@
 import { useMemo, useState } from 'react';
 import { structuredPatch } from 'diff';
+import Segmented from '../components/Segmented';
+import { setPref, usePref } from '../prefs';
+import { toSplitRows, type DiffLine } from './splitDiff';
 
 const COLLAPSED_LINES = 24;
 
-interface DiffLine {
-  type: 'add' | 'del' | 'ctx' | 'hunk';
-  text: string;
-  oldNo: number | null;
-  newNo: number | null;
+/** 'split' puts before and after side by side; unified is the default. */
+export type DiffMode = 'unified' | 'split';
+
+export function useDiffMode(): DiffMode {
+  return usePref('diffMode') === 'split' ? 'split' : 'unified';
 }
 
 function patchToLines(oldStr: string, newStr: string, path: string): DiffLine[] {
@@ -50,27 +53,65 @@ export function DiffStats({ lines }: { lines: DiffLine[] }) {
   );
 }
 
+function UnifiedRows({ lines }: { lines: DiffLine[] }) {
+  return (
+    <table>
+      <tbody>
+        {lines.map((line, i) => (
+          <tr key={i} className={`diff-${line.type}`}>
+            <td className="diff-no">{line.oldNo ?? ''}</td>
+            <td className="diff-no">{line.newNo ?? ''}</td>
+            <td className="diff-sign">
+              {line.type === 'add' ? '+' : line.type === 'del' ? '−' : ''}
+            </td>
+            <td className="diff-text">{line.text}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function SplitRows({ lines }: { lines: DiffLine[] }) {
+  const rows = useMemo(() => toSplitRows(lines), [lines]);
+  return (
+    <table className="diff-split">
+      <tbody>
+        {rows.map((row, i) =>
+          row.hunk !== undefined ? (
+            <tr key={i} className="diff-hunk">
+              <td className="diff-no" />
+              <td className="diff-text" colSpan={3}>
+                {row.hunk}
+              </td>
+            </tr>
+          ) : (
+            <tr key={i}>
+              <td className="diff-no">{row.left?.oldNo ?? ''}</td>
+              <td className={`diff-text diff-side ${row.left ? `diff-${row.left.type}` : 'diff-none'}`}>
+                {row.left?.text ?? ''}
+              </td>
+              <td className="diff-no">{row.right?.newNo ?? ''}</td>
+              <td className={`diff-text diff-side ${row.right ? `diff-${row.right.type}` : 'diff-none'}`}>
+                {row.right?.text ?? ''}
+              </td>
+            </tr>
+          ),
+        )}
+      </tbody>
+    </table>
+  );
+}
+
 function DiffTable({ lines }: { lines: DiffLine[] }) {
   const [expanded, setExpanded] = useState(false);
+  const mode = useDiffMode();
   const shown = expanded ? lines : lines.slice(0, COLLAPSED_LINES);
   const hidden = lines.length - shown.length;
 
   return (
-    <div className="diff">
-      <table>
-        <tbody>
-          {shown.map((line, i) => (
-            <tr key={i} className={`diff-${line.type}`}>
-              <td className="diff-no">{line.oldNo ?? ''}</td>
-              <td className="diff-no">{line.newNo ?? ''}</td>
-              <td className="diff-sign">
-                {line.type === 'add' ? '+' : line.type === 'del' ? '−' : ''}
-              </td>
-              <td className="diff-text">{line.text}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className={`diff ${mode === 'split' ? 'is-split' : ''}`}>
+      {mode === 'split' ? <SplitRows lines={shown} /> : <UnifiedRows lines={shown} />}
       {hidden > 0 && (
         <button className="diff-expand" onClick={() => setExpanded(true)}>
           show {hidden} more line{hidden === 1 ? '' : 's'}
@@ -82,6 +123,22 @@ function DiffTable({ lines }: { lines: DiffLine[] }) {
         </button>
       )}
     </div>
+  );
+}
+
+/** The toggle itself — one control, wherever diffs are the point. */
+export function DiffModeToggle() {
+  const mode = useDiffMode();
+  return (
+    <Segmented
+      value={mode}
+      onChange={(v) => setPref('diffMode', v)}
+      options={[
+        { value: 'unified', label: 'unified' },
+        { value: 'split', label: 'split' },
+      ]}
+      ariaLabel="Diff layout"
+    />
   );
 }
 

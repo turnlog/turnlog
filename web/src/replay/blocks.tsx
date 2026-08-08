@@ -7,7 +7,7 @@ import Badge from '../components/Badge';
 import { SkeletonLines } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
 import { fmtCount, fmtTime } from '../format';
-import { BookmarkFilledIcon, BookmarkIcon } from '../icons';
+import { BookmarkFilledIcon, BookmarkIcon, CheckIcon, CopyIcon } from '../icons';
 import Markdown from '../md/Markdown';
 import type { ChildSessionSummary, MessageRow } from '../types';
 import { BookmarkContext, type BookmarkState } from './bookmarkContext';
@@ -92,6 +92,36 @@ function RawDetails({ raw }: { raw: string }) {
 const COMMAND_RE = /<command-name>([^<]*)<\/command-name>/;
 const STDOUT_RE = /<local-command-stdout>([\s\S]*?)<\/local-command-stdout>/;
 
+/**
+ * Copy this ask. Prompt reuse is a real loop — you find the thing you asked
+ * three weeks ago precisely so you can ask it again — and the spine already
+ * isolates the asks. Appears on hover so it costs the reading view nothing.
+ */
+function CopyPrompt({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  if (text.trim() === '') return null;
+  const copy = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // the block header is clickable in some views
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* clipboard denied — nothing actionable */
+    }
+  };
+  return (
+    <button
+      className={`copy-prompt ${copied ? 'ok' : ''}`}
+      onClick={copy}
+      aria-label={copied ? 'Prompt copied' : 'Copy this prompt'}
+      title={copied ? 'Copied' : 'Copy this prompt'}
+    >
+      {copied ? <CheckIcon size={13} /> : <CopyIcon size={13} />}
+    </button>
+  );
+}
+
 const PromptBlock = memo(function PromptBlock({ row }: { row: MessageRow }) {
   const command = COMMAND_RE.exec(row.text)?.[1]?.trim();
   const stdout = STDOUT_RE.exec(row.text)?.[1]?.trim();
@@ -102,6 +132,7 @@ const PromptBlock = memo(function PromptBlock({ row }: { row: MessageRow }) {
       <div className="block-head">
         <span className="block-label">you</span>
         <Ts iso={row.ts} />
+        <CopyPrompt text={row.text} />
       </div>
       {command ? (
         <div className="prompt-command">
