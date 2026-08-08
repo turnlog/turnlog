@@ -24,6 +24,8 @@ import {
   getSpend,
   getStats,
   isLens,
+  listAllBookmarks,
+  listBookmarkCaptions,
   listBookmarks,
   listMessages,
   getErrorSignatures,
@@ -466,10 +468,17 @@ async function handleApiWrite(
       throw new HttpError(400, 'idx must be an integer');
     }
     if (typeof raw.on !== 'boolean') throw new HttpError(400, 'on must be a boolean');
+    if (raw.caption !== undefined && typeof raw.caption !== 'string') {
+      throw new HttpError(400, 'caption must be a string');
+    }
     const sessionId = decodeURIComponent(bookmarkMatch[1]!);
-    const idxs = setBookmark(db, sessionId, raw.idx, raw.on);
+    const idxs = setBookmark(db, sessionId, raw.idx, raw.on, raw.caption as string | undefined);
     if (idxs === null) return sendJson(res, 404, { error: 'no message at that idx' });
-    return sendJson(res, 200, { sessionId, idxs });
+    return sendJson(res, 200, {
+      sessionId,
+      idxs,
+      captions: listBookmarkCaptions(db, sessionId),
+    });
   }
 
   if (p === '/api/searches') {
@@ -656,6 +665,9 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
   if (p === '/api/searches') {
     return sendJson(res, 200, listSavedSearches(db));
   }
+  if (p === '/api/bookmarks') {
+    return sendJson(res, 200, listAllBookmarks(db, { limit: numParam(q, 'limit') }));
+  }
   if (p === '/api/errors') {
     return sendJson(
       res,
@@ -713,7 +725,11 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
     const sessionId = decodeURIComponent(bookmarksMatch[1]!);
     const idxs = listBookmarks(db, sessionId);
     if (idxs === null) return sendJson(res, 404, { error: 'session not found' });
-    return sendJson(res, 200, { sessionId, idxs });
+    return sendJson(res, 200, {
+      sessionId,
+      idxs,
+      captions: listBookmarkCaptions(db, sessionId),
+    });
   }
 
   const chainMatch = /^\/api\/sessions\/([^/]+)\/chain$/.exec(p);

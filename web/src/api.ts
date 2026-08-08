@@ -8,6 +8,8 @@ import {
   type InfiniteData,
 } from '@tanstack/react-query';
 import type {
+  BookmarkEntry,
+  BookmarksListResponse,
   BookmarksResponse,
   DiskUsageResponse,
   ErrorSignaturesResponse,
@@ -318,6 +320,14 @@ export function useErrorSignatures(query: string, enabled: boolean, deep = false
   });
 }
 
+/** Every marked moment across every session — the bookmarks page. */
+export function useAllBookmarks() {
+  return useQuery({
+    queryKey: ['bookmarks-all'],
+    queryFn: () => apiFetch<BookmarksListResponse>('/api/bookmarks'),
+  });
+}
+
 /** One repo's rollup — agents, spend, top files, tags. */
 export function useProject(projectKey: string) {
   return useQuery({
@@ -617,12 +627,15 @@ export function useBookmarks(sessionId: string) {
 export function useToggleBookmark(sessionId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ idx, on }: { idx: number; on: boolean }) =>
+    mutationFn: ({ idx, on, caption }: { idx: number; on: boolean; caption?: string }) =>
       apiPost<BookmarksResponse>(
         `/api/sessions/${encodeURIComponent(sessionId)}/bookmarks`,
-        { idx, on },
+        caption === undefined ? { idx, on } : { idx, on, caption },
       ),
-    onSuccess: (updated) => queryClient.setQueryData(['bookmarks', sessionId], updated),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['bookmarks', sessionId], updated);
+      void queryClient.invalidateQueries({ queryKey: ['bookmarks-all'] });
+    },
   });
 }
 

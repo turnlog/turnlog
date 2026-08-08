@@ -410,6 +410,59 @@ function ChildSessionRun({ child, label }: { child: ChildSessionSummary; label: 
   );
 }
 
+/**
+ * The words for why a moment matters. Thirty unlabelled bookmarks are thirty
+ * message prefixes to re-read; one line of your own makes the collection
+ * usable. Only offered once a block is marked — captioning is the second
+ * step, never a reason not to bookmark.
+ */
+function BookmarkCaption({
+  idx,
+  caption,
+  onSave,
+}: {
+  idx: number;
+  caption: string;
+  onSave: (idx: number, caption: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(caption);
+
+  if (!editing) {
+    return (
+      <button
+        className={`bm-caption ${caption ? '' : 'empty'}`}
+        onClick={() => {
+          setDraft(caption);
+          setEditing(true);
+        }}
+        title={caption ? 'Edit this caption' : 'Say why this moment matters'}
+      >
+        {caption || 'add a caption'}
+      </button>
+    );
+  }
+  const commit = () => {
+    setEditing(false);
+    if (draft.trim() !== caption) onSave(idx, draft.trim());
+  };
+  return (
+    <input
+      className="bm-caption-input"
+      value={draft}
+      autoFocus
+      maxLength={300}
+      placeholder="why does this matter?"
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') commit();
+        if (e.key === 'Escape') setEditing(false);
+      }}
+    />
+  );
+}
+
 const ToolBlockView = memo(function ToolBlockView({
   block,
   forceOpen,
@@ -689,6 +742,13 @@ export function BlockView({
             {marked ? <BookmarkFilledIcon size={14} /> : <BookmarkIcon size={14} />}
           </button>
         </Tooltip>
+      )}
+      {marked && bookmarks.setCaption && (
+        <BookmarkCaption
+          idx={block.repIdx}
+          caption={bookmarks.captions?.get(block.repIdx) ?? ''}
+          onSave={bookmarks.setCaption}
+        />
       )}
       {inner}
     </div>

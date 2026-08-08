@@ -326,6 +326,29 @@ export interface FileHistoryResponse {
 export interface BookmarksResponse {
   sessionId: string;
   idxs: number[];
+  /** Captions by idx, for the ones that have one. */
+  captions?: Record<number, string>;
+}
+
+/** One marked moment, with enough context to recognise it in a list. */
+export interface BookmarkEntry {
+  sessionId: string;
+  idx: number;
+  createdAt: string | null;
+  /** The user's own words for why this moment matters; null if unlabelled. */
+  caption: string | null;
+  /** The marked message's text (trimmed) — empty if the message is gone. */
+  text: string;
+  kind: string | null;
+  ts: string | null;
+  tool: string;
+  projectKey: string | null;
+  projectPath: string | null;
+  sessionName: string | null;
+}
+
+export interface BookmarksListResponse {
+  bookmarks: BookmarkEntry[];
 }
 
 /**

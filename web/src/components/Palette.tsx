@@ -3,6 +3,7 @@ import { usePaletteSessions, useProjects, useSavedSearches } from '../api';
 import { fuzzyScore } from '../fuzzy';
 import { fmtDate, projectName, sessionName, tileClass } from '../format';
 import {
+  BookmarkIcon,
   CalendarIcon,
   ChartIcon,
   ChatIcon,
@@ -50,6 +51,7 @@ const SCREENS: { label: string; hash: string; Icon: ScreenIcon; keys?: string[] 
   { label: 'Overview', hash: '#/', Icon: HistoryIcon },
   { label: 'Search', hash: '#/search', Icon: MagniferIcon, keys: SHORTCUTS.search },
   { label: 'Files', hash: '#/files', Icon: FolderIcon },
+  { label: 'Bookmarks', hash: '#/bookmarks', Icon: BookmarkIcon },
   { label: 'Spend', hash: '#/spend', Icon: WalletIcon },
   { label: 'Calendar', hash: '#/spend?v=calendar', Icon: CalendarIcon },
   { label: 'Disk usage', hash: '#/spend?v=disk', Icon: ChartIcon },

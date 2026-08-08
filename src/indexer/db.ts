@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 
 export function openDb(path: string): Database.Database {
   const db = new Database(path);
@@ -214,6 +214,14 @@ function migrate(db: Database.Database): void {
     // subagent row's "N events"). Renaming the column keeps the lie from
     // being re-learned. No reindex: the values are unchanged.
     db.exec(`ALTER TABLE sessions RENAME COLUMN turn_count TO event_count;`);
+  }
+
+  if (version < 12) {
+    // A caption per bookmark. Thirty bare marks are thirty 240-character
+    // prefixes to re-read; a note ("the fix that finally worked") is what
+    // makes a collection of moments usable. Nullable, so every existing
+    // bookmark stays exactly as valid as it was.
+    db.exec(`ALTER TABLE message_bookmarks ADD COLUMN caption TEXT;`);
   }
 
   db.pragma(`user_version = ${SCHEMA_VERSION}`);

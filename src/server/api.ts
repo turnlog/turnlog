@@ -12,6 +12,7 @@ import type {
   FileSummary,
   MessageListResponse,
   MessageRow,
+  BookmarksListResponse,
   ErrorSignaturesResponse,
   ProjectDetail,
   ProjectInfo,
@@ -466,24 +467,49 @@ export function listBookmarks(db: Database.Database, sessionId: string): number[
   ).map((r) => r.idx);
 }
 
+/** Captions for one session's bookmarks, keyed by idx — only the ones set. */
+export function listBookmarkCaptions(
+  db: Database.Database,
+  sessionId: string,
+): Record<number, string> {
+  const rows = db
+    .prepare(
+      `SELECT idx, caption FROM message_bookmarks
+        WHERE session_id = ? AND caption IS NOT NULL`,
+    )
+    .all(sessionId) as { idx: number; caption: string }[];
+  return Object.fromEntries(rows.map((r) => [r.idx, r.caption]));
+}
+
 /**
  * Set or clear one bookmark; returns the session's bookmarks after the write.
  * Null = no message at that (session, idx) — never bookmark thin air.
  */
+const CAPTION_MAX = 300;
+
 export function setBookmark(
   db: Database.Database,
   sessionId: string,
   idx: number,
   on: boolean,
+  /** undefined leaves any existing caption alone; a string sets it, '' clears. */
+  caption?: string,
 ): number[] | null {
   const target = db
     .prepare(`SELECT 1 FROM messages WHERE session_id = ? AND idx = ?`)
     .get(sessionId, idx);
   if (!target) return null;
   if (on) {
+    const text =
+      caption === undefined ? null : caption.trim().slice(0, CAPTION_MAX) || null;
     db.prepare(
-      `INSERT OR IGNORE INTO message_bookmarks (session_id, idx, created_at) VALUES (?, ?, ?)`,
-    ).run(sessionId, idx, new Date().toISOString());
+      `INSERT INTO message_bookmarks (session_id, idx, created_at, caption)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT (session_id, idx) DO UPDATE SET
+         caption = CASE WHEN @keep THEN message_bookmarks.caption ELSE excluded.caption END`,
+    ).run(sessionId, idx, new Date().toISOString(), text, {
+      keep: caption === undefined ? 1 : 0,
+    });
   } else {
     db.prepare(`DELETE FROM message_bookmarks WHERE session_id = ? AND idx = ?`).run(
       sessionId,
@@ -491,6 +517,64 @@ export function setBookmark(
     );
   }
   return listBookmarks(db, sessionId);
+}
+
+/**
+ * Every marked moment, newest first — the bookmarks page. Each row carries
+ * enough to recognise it without opening the session: the caption if there
+ * is one, the message's own text if not, and where it lives.
+ */
+export function listAllBookmarks(
+  db: Database.Database,
+  opts: { limit?: number } = {},
+): BookmarksListResponse {
+  const limit = Math.min(Math.max(opts.limit ?? 200, 1), 1000);
+  const rows = db
+    .prepare(
+      `SELECT b.session_id AS sessionId, b.idx AS idx, b.created_at AS createdAt,
+              b.caption AS caption,
+              substr(m.text, 1, 240) AS text, m.kind AS kind, m.ts AS ts,
+              s.tool AS tool, s.project_key AS projectKey, s.project_path AS projectPath,
+              s.ai_title AS aiTitle, s.cc_title AS ccTitle, sm.custom_name AS customName
+         FROM message_bookmarks b
+         JOIN sessions s ON s.id = b.session_id
+         LEFT JOIN messages m ON m.session_id = b.session_id AND m.idx = b.idx
+         LEFT JOIN session_meta sm ON sm.session_id = b.session_id
+        ORDER BY b.created_at DESC, b.session_id, b.idx
+        LIMIT ?`,
+    )
+    .all(limit) as {
+    sessionId: string;
+    idx: number;
+    createdAt: string | null;
+    caption: string | null;
+    text: string | null;
+    kind: string | null;
+    ts: string | null;
+    tool: string;
+    projectKey: string | null;
+    projectPath: string | null;
+    aiTitle: string | null;
+    ccTitle: string | null;
+    customName: string | null;
+  }[];
+  return {
+    bookmarks: rows.map((r) => ({
+      sessionId: r.sessionId,
+      idx: r.idx,
+      createdAt: r.createdAt,
+      caption: r.caption,
+      // A bookmark whose message vanished (a reindex after the log was
+      // rewritten) keeps its caption and its jump — never a blank row.
+      text: (r.text ?? '').replace(/\s+/g, ' ').trim(),
+      kind: r.kind,
+      ts: r.ts,
+      tool: r.tool,
+      projectKey: r.projectKey,
+      projectPath: r.projectPath,
+      sessionName: r.customName ?? r.aiTitle ?? r.ccTitle ?? null,
+    })),
+  };
 }
 
 /* ── UI preferences (server-side; the random port resets localStorage) ── */
@@ -2384,7 +2468,7 @@ export interface AnnotationsDump {
     note: string | null;
     updatedAt: string | null;
   }[];
-  bookmarks: { sessionId: string; idx: number; createdAt: string | null }[];
+  bookmarks: { sessionId: string; idx: number; createdAt: string | null; caption?: string }[];
   savedSearches: { name: string; query: string; createdAt: string | null }[];
   /**
    * Optional so a dump written before tags existed still imports — the
@@ -2398,8 +2482,8 @@ export function exportAnnotations(db: Database.Database): AnnotationsDump {
     .prepare(`SELECT session_id, pinned, custom_name, note, updated_at FROM session_meta`)
     .all() as { session_id: string; pinned: number; custom_name: string | null; note: string | null; updated_at: string | null }[];
   const bookmarks = db
-    .prepare(`SELECT session_id, idx, created_at FROM message_bookmarks`)
-    .all() as { session_id: string; idx: number; created_at: string | null }[];
+    .prepare(`SELECT session_id, idx, created_at, caption FROM message_bookmarks`)
+    .all() as { session_id: string; idx: number; created_at: string | null; caption: string | null }[];
   const saved = db
     .prepare(`SELECT name, query, created_at FROM saved_searches`)
     .all() as { name: string; query: string; created_at: string | null }[];
@@ -2420,6 +2504,8 @@ export function exportAnnotations(db: Database.Database): AnnotationsDump {
       sessionId: b.session_id,
       idx: b.idx,
       createdAt: b.created_at,
+      // Optional on purpose: a pre-caption export must still import.
+      ...(b.caption === null ? {} : { caption: b.caption }),
     })),
     savedSearches: saved.map((sv) => ({
       name: sv.name,
@@ -2459,8 +2545,18 @@ export function importAnnotations(
     `INSERT OR REPLACE INTO session_meta (session_id, pinned, custom_name, note, updated_at)
      VALUES (?, ?, ?, ?, ?)`,
   );
+  // Upsert so the file's caption wins on conflict (the same rule pins,
+  // names and notes follow) — but `changes` then counts an unchanged
+  // re-import as work, and importing twice must report nothing new. So
+  // newness is asked separately and drives the count.
+  const bookmarkExists = db.prepare(
+    `SELECT 1 FROM message_bookmarks WHERE session_id = ? AND idx = ? LIMIT 1`,
+  );
   const insertBookmark = db.prepare(
-    `INSERT OR IGNORE INTO message_bookmarks (session_id, idx, created_at) VALUES (?, ?, ?)`,
+    `INSERT INTO message_bookmarks (session_id, idx, created_at, caption)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT (session_id, idx) DO UPDATE SET
+       caption = COALESCE(excluded.caption, message_bookmarks.caption)`,
   );
   const savedExists = db.prepare(
     `SELECT 1 FROM saved_searches WHERE name = ? AND query = ? LIMIT 1`,
@@ -2485,12 +2581,14 @@ export function importAnnotations(
     }
     for (const b of d.bookmarks!) {
       if (typeof b?.sessionId !== 'string' || !Number.isInteger(b.idx)) continue;
-      const res = insertBookmark.run(
+      const isNew = bookmarkExists.get(b.sessionId, b.idx) === undefined;
+      insertBookmark.run(
         b.sessionId,
         b.idx,
         typeof b.createdAt === 'string' ? b.createdAt : null,
+        typeof b.caption === 'string' ? b.caption.slice(0, CAPTION_MAX) : null,
       );
-      counts.bookmarks += res.changes;
+      if (isNew) counts.bookmarks += 1;
     }
     for (const sv of d.savedSearches!) {
       if (typeof sv?.name !== 'string' || typeof sv.query !== 'string') continue;

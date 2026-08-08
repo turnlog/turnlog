@@ -19,6 +19,7 @@ import DesignSystem from './screens/DesignSystem';
 import Home from './screens/Home';
 import Replay from './screens/Replay';
 import FileHistory from './screens/FileHistory';
+import Bookmarks from './screens/Bookmarks';
 import Project from './screens/Project';
 import Search from './screens/Search';
 import Spend from './screens/Spend';
@@ -377,6 +378,7 @@ export default function App() {
           {route.name === 'project' && (
             <Project key={route.projectKey} projectKey={route.projectKey} />
           )}
+          {route.name === 'bookmarks' && <Bookmarks />}
           {route.name === 'session' && (
             <Replay
               key={route.id}

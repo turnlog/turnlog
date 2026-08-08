@@ -4244,3 +4244,170 @@ kbd {
   font-size: var(--fs-11);
   color: var(--tx2);
 }
+
+/* ── bookmarks page ────────────────────────────────────────────────────
+   Marked moments were per-session and so invisible in aggregate; collected
+   here they are a scrapbook, which is what captions are for. */
+.bookmarks-screen {
+  padding: 0 var(--gutter) var(--gutter);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+.bm-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  padding-top: 4px;
+}
+.bm-head h1 {
+  font-size: var(--fs-24);
+  font-weight: 600;
+  color: var(--tx0);
+  letter-spacing: -0.01em;
+}
+.bm-lede {
+  font-size: var(--fs-12);
+  color: var(--tx2);
+  margin-top: 3px;
+}
+.bm-head .search-field {
+  margin-left: auto;
+  min-width: 220px;
+}
+.bm-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bm-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+.bm-btn:hover {
+  background: var(--bg1);
+}
+.bm-top {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+.bm-mark {
+  color: var(--c-note);
+  flex: none;
+  align-self: center;
+}
+.bm-label {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-14);
+  color: var(--tx0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* No caption yet: the raw message stands in, quieter, so the two are never
+   mistaken for each other. */
+.bm-label.is-raw {
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx1);
+}
+.bm-label em {
+  font-style: normal;
+  color: var(--tx2);
+}
+.bm-when {
+  flex: none;
+  font-family: var(--mono);
+  font-size: var(--fs-11);
+  color: var(--tx2);
+}
+.bm-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: var(--fs-11);
+  color: var(--tx2);
+}
+.bm-session {
+  color: var(--tx1);
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bm-project {
+  color: var(--tx2);
+  border-bottom: 1px dashed var(--line);
+  cursor: pointer;
+}
+.bm-project:hover {
+  color: var(--tx0);
+}
+.bm-idx,
+.bm-time {
+  font-family: var(--mono);
+}
+.bm-quote {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
+/* A bookmark's caption sits INSIDE the block, above its content.
+   It began in the gutter beside the bookmark toggle, where it looked right
+   and could not be clicked: the gutter element hangs below the slot's own
+   box, and the next block's DOM sits on top of it. Inline cannot overlap. */
+.bm-caption,
+.bm-caption-input {
+  display: block;
+  width: 100%;
+  margin: 0 0 4px;
+  font-size: var(--fs-11);
+  line-height: 1.5;
+  text-align: left;
+}
+.bm-caption {
+  color: var(--c-note);
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+  padding: 2px 6px;
+  background: var(--note-dim);
+  transition: background 0.15s ease;
+}
+.bm-caption:hover {
+  background: var(--bg2);
+}
+/* Unlabelled: offered on hover only, so an uncaptioned bookmark stays quiet. */
+.bm-caption.empty {
+  color: var(--tx2);
+  background: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.block-slot:hover .bm-caption.empty,
+.bm-caption.empty:focus-visible {
+  opacity: 1;
+}
+.bm-caption-input {
+  background: var(--bg1);
+  border-radius: var(--radius-xs);
+  padding: 3px 6px;
+  color: var(--tx0);
+}

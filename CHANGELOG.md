@@ -8,6 +8,13 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Added
 
+- A **bookmarks page** (`#/bookmarks`, or ⌘K → Bookmarks): every moment you
+  ever marked, across every session, newest first — filter them, and click
+  one to land exactly where it was. Bookmarks can now carry a **caption**,
+  written from the replay, because thirty unlabelled marks are thirty
+  message prefixes to re-read. Captions travel with your annotations export
+  and survive re-indexing, like every other thing you wrote.
+
 - Searching `is:error` now shows **recurring failures** above the results:
   the same failure grouped across runs, ranked by how many sessions hit it,
   with the project count beside it — "this happened in 13 sessions across 3

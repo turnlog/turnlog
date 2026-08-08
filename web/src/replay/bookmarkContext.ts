@@ -9,6 +9,10 @@ import { createContext } from 'react';
 export interface BookmarkState {
   idxs: ReadonlySet<number>;
   toggle: ((idx: number) => void) | null;
+  /** Existing captions by idx — so a marked block can show and edit its own. */
+  captions?: ReadonlyMap<number, string>;
+  /** Write a caption ('' clears it). Absent where bookmarking is read-only. */
+  setCaption?: (idx: number, caption: string) => void;
 }
 
 export const BookmarkContext = createContext<BookmarkState>({

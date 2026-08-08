@@ -163,6 +163,12 @@ export default function Replay({
       idxs: new Set(bookmarks.data?.idxs ?? []),
       toggle: (idx: number) =>
         toggleBookmark.mutate({ idx, on: !(bookmarks.data?.idxs ?? []).includes(idx) }),
+      captions: new Map(
+        Object.entries(bookmarks.data?.captions ?? {}).map(([k, v]) => [Number(k), v]),
+      ),
+      // Writing a caption keeps the bookmark on — it is an edit, not a toggle.
+      setCaption: (idx: number, caption: string) =>
+        toggleBookmark.mutate({ idx, on: true, caption }),
     }),
     [bookmarks.data, toggleBookmark],
   );

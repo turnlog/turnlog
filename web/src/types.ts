@@ -3,6 +3,8 @@
  * type-only (erased at build time — nothing from src/ ends up in the bundle).
  */
 export type {
+  BookmarkEntry,
+  BookmarksListResponse,
   BookmarksResponse,
   ChildSessionSummary,
   CompactionMark,
