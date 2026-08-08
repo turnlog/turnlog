@@ -50,6 +50,7 @@ interface Item {
 const SCREENS: { label: string; hash: string; Icon: ScreenIcon; keys?: string[] }[] = [
   { label: 'Overview', hash: '#/', Icon: HistoryIcon },
   { label: 'Search', hash: '#/search', Icon: MagniferIcon, keys: SHORTCUTS.search },
+  { label: 'Projects', hash: '#/projects', Icon: FolderIcon },
   { label: 'Files', hash: '#/files', Icon: FolderIcon },
   { label: 'Bookmarks', hash: '#/bookmarks', Icon: BookmarkIcon },
   { label: 'Spend', hash: '#/spend', Icon: WalletIcon },

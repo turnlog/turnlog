@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type Database from 'better-sqlite3';
 import { Indexer } from '../src/indexer/indexer.js';
-import { getProject, getSpend, setSessionTags } from '../src/server/api.js';
+import { getProject, getSpend, listProjects, setSessionTags } from '../src/server/api.js';
 import {
   CODEX_SESSION,
   SESSION_A,
@@ -110,5 +110,23 @@ describe('project page data', () => {
     const here = getProject(db, WEBAPP)!;
     expect(here.pathExists).toBe(false); // the fixture path is synthetic too
     db.prepare(`DELETE FROM sessions WHERE id = 'gone-1'`).run();
+  });
+});
+
+describe('the projects index', () => {
+  it('carries what the list needs: agents present and last activity', () => {
+    const list = listProjects(db);
+    const webapp = list.find((p) => p.projectKey === WEBAPP)!;
+    // The cross-agent point, visible without opening the project.
+    expect(webapp.agents.sort()).toEqual(['claude-code', 'codex']);
+    expect(webapp.lastActiveAt).not.toBeNull();
+    expect(webapp.sessionCount).toBeGreaterThanOrEqual(3);
+  });
+
+  it('dedupes the agent list rather than repeating one per session', () => {
+    const list = listProjects(db);
+    for (const p of list) {
+      expect(new Set(p.agents).size).toBe(p.agents.length);
+    }
   });
 });

@@ -4411,3 +4411,118 @@ kbd {
   padding: 3px 6px;
   color: var(--tx0);
 }
+
+/* ── projects index ────────────────────────────────────────────────────
+   The front door to project pages, which were previously reachable only if
+   you already knew to search for one. */
+.projects-screen {
+  padding: 0 var(--gutter) var(--gutter);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+.pj-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding-top: 4px;
+  flex-wrap: wrap;
+}
+.pj-head h1 {
+  font-size: var(--fs-24);
+  font-weight: 600;
+  color: var(--tx0);
+  letter-spacing: -0.01em;
+}
+.pj-lede {
+  font-size: var(--fs-12);
+  color: var(--tx2);
+  margin-top: 3px;
+}
+.pj-head .search-field {
+  margin-left: auto;
+  min-width: 210px;
+}
+.pj-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pj-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: var(--card);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+.pj-card:hover {
+  background: var(--bg1);
+}
+.pj-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+.pj-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.pj-name {
+  font-size: var(--fs-15);
+  font-weight: 500;
+  color: var(--tx0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pj-path {
+  font-family: var(--mono);
+  font-size: var(--fs-11);
+  color: var(--tx2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pj-agents {
+  display: flex;
+  gap: 5px;
+  flex: none;
+}
+/* Labelled figures, like every other set of measurements in the app —
+   three bare numbers in a row is a puzzle. */
+.pj-figures {
+  display: flex;
+  gap: 18px;
+  flex: none;
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx1);
+}
+.pj-figures em {
+  font-style: normal;
+  color: var(--tx2);
+  margin-right: 5px;
+}
+.card-head-link {
+  margin-left: auto;
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+.card-head-link:hover {
+  color: var(--tx0);
+}
+@media (max-width: 860px) {
+  .pj-figures {
+    display: none;
+  }
+}

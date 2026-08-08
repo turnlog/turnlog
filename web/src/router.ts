@@ -33,7 +33,8 @@ export type Route =
   | { name: 'design' }
   | { name: 'files'; query: string; path: string | null; find: string }
   | { name: 'project'; projectKey: string }
-  | { name: 'bookmarks' };
+  | { name: 'bookmarks' }
+  | { name: 'projects' };
 
 export function parseRoute(hash: string): Route {
   const h = hash.startsWith('#') ? hash.slice(1) : hash;
@@ -77,6 +78,9 @@ export function parseRoute(hash: string): Route {
   const project = /^\/project\/(.+)$/.exec(path);
   if (project) {
     return { name: 'project', projectKey: decodeURIComponent(project[1]!) };
+  }
+  if (path === '/projects') {
+    return { name: 'projects' };
   }
   if (path === '/bookmarks') {
     return { name: 'bookmarks' };

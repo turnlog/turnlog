@@ -2121,7 +2121,12 @@ export function listProjects(db: Database.Database): ProjectInfo[] {
   const rows = db
     .prepare(
       `SELECT project_key, MAX(project_path) AS project_path, COUNT(*) AS n,
-              COALESCE(SUM(cost_usd), 0) AS cost
+              COALESCE(SUM(cost_usd), 0) AS cost,
+              MAX(COALESCE(ended_at, started_at)) AS last_at,
+              -- Which agents worked here, as a sorted distinct list. GROUP
+              -- BY inside GROUP_CONCAT is not available, so dedupe client
+              -- side; the cardinality is one row per session and tiny.
+              GROUP_CONCAT(tool) AS tools
        FROM sessions WHERE parent_session_id IS NULL
        GROUP BY project_key ORDER BY n DESC`,
     )
@@ -2131,6 +2136,8 @@ export function listProjects(db: Database.Database): ProjectInfo[] {
     projectPath: r.project_path,
     sessionCount: r.n,
     costUsd: r.cost,
+    lastActiveAt: r.last_at ?? null,
+    agents: [...new Set(String(r.tools ?? '').split(',').filter(Boolean))].sort(),
   }));
 }
 

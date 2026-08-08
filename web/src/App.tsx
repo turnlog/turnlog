@@ -9,6 +9,7 @@ import {
   PowerIcon,
   SidebarIcon,
   SunIcon,
+  WidgetIcon,
   WalletIcon,
 } from './icons';
 import { navigate, useRoute } from './router';
@@ -21,6 +22,7 @@ import Replay from './screens/Replay';
 import FileHistory from './screens/FileHistory';
 import Bookmarks from './screens/Bookmarks';
 import Project from './screens/Project';
+import Projects from './screens/Projects';
 import Search from './screens/Search';
 import Spend from './screens/Spend';
 import WhatsNew from './screens/WhatsNew';
@@ -344,6 +346,13 @@ export default function App() {
             </>
           )}
           <div className="header-right">
+            <Primary
+              href="#/projects"
+              active={route.name === 'projects' || route.name === 'project'}
+              icon={<WidgetIcon />}
+            >
+              Projects
+            </Primary>
             <Primary href="#/files" active={route.name === 'files'} icon={<FolderIcon />}>
               Files
             </Primary>
@@ -379,6 +388,7 @@ export default function App() {
             <Project key={route.projectKey} projectKey={route.projectKey} />
           )}
           {route.name === 'bookmarks' && <Bookmarks />}
+          {route.name === 'projects' && <Projects />}
           {route.name === 'session' && (
             <Replay
               key={route.id}

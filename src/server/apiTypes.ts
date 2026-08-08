@@ -438,6 +438,10 @@ export interface ProjectInfo {
   sessionCount: number;
   /** Estimated — sum of the project's session costs. */
   costUsd: number;
+  /** Most recent activity in this repo — how the index orders by recency. */
+  lastActiveAt: string | null;
+  /** Which agents worked here — the cross-agent point, visible in the list. */
+  agents: string[];
 }
 
 /**

@@ -75,7 +75,8 @@ time it starts, once nothing is holding the old file.
 - **Every agent, one history** — Claude Code, OpenAI Codex, and Cursor
   sessions are all indexed, read-only, and appear side by side. Every session
   says which agent wrote it, and a repo you worked on with several reads as
-  one timeline. Each repo also gets its own **project page**: every agent's
+  one timeline. A **Projects screen** lists every repo you've worked in, and
+  each gets its own **project page**: every agent's
   sessions interleaved, who worked there, what it cost, the files it touched
   most, and a live row when something is running in it right now.
 - **Search everything** — full-text FTS5 across your whole history, grouped by

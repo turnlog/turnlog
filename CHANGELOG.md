@@ -16,6 +16,14 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Added
 
+- A **Projects screen** in the header, next to Files and Spend: every repo
+  you have pointed an agent at, with the agents that worked on each one,
+  its sessions, spend and last activity — filterable, and sortable by
+  recency, sessions or spend. Project pages existed before this; they were
+  reachable only if you already knew to search for one. The home screen's
+  project rows now open the repo's page too, instead of only filtering the
+  sidebar.
+
 - **Codex and Cursor sessions replay as richly as Claude Code ones.** Their
   tool calls now show what they actually ran (Codex's `exec` as highlighted
   code, Cursor's tools with their real arguments) and pair with their
