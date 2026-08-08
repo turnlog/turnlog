@@ -26,6 +26,7 @@ import {
   isLens,
   listBookmarks,
   listMessages,
+  getErrorSignatures,
   getProject,
   listProjects,
   listSessionChildren,
@@ -654,6 +655,17 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
   }
   if (p === '/api/searches') {
     return sendJson(res, 200, listSavedSearches(db));
+  }
+  if (p === '/api/errors') {
+    return sendJson(
+      res,
+      200,
+      getErrorSignatures(db, {
+        query: q.get('q') ?? undefined,
+        limit: numParam(q, 'limit'),
+        deep: q.get('deep') === '1',
+      }),
+    );
   }
   if (p === '/api/tags') {
     return sendJson(res, 200, { tags: listAllTags(db) });

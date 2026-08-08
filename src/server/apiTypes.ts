@@ -283,6 +283,31 @@ export interface SavedSearch {
   createdAt: string | null;
 }
 
+/**
+ * A failure that keeps happening. The signature is the error text with
+ * everything per-occurrence (paths, ids, numbers, quoted payloads) replaced
+ * by placeholders, so two runs of the same problem land in one group.
+ */
+export interface ErrorSignature {
+  signature: string;
+  /** One real occurrence, unmodified — the signature is for grouping only. */
+  sample: string;
+  /** Occurrences (messages). */
+  count: number;
+  /** Distinct sessions — the recurrence that matters. */
+  sessions: number;
+  projects: number;
+  lastAt: string | null;
+  /** A few places to jump straight into. */
+  where: { sessionId: string; idx: number }[];
+}
+
+export interface ErrorSignaturesResponse {
+  signatures: ErrorSignature[];
+  /** Errors scanned (capped) — the denominator for the grouping. */
+  totalErrors: number;
+}
+
 /** One touched file across all sessions — the cross-session pivot's list. */
 export interface FileSummary {
   path: string;

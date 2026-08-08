@@ -12,6 +12,7 @@ import type {
   FileSummary,
   MessageListResponse,
   MessageRow,
+  ErrorSignaturesResponse,
   ProjectDetail,
   ProjectInfo,
   LiveResponse,
@@ -1902,6 +1903,134 @@ export function getProject(db: Database.Database, projectKey: string): ProjectDe
     topFiles: topFiles.map((f) => ({ path: f.path, sessions: f.n, lastTouched: f.last })),
     tags: tags.map((t) => ({ tag: t.tag, count: t.n })),
   };
+}
+
+/**
+ * Reduce one error message to a signature — what makes two failures "the
+ * same failure". Everything that varies per occurrence is replaced by a
+ * placeholder; what is left is the shape of the problem.
+ *
+ * Deliberately mechanical (no LLM, no fuzzy clustering): a rule you can read
+ * is one you can trust, and the local promise forbids the alternative. Over-
+ * merging is the failure mode to avoid, so only unmistakably-variable things
+ * are replaced — paths, ids, numbers, quoted payloads.
+ */
+export function errorSignature(text: string): string {
+  return (
+    text
+      // Agents wrap tool failures; the wrapper is noise, the message is not.
+      .replace(/<\/?tool_use_error>/g, ' ')
+      // A quoted payload is the input that failed, not the failure.
+      .replace(/"[^"]{8,}"/g, '"…"')
+      .replace(/'[^']{8,}'/g, "'…'")
+      // Absolute paths (POSIX and Windows) — same error, different file.
+      .replace(/(?:[A-Za-z]:)?[/\\][\w.\-/\\ ]{3,}/g, '<path>')
+      // URLs before ids, so a URL does not decay into <id> soup.
+      .replace(/\bhttps?:\/\/\S+/g, '<url>')
+      .replace(/\b[0-9a-f]{8}-[0-9a-f-]{20,}\b/gi, '<id>')
+      .replace(/\b[0-9a-f]{7,}\b/gi, '<id>')
+      // No word boundaries: "10m 0s" and "3m 42s" are the same timeout, and
+      // \b never fires between a digit and a letter.
+      .replace(/\d+(?:\.\d+)*/g, '<n>')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^(.{24,}?[.!?])\s+\S.*$/, '$1') // keep the first sentence…
+      .slice(0, 160) // …or, when there isn't one, a bounded prefix
+  );
+}
+
+/**
+ * Recurring failures across a match set: "this exact error happened in 14
+ * sessions across 3 projects". Search-derived stats in the blessed sense —
+ * aggregates attached to results, not a dashboard: it answers a question
+ * about the errors you are already looking at.
+ */
+export function getErrorSignatures(
+  db: Database.Database,
+  q: { query?: string; limit?: number; deep?: boolean },
+): ErrorSignaturesResponse {
+  const limit = Math.min(Math.max(q.limit ?? 12, 1), 50);
+  const parsed = parseForSearch(q.query ?? '', db, q.deep);
+  const filter = filterSql(parsed.parsed.filters, 's');
+
+  const rows = (() => {
+    try {
+      return db
+        .prepare(
+          parsed.match !== null
+            ? `SELECT m.text AS text, m.idx AS idx, m.ts AS ts,
+                      COALESCE(s.parent_session_id, s.id) AS root, s.project_key AS pk
+                 FROM ${parsed.fts}
+                 JOIN messages m ON m.rowid = ${parsed.fts}.rowid
+                 JOIN sessions s ON s.id = m.session_id
+                WHERE ${parsed.fts} MATCH ? AND m.is_error = 1 AND m.text != '' ${filter.sql}
+                LIMIT 20000`
+            : `SELECT m.text AS text, m.idx AS idx, m.ts AS ts,
+                      COALESCE(s.parent_session_id, s.id) AS root, s.project_key AS pk
+                 FROM messages m
+                 JOIN sessions s ON s.id = m.session_id
+                WHERE m.is_error = 1 AND m.text != '' ${filter.sql}
+                LIMIT 20000`,
+        )
+        .all(
+          ...(parsed.match !== null ? [parsed.match, ...filter.params] : filter.params),
+        ) as { text: string; idx: number; ts: string | null; root: string; pk: string | null }[];
+    } catch {
+      return []; // MATCH errors must never 500 — same posture as search
+    }
+  })();
+
+  interface Group {
+    signature: string;
+    sample: string;
+    count: number;
+    sessions: Set<string>;
+    projects: Set<string>;
+    lastAt: string | null;
+    where: { sessionId: string; idx: number }[];
+  }
+  const groups = new Map<string, Group>();
+  for (const r of rows) {
+    const signature = errorSignature(r.text);
+    if (signature === '') continue;
+    let g = groups.get(signature);
+    if (!g) {
+      g = {
+        signature,
+        sample: r.text.replace(/\s+/g, ' ').trim().slice(0, 300),
+        count: 0,
+        sessions: new Set(),
+        projects: new Set(),
+        lastAt: null,
+        where: [],
+      };
+      groups.set(signature, g);
+    }
+    g.count += 1;
+    g.sessions.add(r.root);
+    if (r.pk !== null) g.projects.add(r.pk);
+    if (r.ts !== null && (g.lastAt === null || r.ts > g.lastAt)) g.lastAt = r.ts;
+    // A handful of jump targets is enough to act on; the rest is a count.
+    if (g.where.length < 8 && !g.where.some((w) => w.sessionId === r.root)) {
+      g.where.push({ sessionId: r.root, idx: r.idx });
+    }
+  }
+
+  // Recurrence is the point: rank by how many sessions hit it, not by raw
+  // count — one runaway loop firing 400 times is not 400 problems.
+  const out = [...groups.values()]
+    .sort((a, b) => b.sessions.size - a.sessions.size || b.count - a.count)
+    .slice(0, limit)
+    .map((g) => ({
+      signature: g.signature,
+      sample: g.sample,
+      count: g.count,
+      sessions: g.sessions.size,
+      projects: g.projects.size,
+      lastAt: g.lastAt,
+      where: g.where,
+    }));
+  return { signatures: out, totalErrors: rows.length };
 }
 
 export function listProjects(db: Database.Database): ProjectInfo[] {

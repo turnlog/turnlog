@@ -10,6 +10,7 @@ import {
 import type {
   BookmarksResponse,
   DiskUsageResponse,
+  ErrorSignaturesResponse,
   FileHistoryResponse,
   FileSummary,
   HealthResponse,
@@ -297,6 +298,23 @@ export function useProjects() {
   return useQuery({
     queryKey: ['projects'],
     queryFn: () => apiFetch<ProjectInfo[]>('/api/projects'),
+  });
+}
+
+/**
+ * Recurring failures across the current match set. Only asked for when the
+ * query is about errors — grouping is a scan, and every other search must
+ * not pay for it.
+ */
+export function useErrorSignatures(query: string, enabled: boolean, deep = false) {
+  return useQuery({
+    queryKey: ['errors', query, deep],
+    queryFn: () =>
+      apiFetch<ErrorSignaturesResponse>(
+        `/api/errors?q=${encodeURIComponent(query)}${deep ? '&deep=1' : ''}`,
+      ),
+    enabled,
+    staleTime: 30_000,
   });
 }
 

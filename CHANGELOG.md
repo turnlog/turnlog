@@ -8,6 +8,14 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Added
 
+- Searching `is:error` now shows **recurring failures** above the results:
+  the same failure grouped across runs, ranked by how many sessions hit it,
+  with the project count beside it — "this happened in 13 sessions across 3
+  projects". Click one to land on a real occurrence. Grouping is mechanical
+  (paths, ids, numbers and quoted payloads are replaced, then the first
+  sentence is the key), so it is a rule you can read, and no model is
+  involved.
+
 - Diffs can be read **side by side**: a unified | split toggle sits wherever
   diffs are the point — the replay's diffs lens and the file-history screen —
   and every diff in the app follows the choice, which is remembered between
