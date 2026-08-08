@@ -1515,19 +1515,15 @@
   display: block;
   max-height: 180px;
   max-width: 100%;
-  border-radius: calc(var(--radius-sm) - 3px);
+  border-radius: var(--radius-xs);
 }
 .thumb.open img {
   max-height: none;
 }
 .thumb-size {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  padding: 2px 6px;
-  border-radius: var(--radius-xs);
-  background: rgba(0, 0, 0, 0.62);
-  color: #fff;
+  display: block;
+  padding-top: 3px;
+  color: var(--tx2);
   font-family: var(--mono);
   font-size: var(--fs-10);
   line-height: 1.4;
@@ -4105,7 +4101,7 @@ kbd {
   gap: 12px;
   flex: none;
   font-family: var(--mono);
-  font-size: var(--fs-11);
+  font-size: var(--fs-10);
   color: var(--tx2);
 }
 .proj-file-name {
@@ -4128,7 +4124,7 @@ kbd {
   background: var(--bg2);
   color: var(--tx2);
   font-family: var(--sans);
-  font-size: var(--fs-11);
+  font-size: var(--fs-10);
   cursor: help;
 }
 
@@ -4206,7 +4202,7 @@ kbd {
   font-style: normal;
   margin-left: auto;
   font-family: var(--mono);
-  font-size: var(--fs-11);
+  font-size: var(--fs-10);
   color: var(--tx2);
 }
 .err-sigs ul {
@@ -4241,7 +4237,7 @@ kbd {
 }
 .err-sig-meta {
   flex: none;
-  font-size: var(--fs-11);
+  font-size: var(--fs-10);
   color: var(--tx2);
 }
 
@@ -4330,7 +4326,7 @@ kbd {
 .bm-when {
   flex: none;
   font-family: var(--mono);
-  font-size: var(--fs-11);
+  font-size: var(--fs-10);
   color: var(--tx2);
 }
 .bm-meta {
@@ -4338,7 +4334,7 @@ kbd {
   align-items: center;
   gap: 8px;
   min-width: 0;
-  font-size: var(--fs-11);
+  font-size: var(--fs-10);
   color: var(--tx2);
 }
 .bm-session {
@@ -4379,7 +4375,7 @@ kbd {
   display: block;
   width: 100%;
   margin: 0 0 4px;
-  font-size: var(--fs-11);
+  font-size: var(--fs-10);
   line-height: 1.5;
   text-align: left;
 }
@@ -4456,7 +4452,7 @@ kbd {
   gap: 16px;
   width: 100%;
   padding: 14px 16px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: var(--card);
   cursor: pointer;
   text-align: left;
@@ -4478,7 +4474,7 @@ kbd {
   min-width: 0;
 }
 .pj-name {
-  font-size: var(--fs-15);
+  font-size: var(--fs-14);
   font-weight: 500;
   color: var(--tx0);
   overflow: hidden;
@@ -4487,7 +4483,7 @@ kbd {
 }
 .pj-path {
   font-family: var(--mono);
-  font-size: var(--fs-11);
+  font-size: var(--fs-10);
   color: var(--tx2);
   overflow: hidden;
   text-overflow: ellipsis;
