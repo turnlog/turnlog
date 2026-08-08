@@ -18,6 +18,7 @@ import type {
   MessageListResponse,
   MessageRow,
   PrefsResponse,
+  ProjectDetail,
   SavedSearch,
   SpendResponse,
   ProjectInfo,
@@ -174,7 +175,7 @@ type AppQueryClient = ReturnType<typeof useQueryClient>;
 
 /** Refresh everything derived from the index; target one session when known. */
 function invalidateIndexDerived(queryClient: AppQueryClient, sessionId: string | null): void {
-  for (const key of ['sessions', 'sessions-range', 'stats', 'projects', 'spend', 'health', 'live']) {
+  for (const key of ['sessions', 'sessions-range', 'stats', 'projects', 'project', 'spend', 'health', 'live']) {
     void queryClient.invalidateQueries({ queryKey: [key] });
   }
   if (sessionId !== null) {
@@ -296,6 +297,15 @@ export function useProjects() {
   return useQuery({
     queryKey: ['projects'],
     queryFn: () => apiFetch<ProjectInfo[]>('/api/projects'),
+  });
+}
+
+/** One repo's rollup — agents, spend, top files, tags. */
+export function useProject(projectKey: string) {
+  return useQuery({
+    queryKey: ['project', projectKey],
+    queryFn: () =>
+      apiFetch<ProjectDetail>(`/api/projects/${encodeURIComponent(projectKey)}`),
   });
 }
 

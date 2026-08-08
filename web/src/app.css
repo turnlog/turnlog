@@ -3001,6 +3001,24 @@
   gap: 11px;
   padding: 11px 2px;
 }
+/* The by-project row is a link to that repo's page; it keeps the row's own
+   geometry so the list reads unchanged until hovered. */
+.split-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  margin: -4px -8px;
+  padding: 4px 8px;
+  transition: background 0.15s ease;
+}
+.split-link:hover {
+  background: var(--bg1);
+}
 .split-name {
   font-size: var(--fs-14);
   font-weight: 500;
@@ -3927,4 +3945,189 @@ kbd {
 .outline-item.focused {
   background: var(--bg2);
   color: var(--tx0);
+}
+
+/* ── project page ──────────────────────────────────────────────────────
+   One repo, every agent. The cross-agent promise as a place rather than a
+   filter: header, stat strip, who worked here, then the two lists that
+   answer "what happened" and "what changed". */
+.project-screen {
+  padding: 0 var(--gutter) var(--gutter);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gutter);
+  overflow-y: auto;
+}
+.proj-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  padding-top: 4px;
+}
+.proj-head-main {
+  min-width: 0;
+  flex: 1;
+}
+.proj-head h1 {
+  font-size: var(--fs-24);
+  font-weight: 600;
+  color: var(--tx0);
+  letter-spacing: -0.01em;
+}
+.proj-path {
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx2);
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.proj-head-actions {
+  flex: none;
+}
+.proj-stats {
+  margin-top: 2px;
+}
+
+/* Who worked here — agent badges carrying their session counts, each a
+   scoped search. Tags ride the same row: both answer "what is this repo". */
+.proj-agents {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.proj-agent {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px 5px 5px;
+  border-radius: 999px;
+  background: var(--bg1);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.proj-agent:hover {
+  background: var(--bg2);
+}
+.proj-agent-n {
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx1);
+}
+.proj-tags {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.proj-tag {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.proj-tag em {
+  font-style: normal;
+  font-family: var(--mono);
+  color: var(--tx2);
+}
+
+/* .card brings no padding of its own — every variant carries the ladder's,
+   and these three sit with .list-card. */
+.proj-live,
+.proj-sessions,
+.proj-files {
+  padding: 20px 26px 14px;
+}
+.proj-live .now-list {
+  margin-top: 0;
+}
+/* Rows are inset from the card's text column; pull them level with the
+   heading, the same correction .now-list makes on the home card. */
+.proj-list,
+.proj-files-list {
+  margin: 0 -10px;
+}
+.proj-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: var(--gutter);
+  align-items: start;
+}
+@media (max-width: 1000px) {
+  .proj-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.proj-note {
+  font-size: var(--fs-12);
+  color: var(--tx2);
+  margin-left: auto;
+}
+.proj-list,
+.proj-files-list {
+  list-style: none;
+}
+.proj-row-btn,
+.proj-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+.proj-row-btn:hover,
+.proj-file:hover {
+  background: var(--bg1);
+}
+.proj-row-main {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  flex: 1;
+}
+.proj-row-title {
+  font-size: var(--fs-14);
+  color: var(--tx0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.proj-row-meta {
+  display: flex;
+  gap: 12px;
+  flex: none;
+  font-family: var(--mono);
+  font-size: var(--fs-11);
+  color: var(--tx2);
+}
+.proj-file-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.proj-more {
+  margin-top: 6px;
+}
+.proj-path-gone {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--bg2);
+  color: var(--tx2);
+  font-family: var(--sans);
+  font-size: var(--fs-11);
+  cursor: help;
 }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useProjects, useSpend } from '../api';
-import { navigate } from '../router';
+import { navigate, projectHash } from '../router';
 import Calendar from './Calendar';
 import Disk from './Disk';
 import Button from '../components/Button';
@@ -341,14 +341,17 @@ export default function Spend({ view = 'overview' }: { view?: 'overview' | 'cale
               <ul className="split-list">
                 {d.byProject.map((p) => (
                   <li key={p.key}>
-                    <span className={`tile tile-xs ${tileClass(p.key)}`}>
-                      {nameOf(p.key)[0]?.toUpperCase() ?? '·'}
-                    </span>
-                    <span className="split-name">{nameOf(p.key)}</span>
-                    <span className="split-meta">
-                      {fmtTokens(p.tokens)} tok · {fmtCount(p.sessions)}s
-                    </span>
-                    <span className="split-cost">{fmtCost(p.costUsd)}</span>
+                    {/* A spend row names a repo — clicking it should go there. */}
+                    <a className="split-link" href={projectHash(p.key)}>
+                      <span className={`tile tile-xs ${tileClass(p.key)}`}>
+                        {nameOf(p.key)[0]?.toUpperCase() ?? '·'}
+                      </span>
+                      <span className="split-name">{nameOf(p.key)}</span>
+                      <span className="split-meta">
+                        {fmtTokens(p.tokens)} tok · {fmtCount(p.sessions)}s
+                      </span>
+                      <span className="split-cost">{fmtCost(p.costUsd)}</span>
+                    </a>
                   </li>
                 ))}
               </ul>

@@ -31,7 +31,8 @@ export type Route =
   | { name: 'spend'; view: 'overview' | 'calendar' | 'disk' }
   | { name: 'whatsnew' }
   | { name: 'design' }
-  | { name: 'files'; query: string; path: string | null; find: string };
+  | { name: 'files'; query: string; path: string | null; find: string }
+  | { name: 'project'; projectKey: string };
 
 export function parseRoute(hash: string): Route {
   const h = hash.startsWith('#') ? hash.slice(1) : hash;
@@ -72,6 +73,10 @@ export function parseRoute(hash: string): Route {
   if (path === '/design-system') {
     return { name: 'design' };
   }
+  const project = /^\/project\/(.+)$/.exec(path);
+  if (project) {
+    return { name: 'project', projectKey: decodeURIComponent(project[1]!) };
+  }
   if (path === '/files') {
     return {
       name: 'files',
@@ -111,6 +116,10 @@ export function sessionHash(
 
 export function searchHash(q: string, view: 'list' | 'timeline' = 'list'): string {
   return `#/search?q=${encodeURIComponent(q)}${view === 'timeline' ? '&v=timeline' : ''}`;
+}
+
+export function projectHash(projectKey: string): string {
+  return `#/project/${encodeURIComponent(projectKey)}`;
 }
 
 export function filesHash(opts: { q?: string; path?: string; find?: string } = {}): string {

@@ -19,6 +19,7 @@ import DesignSystem from './screens/DesignSystem';
 import Home from './screens/Home';
 import Replay from './screens/Replay';
 import FileHistory from './screens/FileHistory';
+import Project from './screens/Project';
 import Search from './screens/Search';
 import Spend from './screens/Spend';
 import WhatsNew from './screens/WhatsNew';
@@ -372,6 +373,9 @@ export default function App() {
           {route.name === 'design' && <DesignSystem />}
           {route.name === 'files' && (
             <FileHistory query={route.query} path={route.path} find={route.find} />
+          )}
+          {route.name === 'project' && (
+            <Project key={route.projectKey} projectKey={route.projectKey} />
           )}
           {route.name === 'session' && (
             <Replay

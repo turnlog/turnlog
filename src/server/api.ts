@@ -12,6 +12,7 @@ import type {
   FileSummary,
   MessageListResponse,
   MessageRow,
+  ProjectDetail,
   ProjectInfo,
   LiveResponse,
   SavedSearch,
@@ -1778,6 +1779,131 @@ export function getFileHistory(db: Database.Database, path: string): FileHistory
   return { path, sessions: rows.map(rowToSession) };
 }
 
+/**
+ * Message rows that are resume duplicates, as a subquery.
+ *
+ * Chain-aware money: resuming a session copies its whole history into the new
+ * file — same message uuids under a new session id — so summing session
+ * aggregates bills a 3-part chain's shared prefix 3×. Within each multi-part
+ * family (root_uuid + project), every message uuid's first occurrence
+ * (earliest part) keeps its usage and the rest drop. Chains are rare, so
+ * ranking only family messages is cheap; it spans ALL sessions, not just a
+ * window — a prefix owned by a part outside the window stays outside it.
+ *
+ * One definition on purpose: spend and the project page must agree on what a
+ * duplicate is, or the same repo shows two different totals on two screens.
+ */
+const DUP_ROWIDS_SQL = `
+    SELECT mrowid FROM (
+      SELECT m2.rowid AS mrowid,
+             ROW_NUMBER() OVER (
+               PARTITION BY s2.root_uuid, s2.project_key, m2.uuid
+               ORDER BY s2.started_at, s2.id
+             ) AS rn
+      FROM messages m2
+      JOIN sessions s2 ON s2.id = m2.session_id
+      JOIN (SELECT root_uuid, project_key FROM sessions
+            WHERE root_uuid IS NOT NULL AND parent_session_id IS NULL
+            GROUP BY root_uuid, project_key HAVING COUNT(*) > 1) fam
+        ON fam.root_uuid = s2.root_uuid AND fam.project_key IS s2.project_key
+    ) WHERE rn > 1`;
+
+/**
+ * One repo, every agent — the page behind a project name. Exact key match,
+ * never the `project:` operator's LIKE: a page about `-Users-me-app` must not
+ * quietly fold in `-Users-me-app-v2`.
+ *
+ * Totals count messages, not session aggregates, so a family's subagent
+ * transcripts contribute once and resume copies not at all.
+ */
+export function getProject(db: Database.Database, projectKey: string): ProjectDetail | null {
+  const head = db
+    .prepare(
+      `SELECT MAX(project_path) AS project_path, COUNT(*) AS n,
+              MIN(started_at) AS first_at, MAX(COALESCE(ended_at, started_at)) AS last_at
+         FROM sessions
+        WHERE project_key = ? AND parent_session_id IS NULL`,
+    )
+    .get(projectKey) as {
+    project_path: string | null;
+    n: number;
+    first_at: string | null;
+    last_at: string | null;
+  };
+  if (head.n === 0) return null;
+
+  const agents = db
+    .prepare(
+      `SELECT tool, COUNT(*) AS n FROM sessions
+        WHERE project_key = ? AND parent_session_id IS NULL
+        GROUP BY tool ORDER BY n DESC`,
+    )
+    .all(projectKey) as { tool: string; n: number }[];
+
+  const totals = db
+    .prepare(
+      `SELECT COALESCE(SUM(m.cost_usd), 0) AS cost,
+              COALESCE(SUM(m.tokens_in), 0) AS tin,
+              COALESCE(SUM(m.tokens_out), 0) AS tout,
+              COALESCE(SUM(m.cache_read_tokens), 0) AS cr,
+              COUNT(*) AS events
+         FROM messages m
+         JOIN sessions s ON s.id = m.session_id
+        WHERE s.project_key = ? AND m.rowid NOT IN (${DUP_ROWIDS_SQL})`,
+    )
+    .get(projectKey) as {
+    cost: number;
+    tin: number;
+    tout: number;
+    cr: number;
+    events: number;
+  };
+
+  const topFiles = db
+    .prepare(
+      `SELECT ft.path AS path,
+              COUNT(DISTINCT COALESCE(s.parent_session_id, s.id)) AS n,
+              MAX(COALESCE(s.ended_at, s.started_at)) AS last
+         FROM files_touched ft
+         JOIN sessions s ON s.id = ft.session_id
+        WHERE s.project_key = ?
+        GROUP BY ft.path
+        ORDER BY n DESC, last DESC
+        LIMIT 12`,
+    )
+    .all(projectKey) as { path: string; n: number; last: string | null }[];
+
+  const tags = db
+    .prepare(
+      `SELECT st.tag AS tag, COUNT(*) AS n
+         FROM session_tags st
+         JOIN sessions s ON s.id = st.session_id
+        WHERE s.project_key = ?
+        GROUP BY st.tag ORDER BY n DESC, st.tag LIMIT 20`,
+    )
+    .all(projectKey) as { tag: string; n: number }[];
+
+  return {
+    projectKey,
+    projectPath: head.project_path,
+    pathExists:
+      head.project_path === null || head.project_path === ''
+        ? null
+        : fs.existsSync(head.project_path),
+    sessionCount: head.n,
+    firstAt: head.first_at,
+    lastAt: head.last_at,
+    eventCount: totals.events,
+    costUsd: totals.cost,
+    inputTokens: totals.tin,
+    outputTokens: totals.tout,
+    cacheReadTokens: totals.cr,
+    agents: agents.map((a) => ({ tool: a.tool, sessions: a.n })),
+    topFiles: topFiles.map((f) => ({ path: f.path, sessions: f.n, lastTouched: f.last })),
+    tags: tags.map((t) => ({ tag: t.tag, count: t.n })),
+  };
+}
+
 export function listProjects(db: Database.Database): ProjectInfo[] {
   const rows = db
     .prepare(
@@ -1815,28 +1941,7 @@ export function getSpend(
   const parsedQ = parseForSearch(q.query ?? '');
   const match = parsedQ.match;
 
-  // Chain-aware money: resuming a session copies its whole history into the
-  // new file — same message uuids under a new session id — so summing session
-  // aggregates bills a 3-part chain's shared prefix 3×. The copies are
-  // excluded up front: within each multi-part family (root_uuid + project),
-  // every message uuid's first occurrence (earliest part) keeps its usage and
-  // the rest drop. Chains are rare, so ranking only family messages is cheap;
-  // it spans ALL sessions, not just the window — a prefix owned by a part
-  // outside the window stays outside it.
-  const dupRowids = `
-    SELECT mrowid FROM (
-      SELECT m2.rowid AS mrowid,
-             ROW_NUMBER() OVER (
-               PARTITION BY s2.root_uuid, s2.project_key, m2.uuid
-               ORDER BY s2.started_at, s2.id
-             ) AS rn
-      FROM messages m2
-      JOIN sessions s2 ON s2.id = m2.session_id
-      JOIN (SELECT root_uuid, project_key FROM sessions
-            WHERE root_uuid IS NOT NULL AND parent_session_id IS NULL
-            GROUP BY root_uuid, project_key HAVING COUNT(*) > 1) fam
-        ON fam.root_uuid = s2.root_uuid AND fam.project_key IS s2.project_key
-    ) WHERE rn > 1`;
+  const dupRowids = DUP_ROWIDS_SQL;
 
   // One join-free scan of messages, aggregated per (session, model) — the
   // join to sessions per row is what made SQL-side grouping slow (~0.5s on a

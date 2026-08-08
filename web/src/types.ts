@@ -19,6 +19,7 @@ export type {
   MessageListResponse,
   MessageRow,
   PrefsResponse,
+  ProjectDetail,
   ProjectInfo,
   SavedSearch,
   SearchFacet,

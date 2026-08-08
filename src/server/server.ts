@@ -26,6 +26,7 @@ import {
   isLens,
   listBookmarks,
   listMessages,
+  getProject,
   listProjects,
   listSessionChildren,
   getLiveSessions,
@@ -594,6 +595,12 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
   }
   if (p === '/api/projects') {
     return sendJson(res, 200, listProjects(db));
+  }
+  const projectMatch = /^\/api\/projects\/(.+)$/.exec(p);
+  if (projectMatch) {
+    const detail = getProject(db, decodeURIComponent(projectMatch[1]!));
+    if (detail === null) return sendJson(res, 404, { error: 'unknown project' });
+    return sendJson(res, 200, detail);
   }
   if (p === '/api/spend') {
     return sendJson(

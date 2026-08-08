@@ -8,6 +8,14 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Added
 
+- Every repo now has a page: **one place per project**, with every agent's
+  sessions interleaved newest-first, who worked there and how much, what it
+  cost, the files it touched most, its tags, and a live row when something
+  is running in it right now. Reach it from the ⌘K palette, from the project
+  name in any session's header, or from a row on the Spend screen. If the
+  folder has since moved or been deleted the page says so — the history
+  itself is unaffected, because agent logs never lived in the repo.
+
 - Screenshots you shared with an agent now show in the replay. The images
   were always in your logs — and in the index — but the replay only ever
   said "[image]"; they render as thumbnails you click to enlarge, both the

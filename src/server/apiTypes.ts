@@ -392,6 +392,36 @@ export interface ProjectInfo {
   costUsd: number;
 }
 
+/**
+ * One repo's whole story: every agent that worked on it, what it cost, what
+ * it touched. `GET /api/projects/:key`; the session list comes from the
+ * ordinary `GET /api/sessions?project=…` so it pages like every other list.
+ */
+export interface ProjectDetail {
+  projectKey: string;
+  projectPath: string | null;
+  /**
+   * Whether the recorded folder is still on disk; null when no path was
+   * logged. False is not an error — the logs live in the agent's own data
+   * dir, so a deleted or moved repo keeps its whole history. It is said out
+   * loud because a path that silently points nowhere reads as a bug.
+   */
+  pathExists: boolean | null;
+  sessionCount: number;
+  firstAt: string | null;
+  lastAt: string | null;
+  eventCount: number;
+  /** Estimated, chain-aware (resume copies counted once). */
+  costUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  /** Which agents worked here, busiest first — the cross-agent point, visible. */
+  agents: { tool: string; sessions: number }[];
+  topFiles: { path: string; sessions: number; lastTouched: string | null }[];
+  tags: { tag: string; count: number }[];
+}
+
 export interface SpendDay {
   /** YYYY-MM-DD (session start date — cost attributes to the day it began). */
   date: string;
