@@ -4,7 +4,7 @@ import AgentBadge from '../components/AgentBadge';
 import Badge from '../components/Badge';
 import SearchField from '../components/SearchField';
 import { SkeletonRows } from '../components/Skeleton';
-import { fmtDate, fmtTime } from '../format';
+import { fmtDate, fmtTime, projectName } from '../format';
 import { BookmarkFilledIcon } from '../icons';
 import { navigate, projectHash, sessionHash } from '../router';
 import type { BookmarkEntry } from '../types';
@@ -17,15 +17,6 @@ import type { BookmarkEntry } from '../types';
  * they become a scrapbook — which is also why captions exist, since thirty
  * unlabelled 240-character prefixes are thirty things to re-read.
  */
-
-function projectLabel(b: BookmarkEntry): string {
-  if (b.projectPath) {
-    const parts = b.projectPath.split(/[\\/]/).filter(Boolean);
-    if (parts.length > 0) return parts[parts.length - 1]!;
-  }
-  const segs = (b.projectKey ?? '').split('-').filter(Boolean);
-  return segs.length > 0 ? segs[segs.length - 1]! : 'unknown';
-}
 
 function BookmarkRow({ b }: { b: BookmarkEntry }) {
   return (
@@ -56,7 +47,7 @@ function BookmarkRow({ b }: { b: BookmarkEntry }) {
               navigate(projectHash(b.projectKey));
             }}
           >
-            {projectLabel(b)}
+            {projectName(b)}
           </span>
           {b.kind && <Badge>{b.kind}</Badge>}
           <span className="bm-idx">#{b.idx}</span>

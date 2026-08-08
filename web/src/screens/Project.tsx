@@ -4,8 +4,9 @@ import Badge from '../components/Badge';
 import IconButton from '../components/IconButton';
 import { SkeletonRows } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
-import { fmtCost, fmtCount, fmtDate, fmtTokens, sessionName } from '../format';
+import { fmtCost, fmtCount, fmtDate, fmtTokens, projectName, sessionName } from '../format';
 import { CodeFileIcon, MagniferIcon } from '../icons';
+import { fileName } from '../replay/Files';
 import { filesHash, navigate, searchHash, sessionHash } from '../router';
 import type { SessionMeta } from '../types';
 
@@ -20,20 +21,6 @@ import type { SessionMeta } from '../types';
  * Named from the path's last segment like everywhere else, so a project reads
  * as the repo you call it, not as the munged key the index stores.
  */
-
-function projectTitle(projectPath: string | null, projectKey: string): string {
-  if (projectPath && projectPath !== '') {
-    const parts = projectPath.split(/[\\/]/).filter(Boolean);
-    if (parts.length > 0) return parts[parts.length - 1]!;
-  }
-  const segs = projectKey.split('-').filter(Boolean);
-  return segs.length > 0 ? segs[segs.length - 1]! : '(unknown)';
-}
-
-function fileName(p: string): string {
-  const parts = p.split(/[\\/]/).filter(Boolean);
-  return parts.length > 0 ? parts[parts.length - 1]! : p;
-}
 
 function SessionRow({ s }: { s: SessionMeta }) {
   return (
@@ -74,7 +61,7 @@ export default function Project({ projectKey }: { projectKey: string }) {
     );
   }
 
-  const title = p ? projectTitle(p.projectPath, p.projectKey) : '…';
+  const title = p ? projectName(p) : '…';
 
   return (
     <div className="project-screen">
