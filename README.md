@@ -82,7 +82,9 @@ time it starts, once nothing is holding the old file.
 - **Search everything** — full-text FTS5 across your whole history, grouped by
   session, jump straight to the match. Identifiers and `snake_case` included.
   Subagent transcripts (the separate files newer Claude Code versions write per
-  Task run) are indexed too. Filter by file (`path:api.ts`), by date in plain
+  Task run) are indexed too, as is everything the run actually saw — including
+  files you attached with `@` and edits you made by hand while it was running.
+  Filter by file (`path:api.ts`), by date in plain
   words (`after:7d`), by agent (`agent:codex`), by your own tags
   (`tag:billing`), by tool, model, project or error — or click a **refine
   chip** to narrow by what the results actually contain. Flip to a

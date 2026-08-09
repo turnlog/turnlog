@@ -595,6 +595,7 @@ const ATTACH_LABEL: Record<string, string> = {
   file: 'file attached',
   directory: 'directory attached',
   edited_text_file: 'file edited',
+  compact_file_reference: 'file referenced',
   queued_command: 'queued',
   plan_mode: 'plan mode',
   plan_mode_exit: 'left plan mode',
@@ -616,8 +617,36 @@ const AttachmentBlock = memo(function AttachmentBlock({ row }: { row: MessageRow
   const label = ATTACH_LABEL[type];
 
   if (label) {
-    // User-meaningful: path for file-ish subtypes, the prompt for queued ones.
-    const detail = row.text || str(att?.prompt) || str(att?.planFilePath) || '';
+    // Read the path from the record, not from row.text: the indexed text is
+    // now "path\nbody" for the subtypes that carry one.
+    const detail =
+      str(att?.filename) ??
+      str(att?.path) ??
+      str(att?.displayPath) ??
+      str(att?.prompt) ??
+      str(att?.planFilePath) ??
+      row.text ??
+      '';
+    // The body the attachment carried — a hand-edit's snippet, an attached
+    // file's contents, a directory listing. It is what the run actually saw,
+    // so it folds like every other long payload instead of being invisible.
+    const body =
+      str(att?.snippet) ??
+      str((att?.content as { file?: { content?: unknown } } | undefined)?.file?.content) ??
+      str(att?.content);
+    if (body) {
+      return (
+        <div className="block block-summary block-attachment has-body">
+          <button className="attach-head" onClick={() => setOpen(!open)}>
+            <Caret open={open} />
+            <Badge>{label}</Badge>
+            {detail && <span className="attach-detail">{shortPath(detail)}</span>}
+            <Ts iso={row.ts} />
+          </button>
+          {open && <ClampedText text={body} />}
+        </div>
+      );
+    }
     return (
       <div className="block block-summary block-attachment">
         <Badge>{label}</Badge>

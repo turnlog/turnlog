@@ -7,8 +7,10 @@ export const APP_VERSION: string = pkg.version;
 /**
  * Version of the Claude Code parser/adapter pipeline. Bumping this forces a
  * full reindex of every CC session file on the next scan.
+ * v5: attachments carrying a body (edited_text_file's snippet, file content,
+ * directory listing) indexed only their path — the body was unsearchable.
  */
-export const ADAPTER_VERSION = 4;
+export const ADAPTER_VERSION = 5;
 
 /**
  * Version of the Codex rollout adapter. Per-tool on purpose: bumping one

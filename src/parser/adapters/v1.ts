@@ -37,6 +37,11 @@ function blockToText(block: any): string {
   }
 }
 
+/** An attachment's path plus whatever body it carried; either may be absent. */
+function pathAndBody(path: string | null, body: string | null): string {
+  return [path, body].filter((s): s is string => s !== null && s !== '').join('\n');
+}
+
 function contentToText(content: unknown): string {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
@@ -165,17 +170,28 @@ export function normalizeV1(obj: any, raw: string, fallbackId: string): Normaliz
     // Context CC injects on the user channel, subtyped by attachment.type.
     // Only path-shaped subtypes contribute searchable text; a queued_command's
     // prompt is skipped because it reappears as a real prompt when dequeued.
+    //
+    // These carry a BODY as well as a path, and indexing the path alone threw
+    // the body away: an edited_text_file's snippet is the change you made by
+    // hand that the agent then reacted to. Uncapped, like tool_result content —
+    // the index's job is to hold what the run actually saw.
     case 'attachment': {
       const att = obj.attachment;
       rec.kind = 'attachment';
       rec.subtype = str(att?.type);
       switch (rec.subtype) {
-        case 'file':
         case 'edited_text_file':
-          rec.text = str(att.filename) ?? '';
+          rec.text = pathAndBody(str(att.filename), str(att.snippet));
+          break;
+        case 'file':
+          rec.text = pathAndBody(str(att.filename), str(att.content?.file?.content));
           break;
         case 'directory':
-          rec.text = str(att.path) ?? '';
+          rec.text = pathAndBody(str(att.path), str(att.content));
+          break;
+        // Path-shaped with no body of its own, and previously unindexed.
+        case 'compact_file_reference':
+          rec.text = str(att.filename) ?? '';
           break;
       }
       return rec;

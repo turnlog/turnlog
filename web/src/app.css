@@ -1319,6 +1319,18 @@
   font-family: var(--mono);
   overflow-wrap: anywhere;
 }
+/* An attachment carrying a body stacks head over payload; the flat flex row
+   above stays the layout for the ones that are only a path. */
+.block-attachment.has-body {
+  display: block;
+}
+.attach-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+}
 .block-mode {
   border-left-color: var(--c-dim);
   padding-top: 2px;

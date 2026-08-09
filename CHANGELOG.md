@@ -69,6 +69,16 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Fixed
 
+- **The files you edit by hand mid-session were unsearchable.** When you
+  change a file while an agent is running, Claude Code records the edit
+  along with a snippet of what you changed — and Turnlog indexed only the
+  filename, so the change itself, the thing the agent then reacted to, could
+  not be found. The same was true of a file you attached with `@` (its
+  contents were dropped) and of an attached directory (its listing was). All
+  three are indexed now, and the replay shows them: the row folds open to
+  the snippet, the file, or the listing, like every other long payload.
+  Existing indexes repair themselves on the next scan.
+
 - **Codex tool output was missing from the index entirely.** Codex writes a
   tool's result as a list of text blocks, a shape the adapter did not read,
   so every `exec` result was stored with empty search text — command output,
