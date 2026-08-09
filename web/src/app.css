@@ -13,19 +13,22 @@
 /* The rail clips the sidebar so open/close reads as a slide; the zone keeps
    its full width inside, so content never reflows mid-motion. Collapsed it
    holds --rail-w rather than nothing — that sliver is the way back. */
+/* The floating card IS the rail: it carries the surface, the radius and the
+   inset, and its width animates between the two states. Rounded on all four
+   sides and inset from the edges, collapsed as well as open. */
 .sidebar-rail {
   position: relative;
   flex: none;
   width: var(--rail-w);
+  height: calc(100% - var(--gutter) * 2);
+  margin: var(--gutter) 0 var(--gutter) var(--gutter);
   overflow: hidden;
   background: var(--card);
+  border-radius: var(--radius-lg);
   transition: width 260ms cubic-bezier(0.25, 0.8, 0.3, 1);
 }
 .sidebar-rail.open {
   width: var(--sidebar-w);
-}
-.sidebar-holder {
-  height: 100%;
 }
 
 /* The collapsed column: brand, then the projects. Absolute so the sidebar
@@ -580,10 +583,10 @@
 
 /* The custom dropdown lives in components/Dropdown.css. */
 
-/* ── sidebar (sessions) — a fixed zone ─────────────────────────────── */
+/* ── sidebar (sessions) — a floating card ──────────────────────────── */
 
-/* Flush on three sides, full height, square. Separation from the content is
-   by tone — --card against the --bg0 canvas — not by inset or hairline. */
+/* Surface, radius and inset belong to the rail above; this keeps its full
+   width inside so content never reflows mid-slide. */
 .sidebar {
   width: var(--sidebar-w);
   height: 100%;
@@ -591,7 +594,6 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--card);
   transition:
     transform 260ms cubic-bezier(0.25, 0.8, 0.3, 1),
     opacity 200ms ease;

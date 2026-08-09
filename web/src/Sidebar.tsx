@@ -151,9 +151,7 @@ function Item({
           )}
           {/* The figures the sort is not showing, one hover away — the row
               stays one number wide however many facts a session has. */}
-          <Tooltip
-            content={<Facts rows={rest} />}
-          >
+          <Tooltip content={<Facts rows={rest} />}>
             <IconButton fill="ghost" className="side-item-info" label="Session details">
               <InfoIcon />
             </IconButton>
@@ -177,7 +175,6 @@ function Item({
     </div>
   );
 }
-
 
 /**
  * The collapsed rail: the same list, one tile per session — all of them, in
@@ -333,151 +330,153 @@ export default function Sidebar({
         <RailSessions rows={rows} activeId={activeId} open={open} />
       </div>
       <aside className="sidebar">
-      <div className="sidebar-brand">
-        <a href="#/" className="header-brand" aria-label="Turnlog — overview">
-          <Brandmark size={40} />
-          <span className="header-title">
-            Turnlog
-            <em>Search &amp; replay</em>
-          </span>
-        </a>
-        {/* Collapse sits against the edge it moves, and is the last thing your
+        <div className="sidebar-brand">
+          <a href="#/" className="header-brand" aria-label="Turnlog — overview">
+            <Brandmark size={40} />
+            <span className="header-title">
+              Turnlog
+              <em>Search &amp; replay</em>
+            </span>
+          </a>
+          {/* Collapse sits against the edge it moves, and is the last thing your
             eye reaches after the list. quiet, not card: it stands on the
             sidebar's own surface. */}
-        <Primary
-          fill="quiet"
-          label="Hide sessions"
-          tooltip="Hide sessions"
-          shortcut={SHORTCUTS.sidebar}
-          onClick={onToggle}
-          icon={<SidebarIcon />}
-        />
-      </div>
-      <div className="sidebar-controls" ref={controlsRef}>
-        <div className="sidebar-controls-row">
-          <SearchField
-            value={nameInput}
-            onChange={setNameInput}
-            placeholder="Filter sessions…"
-            ariaLabel="Filter sessions by name or project"
-            icon
-            clearable
+          <Primary
+            fill="quiet"
+            label="Hide sessions"
+            tooltip="Hide sessions"
+            shortcut={SHORTCUTS.sidebar}
+            onClick={onToggle}
+            icon={<SidebarIcon />}
           />
-          <IconButton
-            fill="inset"
-            label="Session filters and sort"
-            tooltip={activeCount > 0 ? `Filters & sort — ${activeCount} active` : 'Filters & sort'}
-            className="filter-btn"
-            active={filtersOpen}
-            onClick={() => setFiltersOpen(!filtersOpen)}
-            aria-expanded={filtersOpen}
-          >
-            <TuningIcon size={16} />
-            {activeCount > 0 && <span className="filter-dot" />}
-          </IconButton>
-          <span className="sidebar-count">{fmtCount(total)}</span>
         </div>
-        {filtersOpen && (
-          <div className="filter-pop" role="dialog" aria-label="Session filters">
-            <div className="pop-row">
-              <span className="pop-label">project</span>
-              <Dropdown
-                className="dd-grow"
-                value={project}
-                onChange={setProject}
-                ariaLabel="Filter by project"
-                options={[
-                  { value: '', label: `all projects (${projects.data?.length ?? 0})` },
-                  ...(projects.data?.map((p) => ({
-                    value: p.projectKey,
-                    label: `${projectName(p)} (${p.sessionCount})`,
-                  })) ?? []),
-                ]}
-              />
-            </div>
-            <div className="pop-row">
-              <span className="pop-label">tag</span>
-              <Dropdown
-                className="dd-grow"
-                value={tag}
-                onChange={setTag}
-                ariaLabel="Filter by tag"
-                options={[
-                  { value: '', label: 'any tag' },
-                  ...(tags.data?.tags.map((t) => ({
-                    value: t.tag,
-                    label: `${t.tag} (${t.count})`,
-                  })) ?? []),
-                ]}
-              />
-            </div>
-            <div className="pop-row">
-              <span className="pop-label">sort</span>
-              <Dropdown
-                className="dd-grow"
-                value={sort}
-                onChange={(v) => setSort(v as typeof sort)}
-                ariaLabel="Sort by"
-                options={SORTS.map((s) => ({ value: s.value, label: `by ${s.label}` }))}
-              />
-              <IconButton
-                fill="inset"
-                label={`Direction: ${dir}`}
-                tooltip={dir === 'desc' ? 'Newest first' : 'Oldest first'}
-                className={dir === 'asc' ? 'asc' : ''}
-                onClick={() => setDir(dir === 'desc' ? 'asc' : 'desc')}
-              >
-                <SortVerticalIcon size={16} />
-              </IconButton>
-            </div>
-            <div className="pop-row">
-              <span className="pop-label">empty</span>
-              <Segmented
-                className="share-seg"
-                ariaLabel="Empty sessions"
-                value={hideEmpty ? 'hidden' : 'shown'}
-                onChange={(v) => setHideEmpty(v === 'hidden')}
-                options={[
-                  { value: 'shown', label: 'shown' },
-                  { value: 'hidden', label: 'hidden' },
-                ]}
-              />
-            </div>
-            {activeCount > 0 && (
-              <button className="filter-reset" onClick={resetFilters}>
-                reset filters
-              </button>
-            )}
+        <div className="sidebar-controls" ref={controlsRef}>
+          <div className="sidebar-controls-row">
+            <SearchField
+              value={nameInput}
+              onChange={setNameInput}
+              placeholder="Filter sessions…"
+              ariaLabel="Filter sessions by name or project"
+              icon
+              clearable
+            />
+            <IconButton
+              fill="inset"
+              label="Session filters and sort"
+              tooltip={
+                activeCount > 0 ? `Filters & sort — ${activeCount} active` : 'Filters & sort'
+              }
+              className="filter-btn"
+              active={filtersOpen}
+              onClick={() => setFiltersOpen(!filtersOpen)}
+              aria-expanded={filtersOpen}
+            >
+              <TuningIcon size={16} />
+              {activeCount > 0 && <span className="filter-dot" />}
+            </IconButton>
+            <span className="sidebar-count">{fmtCount(total)}</span>
           </div>
-        )}
-      </div>
-
-      {rows.length === 0 && sessions.isLoading ? (
-        <SkeletonRows n={9} tile={34} />
-      ) : rows.length === 0 ? (
-        <div className="sidebar-empty">
-          {sessions.isError
-            ? (sessions.error as Error).message
-            : status.data?.state === 'indexing'
-              ? 'indexing…'
-              : name || activeCount > 0
-                ? 'no matching sessions'
-                : 'no sessions yet'}
-        </div>
-      ) : (
-        <Virtuoso
-          className="sidebar-list"
-          data={rows}
-          endReached={() => {
-            if (sessions.hasNextPage && !sessions.isFetchingNextPage) {
-              void sessions.fetchNextPage();
-            }
-          }}
-          itemContent={(_i, s) => (
-            <Item s={s} active={s.id === activeId} sort={sort} onTogglePin={togglePin} />
+          {filtersOpen && (
+            <div className="filter-pop" role="dialog" aria-label="Session filters">
+              <div className="pop-row">
+                <span className="pop-label">project</span>
+                <Dropdown
+                  className="dd-grow"
+                  value={project}
+                  onChange={setProject}
+                  ariaLabel="Filter by project"
+                  options={[
+                    { value: '', label: `all projects (${projects.data?.length ?? 0})` },
+                    ...(projects.data?.map((p) => ({
+                      value: p.projectKey,
+                      label: `${projectName(p)} (${p.sessionCount})`,
+                    })) ?? []),
+                  ]}
+                />
+              </div>
+              <div className="pop-row">
+                <span className="pop-label">tag</span>
+                <Dropdown
+                  className="dd-grow"
+                  value={tag}
+                  onChange={setTag}
+                  ariaLabel="Filter by tag"
+                  options={[
+                    { value: '', label: 'any tag' },
+                    ...(tags.data?.tags.map((t) => ({
+                      value: t.tag,
+                      label: `${t.tag} (${t.count})`,
+                    })) ?? []),
+                  ]}
+                />
+              </div>
+              <div className="pop-row">
+                <span className="pop-label">sort</span>
+                <Dropdown
+                  className="dd-grow"
+                  value={sort}
+                  onChange={(v) => setSort(v as typeof sort)}
+                  ariaLabel="Sort by"
+                  options={SORTS.map((s) => ({ value: s.value, label: `by ${s.label}` }))}
+                />
+                <IconButton
+                  fill="inset"
+                  label={`Direction: ${dir}`}
+                  tooltip={dir === 'desc' ? 'Newest first' : 'Oldest first'}
+                  className={dir === 'asc' ? 'asc' : ''}
+                  onClick={() => setDir(dir === 'desc' ? 'asc' : 'desc')}
+                >
+                  <SortVerticalIcon size={16} />
+                </IconButton>
+              </div>
+              <div className="pop-row">
+                <span className="pop-label">empty</span>
+                <Segmented
+                  className="share-seg"
+                  ariaLabel="Empty sessions"
+                  value={hideEmpty ? 'hidden' : 'shown'}
+                  onChange={(v) => setHideEmpty(v === 'hidden')}
+                  options={[
+                    { value: 'shown', label: 'shown' },
+                    { value: 'hidden', label: 'hidden' },
+                  ]}
+                />
+              </div>
+              {activeCount > 0 && (
+                <button className="filter-reset" onClick={resetFilters}>
+                  reset filters
+                </button>
+              )}
+            </div>
           )}
-        />
-      )}
+        </div>
+
+        {rows.length === 0 && sessions.isLoading ? (
+          <SkeletonRows n={9} tile={34} />
+        ) : rows.length === 0 ? (
+          <div className="sidebar-empty">
+            {sessions.isError
+              ? (sessions.error as Error).message
+              : status.data?.state === 'indexing'
+                ? 'indexing…'
+                : name || activeCount > 0
+                  ? 'no matching sessions'
+                  : 'no sessions yet'}
+          </div>
+        ) : (
+          <Virtuoso
+            className="sidebar-list"
+            data={rows}
+            endReached={() => {
+              if (sessions.hasNextPage && !sessions.isFetchingNextPage) {
+                void sessions.fetchNextPage();
+              }
+            }}
+            itemContent={(_i, s) => (
+              <Item s={s} active={s.id === activeId} sort={sort} onTogglePin={togglePin} />
+            )}
+          />
+        )}
       </aside>
     </>
   );

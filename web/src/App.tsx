@@ -163,7 +163,13 @@ function UpdateBanner() {
  * tries to close the tab. Two clicks (arm, then confirm) so a stray click
  * can't kill the server; the armed state disarms itself after a few seconds.
  */
-function StopButton({ onStopped }: { onStopped: () => void }) {
+function StopButton({
+  onStopped,
+  fill = 'card',
+}: {
+  onStopped: () => void;
+  fill?: 'card' | 'quiet';
+}) {
   const [armed, setArmed] = useState(false);
 
   useEffect(() => {
@@ -231,8 +237,8 @@ function Stopped() {
         </span>
         <h1>Turnlog stopped</h1>
         <p>
-          The local server has shut down — nothing is running on your machine.
-          It&rsquo;s safe to close this tab, or start again with:
+          The local server has shut down — nothing is running on your machine. It&rsquo;s safe to
+          close this tab, or start again with:
         </p>
         <button className="stopped-cmd" onClick={copy}>
           <code>{cmd}</code>
@@ -250,12 +256,12 @@ function NoToken() {
       <div>
         <h1>Session token missing</h1>
         <p>
-          Turnlog requires the tokened URL printed by the CLI — it keeps other local
-          processes and web pages away from your session index.
+          Turnlog requires the tokened URL printed by the CLI — it keeps other local processes and
+          web pages away from your session index.
         </p>
         <p>
-          Switch to the terminal running <code>turnlog</code> and open the URL it
-          printed (<code>http://127.0.0.1:…/?token=…</code>), or restart it.
+          Switch to the terminal running <code>turnlog</code> and open the URL it printed (
+          <code>http://127.0.0.1:…/?token=…</code>), or restart it.
         </p>
       </div>
     </div>
