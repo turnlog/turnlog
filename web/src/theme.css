@@ -212,9 +212,10 @@
   --radius-lg: 24px; /* cards */
 
   --sidebar-w: 356px;
-  /* Collapsed, the sidebar keeps a rail wide enough for one 44px control with
-     even air either side — so the open/close toggle never leaves its column. */
-  --rail-w: 68px;
+  /* Collapsed, the sidebar keeps a sliver wide enough for one 44px control
+     with even air either side, so the toggle never leaves its column. NOT
+     --rail-w: that is the replay's speaker rail, three pixels of border. */
+  --sidebar-rail-w: 68px;
   /* The gutter the screen, sidebar, and any full-width band share. */
   --gutter: 14px;
 }

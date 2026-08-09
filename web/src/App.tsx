@@ -321,7 +321,7 @@ export default function App() {
     <div className="app">
       <Palette />
       <Shortcuts />
-      {/* Always mounted so open/close can animate; the rail clips to --rail-w. */}
+      {/* Always mounted so open/close can animate; the rail clips to --sidebar-rail-w. */}
       <div className={`sidebar-rail ${sidebarOpen ? 'open' : ''}`}>
         <Sidebar
           activeId={route.name === 'session' ? route.id : null}

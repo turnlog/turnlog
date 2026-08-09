@@ -12,14 +12,14 @@
 
 /* The rail clips the sidebar so open/close reads as a slide; the zone keeps
    its full width inside, so content never reflows mid-motion. Collapsed it
-   holds --rail-w rather than nothing — that sliver is the way back. */
+   holds --sidebar-rail-w rather than nothing — that sliver is the way back. */
 /* The floating card IS the rail: it carries the surface, the radius and the
    inset, and its width animates between the two states. Rounded on all four
    sides and inset from the edges, collapsed as well as open. */
 .sidebar-rail {
   position: relative;
   flex: none;
-  width: var(--rail-w);
+  width: var(--sidebar-rail-w);
   height: calc(100% - var(--gutter) * 2);
   margin: var(--gutter) 0 var(--gutter) var(--gutter);
   overflow: hidden;
@@ -36,7 +36,7 @@
 .rail-mini {
   position: absolute;
   inset: 14px 0 0;
-  width: var(--rail-w);
+  width: var(--sidebar-rail-w);
   display: flex;
   flex-direction: column;
   align-items: center;
