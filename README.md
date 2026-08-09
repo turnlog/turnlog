@@ -133,7 +133,9 @@ time it starts, once nothing is holding the old file.
   at every response, with compaction points marked on the curve and on the turn
   where they happened.
 - **Keyboard-first** — `⌘K` opens a command palette over every session, screen
-  and saved search; `?` shows the cheat sheet.
+  and saved search; `?` shows the cheat sheet. Collapse the sidebar and it
+  keeps a rail of your sessions — same order, same filters — so the list is
+  never more than a click away.
 - **Export** — `turnlog export <id>` prints a session as markdown, HTML or JSON,
   optionally redacted; a share panel does the same from the UI. Your pins,
   names, notes, **tags** and bookmarks travel with
@@ -141,6 +143,10 @@ time it starts, once nothing is holding the old file.
 - **Agent memory (MCP)** — `turnlog mcp` serves your history to any MCP-capable
   agent as a read-only server, so it can search its own past sessions mid-task
   ("how did we fix this last month?").
+
+**Full documentation:** [turnlog.dev/docs](https://turnlog.dev/docs) — a tour of
+every screen, guides for search, annotation, MCP setup and sharing, and reference
+pages for every search operator, CLI flag, settings key and MCP tool.
 
 ## Give your agent memory (MCP)
 

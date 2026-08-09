@@ -7,7 +7,7 @@ renders. What is left is account-side (see Status).
 
 ## Status
 
-- **Platform:** Mintlify — `docs.json` is written and all 21 pages carry frontmatter. Not
+- **Platform:** Mintlify — `docs.json` is written and all 22 pages carry frontmatter. Not
   yet connected on Mintlify's side (an account/GitHub-App action, not something committed
   here).
 - **Sync branch:** `main`. Docs should redeploy on releases, not on every commit to
