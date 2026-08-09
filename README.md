@@ -38,10 +38,11 @@ macOS, Linux, Windows. No build step, no installer, no postinstall scripts.
 
 ```
 turnlog <version>
-  UI:       http://127.0.0.1:52431/?token=a1b2c3…
-  Projects: /Users/you/.claude/projects
-  Codex:    /Users/you/.codex/sessions (read-only)
-  Cursor:   /Users/you/.cursor/projects (read-only)
+  UI:          http://127.0.0.1:<port>/?token=a1b2c3…
+  Claude Code: /Users/you/.claude/projects (read-only)
+  Codex:       /Users/you/.codex/sessions (read-only)
+  Cursor:      /Users/you/.cursor/projects (read-only)
+  Index:       /Users/you/.config/turnlog/index.sqlite
 ```
 
 The Codex and Cursor lines appear only if those histories exist; there is

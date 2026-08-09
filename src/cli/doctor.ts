@@ -84,7 +84,9 @@ export function runDoctor(dirs: {
   const indexPath = path.join(dir, 'index.sqlite');
   const settingsPath = path.join(dir, 'settings.json');
   out('data dir', dir);
-  out('projects dir', `${projectsDir}${fs.existsSync(projectsDir) ? '' : '  (missing)'}`);
+  // Named for the agent, not for what the directory happens to be called:
+  // "projects dir" was Claude Code's, and read like Turnlog's own projects.
+  out('claude code dir', `${projectsDir}${fs.existsSync(projectsDir) ? '' : '  (missing)'}`);
   out('codex dir', codexDir ? codexDir : '(none — ~/.codex/sessions not present)');
   out('cursor cli dir', cursorCliDir ? cursorCliDir : '(none — ~/.cursor/projects not present)');
   out('cursor ide dir', cursorIdeUserDir ? cursorIdeUserDir : '(none — no state.vscdb found)');

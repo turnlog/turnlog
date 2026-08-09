@@ -79,6 +79,15 @@ All notable changes to Turnlog are documented here. The format follows
   rather than dropped. `turnlog demo` carries one now, so the feature can be
   seen without opening your own history.
 
+### Changed
+
+- The startup banner names each source for the **agent that wrote it**, and
+  says read-only on every line. Claude Code's directory was labelled
+  "Projects", which now reads as Turnlog's own Projects screen rather than
+  where Claude Code keeps its logs — and it was the one source whose line
+  did not carry the read-only promise, which is the opposite of the emphasis
+  it deserves. `turnlog doctor` reports it the same way.
+
 ### Fixed
 
 - **The files you edit by hand mid-session were unsearchable.** When you

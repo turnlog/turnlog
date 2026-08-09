@@ -271,14 +271,24 @@ async function start(
   ).n;
   const firstRun = knownSessions === 0;
 
-  console.log(`turnlog ${APP_VERSION}`);
-  console.log(`  UI:       ${url}`);
-  console.log(`  Projects: ${projectsDir}`);
-  if (codexDir) console.log(`  Codex:    ${codexDir} (read-only)`);
-  if (cursorCliDir) console.log(`  Cursor:   ${cursorCliDir} (read-only)`);
+  // Each source is named for the agent that wrote it, and every one says
+  // read-only. "Projects" named a Turnlog concept (there is a Projects screen)
+  // rather than Claude Code's log directory, and it was the one source NOT
+  // carrying the promise — the opposite of the emphasis that belongs there.
+  // Widths are computed so a new source can never quietly break the column.
+  const rows: [string, string][] = [['UI', url]];
+  rows.push(['Claude Code', `${projectsDir} (read-only)`]);
+  if (codexDir) rows.push(['Codex', `${codexDir} (read-only)`]);
+  if (cursorCliDir) rows.push(['Cursor', `${cursorCliDir} (read-only)`]);
   if (cursorIdeUserDir)
-    console.log(`  Cursor IDE: ${cursorIdeUserDir} (read-only, copied before reading)`);
-  console.log(`  Index:    ${dbFile}`);
+    rows.push(['Cursor IDE', `${cursorIdeUserDir} (read-only, copied before reading)`]);
+  rows.push(['Index', dbFile]);
+  const labelWidth = Math.max(...rows.map(([label]) => label.length + 1));
+
+  console.log(`turnlog ${APP_VERSION}`);
+  for (const [label, value] of rows) {
+    console.log(`  ${`${label}:`.padEnd(labelWidth)} ${value}`);
+  }
   console.log(`  Bound to 127.0.0.1 only — verify with: lsof -iTCP -sTCP:LISTEN | grep node`);
   if (firstRun) {
     console.log('\nFirst run — building the index. This is a one-time pass;');
