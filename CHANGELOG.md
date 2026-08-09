@@ -6,13 +6,7 @@ All notable changes to Turnlog are documented here. The format follows
 
 ## [Unreleased]
 
-### Fixed
-
-- **Codex tool output was missing from the index entirely.** Codex writes a
-  tool's result as a list of text blocks, a shape the adapter did not read,
-  so every `exec` result was stored with empty search text — command output,
-  file contents, test results, none of it findable. It is indexed now, and
-  the next scan after updating repairs existing indexes automatically.
+## [0.12.0] — 2026-08-09
 
 ### Added
 
@@ -71,6 +65,14 @@ All notable changes to Turnlog are documented here. The format follows
   from the record you already have: nothing is fetched, nothing new is
   stored, and a payload whose type can't be verified is still shown as text
   rather than dropped.
+
+### Fixed
+
+- **Codex tool output was missing from the index entirely.** Codex writes a
+  tool's result as a list of text blocks, a shape the adapter did not read,
+  so every `exec` result was stored with empty search text — command output,
+  file contents, test results, none of it findable. It is indexed now, and
+  the next scan after updating repairs existing indexes automatically.
 
 ## [0.11.0] — 2026-08-06
 
