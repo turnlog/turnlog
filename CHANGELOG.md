@@ -6,6 +6,33 @@ All notable changes to Turnlog are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **The sidebar collapses to a rail instead of disappearing.** Closed, it
+  keeps a narrow column carrying the mark — which is also the way back: hover
+  it and it becomes the open control. Under it, the **same sessions as the
+  open list**, one tile each, in the same order, honouring whatever filter and
+  sort you set, so collapsing no longer changes which sessions you are looking
+  at. The tiles keep the three things a row says at that size: which one you
+  are reading, which are pinned, and which are running right now.
+
+  The open/close control also stops moving. It used to live inside the sidebar
+  when open and jump to the header when closed, so the button you had just
+  pressed was never where you left it; both states now keep it in the same
+  column, with collapse sitting against the edge it moves.
+
+- **Public documentation** at `turnlog.dev/docs` — what Turnlog is, a tour of
+  each screen, task guides (search, annotation, MCP setup, sharing,
+  troubleshooting), and reference pages for the search operators, the CLI,
+  `settings.json` and the MCP tools. The design system moved in alongside it,
+  so the rules behind the UI are readable by anyone, not just maintainers.
+
+### Fixed
+
+- The **bookmark toggle** in a replay sat at a fixed offset rather than on the
+  line it marks, so on compact rows it pointed at the row above by half a row.
+  It now centres on the first line of whatever block it belongs to.
+
 ## [0.12.0] — 2026-08-09
 
 ### Added
