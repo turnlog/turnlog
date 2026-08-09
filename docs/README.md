@@ -19,9 +19,11 @@ renders. What is left is account-side (see Status).
   `turnlog.landing` — that repo deploys as its own Worker via Workers Builds, and adding
   a `wrangler` config to it would disturb that pipeline. Route-level precedence composes
   the two.
-- **Logo/favicon:** not set in `docs.json`. The mark now exists as
-  `web/public/favicon.svg` (accent tile) and as `Brandmark` in `web/src/icons.tsx`; add
-  `docs/logo/{light,dark}.svg` and wire up `logo`/`favicon` before going live.
+- **Logo/favicon:** done. `logo/light.svg` and `logo/dark.svg` are named for the MODE
+  they serve, matching `docs.json`'s `logo.light`/`logo.dark` keys — light mode gets the
+  dark disc, dark mode the light one, the same inversion the app's `Brandmark` does.
+  `favicon.svg` is the accent tile, copied from `web/public/`. All three mirror
+  `Brandmark` in `web/src/icons.tsx`; keep them in step.
 - **Links** are written without `.md` extensions and rooted at `/docs/…`, matching the
   served path. If you add a page, add it to `docs.json`'s `navigation` too — pages are
   not auto-discovered.
@@ -53,15 +55,30 @@ summary of one:
 - **`reference/settings.md`** — the `settings.json` shape.
 - **`reference/cli.md`** — commands and flags.
 
+## Drift guards
+
+`test/docs.test.ts` is what keeps the reference pages true. Every check is a **set
+equality in both directions**, so it fails on a newly undocumented thing *and* on a
+documented thing that no longer exists — a one-way "everything is documented" check rots
+silently as things are removed. It covers:
+
+- search operators ↔ `FILTER_OPS`
+- CLI commands and flags ↔ `parseArgs`
+- `settings.json` keys ↔ the `Settings` interface
+- MCP tool names ↔ the `TOOLS` array
+- nav ↔ files (both ways, no duplicates), dead internal links, frontmatter
+- assets `docs.json` points at exist and are valid — including that no XML comment
+  contains `--`, which parses as nothing and silently keeps the previous asset
+
+Each guard was verified by reintroducing the drift it exists for and watching it fail.
+
 ## Known gaps
 
-- **`reference/mcp-tools.md` is a hand-kept snapshot** of `src/mcp/mcp.ts`'s `TOOLS`
-  array, not generated. Parameters were read off the source when written; if a tool's
-  schema changes, edit this page in the same commit. Reikon guards the equivalent with a
-  drift test — worth copying.
+- **`reference/mcp-tools.md`'s parameters are still hand-kept.** The drift test checks
+  tool *names*, not their argument schemas — a renamed parameter would pass. Read the
+  `TOOLS` array when editing.
 - **No screenshots.** Every page is text. The tour pages would carry their weight better
   with images once there is a stable place to host them.
-- **No drift test.** Nothing fails if the CLI grows a flag this folder does not mention.
 
 ## Deliberately excluded
 

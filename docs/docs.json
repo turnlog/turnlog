@@ -3,6 +3,11 @@
   "theme": "mint",
   "name": "Turnlog",
   "description": "Search and replay every coding-agent session you've ever run — locally. Free, MIT, no accounts, no telemetry.",
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "favicon": "/favicon.svg",
   "colors": {
     "primary": "#e8542f",
     "light": "#f0663f",
