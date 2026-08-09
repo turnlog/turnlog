@@ -2,13 +2,11 @@ import { useEffect, useState } from 'react';
 import { hasToken, shutdownServer, useLiveEvents, useStatus } from './api';
 import {
   BookmarkIcon,
-  Brandmark,
   CloseIcon,
   FolderIcon,
   MagniferIcon,
   MoonIcon,
   PowerIcon,
-  SidebarIcon,
   SunIcon,
   WidgetIcon,
   WalletIcon,
@@ -35,8 +33,7 @@ import Shortcuts from './components/Shortcuts';
 import Tooltip from './components/Tooltip';
 import { setTheme, useTheme } from './theme';
 
-/** Header search entry: a circle button into the search screen (its input
- *  autofocuses). The global `/` shortcut lands there too. */
+/** Header search entry into the search screen; the global `/` lands there too. */
 function SearchButton() {
   const route = useRoute();
 
@@ -166,7 +163,13 @@ function UpdateBanner() {
  * tries to close the tab. Two clicks (arm, then confirm) so a stray click
  * can't kill the server; the armed state disarms itself after a few seconds.
  */
-function StopButton({ onStopped }: { onStopped: () => void }) {
+function StopButton({
+  onStopped,
+  fill = 'card',
+}: {
+  onStopped: () => void;
+  fill?: 'card' | 'quiet';
+}) {
   const [armed, setArmed] = useState(false);
 
   useEffect(() => {
@@ -234,8 +237,8 @@ function Stopped() {
         </span>
         <h1>Turnlog stopped</h1>
         <p>
-          The local server has shut down — nothing is running on your machine.
-          It&rsquo;s safe to close this tab, or start again with:
+          The local server has shut down — nothing is running on your machine. It&rsquo;s safe to
+          close this tab, or start again with:
         </p>
         <button className="stopped-cmd" onClick={copy}>
           <code>{cmd}</code>
@@ -253,12 +256,12 @@ function NoToken() {
       <div>
         <h1>Session token missing</h1>
         <p>
-          Turnlog requires the tokened URL printed by the CLI — it keeps other local
-          processes and web pages away from your session index.
+          Turnlog requires the tokened URL printed by the CLI — it keeps other local processes and
+          web pages away from your session index.
         </p>
         <p>
-          Switch to the terminal running <code>turnlog</code> and open the URL it
-          printed (<code>http://127.0.0.1:…/?token=…</code>), or restart it.
+          Switch to the terminal running <code>turnlog</code> and open the URL it printed (
+          <code>http://127.0.0.1:…/?token=…</code>), or restart it.
         </p>
       </div>
     </div>
@@ -318,34 +321,18 @@ export default function App() {
     <div className="app">
       <Palette />
       <Shortcuts />
-      {/* Always mounted so open/close can animate; the rail clips at width 0. */}
-      <div className={`sidebar-rail ${sidebarOpen ? 'open' : ''}`} aria-hidden={!sidebarOpen}>
+      {/* Always mounted so open/close can animate; the rail clips to --sidebar-rail-w. */}
+      <div className={`sidebar-rail ${sidebarOpen ? 'open' : ''}`}>
         <Sidebar
           activeId={route.name === 'session' ? route.id : null}
           onToggle={toggleSidebar}
+          open={sidebarOpen}
         />
       </div>
       <div className="app-main">
         <header className="header">
-          {/* While the sidebar is open, its own top row carries these. */}
-          {!sidebarOpen && (
-            <>
-              <Primary
-                label="Show sessions"
-                tooltip="Show sessions"
-                shortcut={SHORTCUTS.sidebar}
-                onClick={toggleSidebar}
-                icon={<SidebarIcon />}
-              />
-              <a href="#/" className="header-brand" aria-label="Turnlog — overview">
-                <Brandmark />
-                <span className="header-title">
-                  Turnlog
-                  <em>Search &amp; replay</em>
-                </span>
-              </a>
-            </>
-          )}
+          {/* The brand and the sidebar toggle live in the rail now, in both
+              states — the header no longer borrows them while it is closed. */}
           <div className="header-right">
             <Primary
               href="#/projects"

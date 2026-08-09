@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
     <title>Turnlog</title>
-    <!-- same mark as turnlog.dev's faviconsvg.svg -->
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23f0663f'/%3E%3Cpath d='M8 11h16M8 16h11M8 21h14' stroke='%23fff' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E" />
+    <!-- A file rather than a data URI: the mark has four paths now, and an
+         encoded one-liner is not something anyone can check. Served from the
+         same origin — nothing here ever reaches the network. -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body>
     <div id="root"></div>

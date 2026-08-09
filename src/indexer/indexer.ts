@@ -116,8 +116,8 @@ export class Indexer {
       `INSERT OR IGNORE INTO messages
          (uuid, session_id, parent_uuid, idx, role, kind, tool_name, tool_use_id, ts,
           is_sidechain, is_error, tokens_in, tokens_out, cache_read_tokens, cache_write_tokens,
-          cost_usd, model, message_id, text, raw_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          cost_usd, model, message_id, git_branch, text, raw_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     this.insFts = db.prepare(`INSERT INTO messages_fts (rowid, text) VALUES (?, ?)`);
     this.insFileTouched = db.prepare(
@@ -178,6 +178,9 @@ export class Indexer {
          model = (SELECT model FROM messages
                   WHERE session_id = @id AND model IS NOT NULL AND model NOT LIKE '<%'
                   ORDER BY idx DESC LIMIT 1),
+         branch = (SELECT git_branch FROM messages
+                   WHERE session_id = @id AND git_branch IS NOT NULL
+                   ORDER BY idx DESC LIMIT 1),
          files_touched_count = (SELECT COUNT(DISTINCT path) FROM files_touched WHERE session_id IN (SELECT id FROM family))
        WHERE id = @id`,
     );
@@ -213,6 +216,7 @@ export class Indexer {
             cost,
             rec.model,
             rec.messageId,
+            rec.gitBranch,
             rec.text,
             rec.raw,
           );

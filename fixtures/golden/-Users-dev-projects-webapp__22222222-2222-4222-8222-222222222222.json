@@ -20,6 +20,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": null,
     "filesTouched": [],
     "raw": "{\"parentUuid\":null,\"isSidechain\":false,\"userType\":\"external\",\"cwd\":\"/Users/dev/projects/webapp\",\"sessionId\":\"22222222-2222-4222-8222-222222222222\",\"version\":\"1.0.24\",\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"Summarize the changelog since v2.0\"},\"uuid\":\"b1\",\"timestamp\":\"2026-06-20T09:00:00.000Z\"}"
   },
@@ -44,6 +45,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": 0.0234,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": null,
     "filesTouched": [],
     "raw": "{\"parentUuid\":\"b1\",\"isSidechain\":false,\"userType\":\"external\",\"cwd\":\"/Users/dev/projects/webapp\",\"sessionId\":\"22222222-2222-4222-8222-222222222222\",\"version\":\"1.0.24\",\"type\":\"assistant\",\"costUSD\":0.0234,\"durationMs\":5200,\"message\":{\"id\":\"msg_02A\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-3-5-sonnet-20241022\",\"content\":[{\"type\":\"text\",\"text\":\"Here is a summary of the changelog: three features and two bugfixes landed since v2.0.\"}],\"stop_reason\":\"end_turn\",\"usage\":{\"input_tokens\":900,\"output_tokens\":210}},\"uuid\":\"b2\",\"timestamp\":\"2026-06-20T09:00:06.000Z\"}"
   },
@@ -68,6 +70,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": 0.0111,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": null,
     "filesTouched": [],
     "raw": "{\"parentUuid\":\"b2\",\"isSidechain\":false,\"userType\":\"external\",\"cwd\":\"/Users/dev/projects/webapp\",\"sessionId\":\"22222222-2222-4222-8222-222222222222\",\"version\":\"1.0.24\",\"type\":\"assistant\",\"costUSD\":0.0111,\"durationMs\":2100,\"message\":{\"id\":\"msg_02B\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-3-5-sonnet-20241022\",\"content\":[{\"type\":\"text\",\"text\":\"Want me to draft release notes from it?\"}],\"stop_reason\":\"end_turn\",\"usage\":{\"input_tokens\":400,\"output_tokens\":90}},\"uuid\":\"b3\",\"timestamp\":\"2026-06-20T09:00:09.000Z\"}"
   },
@@ -92,6 +95,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": null,
     "filesTouched": [],
     "raw": "{\"parentUuid\":\"b3\",\"isSidechain\":false,\"userType\":\"external\",\"cwd\":\"/Users/dev/projects/webapp\",\"sessionId\":\"22222222-2222-4222-8222-222222222222\",\"version\":\"1.0.24\",\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"yes draft the rel\"},\"uuid\":\"b4\",\"timestamp\":\"2026-06-20T09:01:00.000Z\"}"
   },
@@ -116,6 +120,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": null,
     "filesTouched": [],
     "raw": "{\"parentUuid\":\"b4\",\"isSidechain\":false,\"userType\":\"external\",\"cwd\":\"/Users/dev/projects/webapp\",\"sessionId\":\"22222222-2222-4222-8222-222222222222\",\"version\":\"1.0.24\",\"type\":\"assistant\",\"message\":{\"id\":\"msg_02C\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-3-5-sonnet-20241022\",\"content\":[{\"type\":\"text\",\"text\":\"Starting the release notes draft…\"}],\"stop_reason\":null},\"uuid\":\"b5\",\"timestamp\":\"2026-06-20T09:01:02.000Z\"}"
   },
@@ -140,6 +145,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": null,
     "filesTouched": [],
     "raw": "{\"parentUuid\":\"b3\",\"isSidechain\":false,\"userType\":\"external\",\"cwd\":\"/Users/dev/projects/webapp\",\"sessionId\":\"22222222-2222-4222-8222-222222222222\",\"version\":\"1.0.24\",\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"yes, draft the release notes grouped by feature\"},\"uuid\":\"b6\",\"timestamp\":\"2026-06-20T09:01:20.000Z\"}"
   },
@@ -164,6 +170,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": null,
     "filesTouched": [],
     "raw": "{\"parentUuid\":\"b6\",\"isSidechain\":false,\"userType\":\"external\",\"cwd\":\"/Users/dev/projects/webapp\",\"sessionId\":\"22222222-2222-4222-8222-222222222222\",\"version\":\"1.0.24\",\"type\":\"assistant\",\"message\":{\"id\":\"msg_02D\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-3-5-sonnet-20241022\",\"content\":[{\"type\":\"text\",\"text\":\"Release notes, grouped by feature: …\"}],\"stop_reason\":\"end_turn\"},\"uuid\":\"b7\",\"timestamp\":\"2026-06-20T09:01:26.000Z\"}"
   }

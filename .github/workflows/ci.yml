@@ -1,9 +1,23 @@
 name: CI
 
+# The 6-leg matrix exists to catch platform faults in native modules and path
+# handling; prose cannot produce one, so documentation and release notes skip
+# it. They are NOT unguarded — docs.yml runs the drift test that validates
+# exactly those files. It has to be a separate workflow: a path filter here
+# skips the whole run, jobs included, so a docs job in this file would never
+# fire on the changes it exists for.
+#
+# release.yml deliberately has no filter — a release always runs everything.
 on:
   push:
     branches: [main, development]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
   pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
 
 jobs:
   test:

@@ -58,6 +58,12 @@ export interface NormalizedRecord {
   /** Cost as recorded in the log itself (older CC versions); null if absent. */
   costUsd: number | null;
   cwd: string | null;
+  /**
+   * The git branch the record was written on. Every agent stamps it and
+   * Turnlog used to throw it away — it is what makes "everything any agent
+   * did on feature/auth" a question the index can answer.
+   */
+  gitBranch: string | null;
   filesTouched: FileTouch[];
   /** The original line, verbatim. Never dropped — the cardinal rule. */
   raw: string;

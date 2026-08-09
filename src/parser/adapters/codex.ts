@@ -24,14 +24,15 @@ import type { NormalizedRecord } from '../types.js';
  *     split them (tokensIn = uncached input).
  */
 
-/** Cross-line context: the session's cwd and the model currently in force. */
+/** Cross-line context: the session's cwd, branch and the model in force. */
 export interface CodexParseState {
   cwd: string | null;
   model: string | null;
+  gitBranch: string | null;
 }
 
 export function newCodexState(): CodexParseState {
-  return { cwd: null, model: null };
+  return { cwd: null, model: null, gitBranch: null };
 }
 
 function str(v: unknown): string | null {
@@ -88,6 +89,7 @@ export function normalizeCodex(
     cacheWrite1hTokens: 0,
     costUsd: null,
     cwd: state.cwd,
+    gitBranch: state.gitBranch,
     filesTouched: [],
     raw,
   };
@@ -99,7 +101,9 @@ export function normalizeCodex(
       rec.kind = 'meta';
       rec.subtype = 'session_meta';
       state.cwd = str(payload?.cwd) ?? state.cwd;
+      state.gitBranch = str(asRecord(payload?.git)?.branch) ?? state.gitBranch;
       rec.cwd = state.cwd;
+      rec.gitBranch = state.gitBranch;
       // The giant base_instructions blob would pollute search — raw keeps it.
       return rec;
     }

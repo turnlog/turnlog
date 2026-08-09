@@ -709,6 +709,20 @@ export default function DesignSystem() {
               ))}
             </div>
           </Group>
+
+          <Group
+            title="The Turnlog mark"
+            note="--contrast-solid disc, --contrast-on glyph: the pair inverts together, so the mark is a dark disc on the light theme and a light one on the dark, and one asset serves both. The disc is part of the art, not something CSS draws around it. Shown at the sizes it ships at, down to a tab icon. The favicon repeats the art on the accent tile instead (web/public/favicon.svg) — a tab icon has no tokens to read and no theme to follow; it is the one copy to keep in step."
+          >
+            <div className="dsn-brandmarks">
+              {[44, 32, 16].map((size) => (
+                <div key={size} className="dsn-brandmark">
+                  <Brandmark size={size} />
+                  <span>{size}</span>
+                </div>
+              ))}
+            </div>
+          </Group>
         </Section>
 
         <Section

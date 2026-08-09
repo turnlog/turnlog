@@ -18,6 +18,8 @@ export type {
   HealthResponse,
   IndexedEvent,
   MaintenanceResponse,
+  RelatedResponse,
+  RelatedSession,
   MessageListResponse,
   MessageRow,
   PrefsResponse,

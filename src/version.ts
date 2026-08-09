@@ -7,8 +7,11 @@ export const APP_VERSION: string = pkg.version;
 /**
  * Version of the Claude Code parser/adapter pipeline. Bumping this forces a
  * full reindex of every CC session file on the next scan.
+ * v5: attachments carrying a body (edited_text_file's snippet, file content,
+ * directory listing) indexed only their path — the body was unsearchable.
+ * v6: gitBranch, stamped on every record and previously discarded.
  */
-export const ADAPTER_VERSION = 4;
+export const ADAPTER_VERSION = 6;
 
 /**
  * Version of the Codex rollout adapter. Per-tool on purpose: bumping one
@@ -17,8 +20,9 @@ export const ADAPTER_VERSION = 4;
  * table covers OpenAI models (costs are baked in at index time).
  * v3: tool output arrives as a list of text blocks on real rollouts, which
  * the adapter dropped — every exec result indexed with empty search text.
+ * v4: session_meta.git.branch, carried across the file like cwd and model.
  */
-export const CODEX_ADAPTER_VERSION = 3;
+export const CODEX_ADAPTER_VERSION = 4;
 
 /** Version of the Cursor CLI (agent-transcripts JSONL) adapter. */
 export const CURSOR_ADAPTER_VERSION = 1;

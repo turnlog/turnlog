@@ -6,6 +6,92 @@ All notable changes to Turnlog are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.1] — 2026-08-10
+
+### Added
+
+- **Search by git branch.** Every agent stamps the branch on every record it
+  writes, and Turnlog threw it away. `branch:feature/auth` is a dimension
+  now, composing with the whole grammar — `branch:main is:error after:7d`
+  answers "what broke on main this week", a question no cost tracker or log
+  scrubber can ask. It matches exactly, so `branch:main` never drags in
+  `main-experiment`, and it is a refine chip beside tools and projects. The
+  branch is per message rather than per session: a session that crossed
+  branches belongs to each of them, not to whichever it ended on. The
+  replay header shows the branch, one click from everything else done there.
+
+- **"Have I solved this before?"** — every replay carries a quiet **related**
+  row: the other sessions that talk about what this one talks about, each
+  link landing on the message where they say it rather than at the top of a
+  3,000-message replay. It is also a search operator, `like:<session-id>`,
+  so it composes with the rest of the grammar (`like:d987e733 is:error
+  after:30d`) and an agent using Turnlog as memory gets it through the
+  existing `search` tool, with no new tool to learn. The match is built from
+  the session's own rarest words — how rare a word is across your index is
+  what separates a distinctive one from filler, so there is no stopword list
+  to maintain and no model involved — and the session's own resume chain is
+  left out, because a conversation is not related to itself.
+
+- **The sidebar collapses to a rail instead of disappearing.** Closed, it
+  keeps a narrow column carrying the mark — which is also the way back: hover
+  it and it becomes the open control. Under it, the **same sessions as the
+  open list**, one tile each, in the same order, honouring whatever filter and
+  sort you set, so collapsing no longer changes which sessions you are looking
+  at. The tiles keep the three things a row says at that size: which one you
+  are reading, which are pinned, and which are running right now.
+
+  The open/close control also stops moving. It used to live inside the sidebar
+  when open and jump to the header when closed, so the button you had just
+  pressed was never where you left it; both states now keep it in the same
+  column, with collapse sitting against the edge it moves.
+
+- **Public documentation** at `turnlog.dev/docs` — what Turnlog is, a tour of
+  each screen, task guides (search, annotation, MCP setup, sharing,
+  troubleshooting), and reference pages for the search operators, the CLI,
+  `settings.json` and the MCP tools. The design system moved in alongside it,
+  so the rules behind the UI are readable by anyone, not just maintainers.
+
+### Changed
+
+- **A new Turnlog mark**, in the header, the sidebar and the browser tab. It
+  keeps the old one's habit of inverting with the theme — a dark disc on the
+  light theme, a light one on the dark — and the tab icon keeps its accent
+  tile, which has no theme to follow.
+
+- `turnlog demo` carries a screenshot now, so the images-in-replay feature
+  can be seen without opening your own history.
+
+- The startup banner names each source for the **agent that wrote it**, and
+  says read-only on every line. Claude Code's directory was labelled
+  "Projects", which now reads as Turnlog's own Projects screen rather than
+  where Claude Code keeps its logs — and it was the one source whose line
+  did not carry the read-only promise, which is the opposite of the emphasis
+  it deserves. `turnlog doctor` reports it the same way.
+
+### Fixed
+
+- **Side-by-side diffs had uneven halves.** The two columns were sized from
+  the first row of the table, which is the hunk header and spans the width —
+  so the widths declared for the two sides were never read, and "before" and
+  "after" got whatever space was left over. They are equal now, at any window
+  size. The file header above them also lines its controls up on a common
+  centre, and the "history across sessions" link sits beside the filename it
+  refers to instead of drifting into the middle of the row.
+
+- **The files you edit by hand mid-session were unsearchable.** When you
+  change a file while an agent is running, Claude Code records the edit
+  along with a snippet of what you changed — and Turnlog indexed only the
+  filename, so the change itself, the thing the agent then reacted to, could
+  not be found. The same was true of a file you attached with `@` (its
+  contents were dropped) and of an attached directory (its listing was). All
+  three are indexed now, and the replay shows them: the row folds open to
+  the snippet, the file, or the listing, like every other long payload.
+  Existing indexes repair themselves on the next scan.
+
+- The **bookmark toggle** in a replay sat at a fixed offset rather than on the
+  line it marks, so on compact rows it pointed at the row above by half a row.
+  It now centres on the first line of whatever block it belongs to.
+
 ## [0.12.0] — 2026-08-09
 
 ### Added

@@ -20,6 +20,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": null,
     "filesTouched": [],
     "raw": "{\"source\":\"cursor-ide\",\"t\":\"composer\",\"composerId\":\"aaaa0000-1111-4222-8333-444455556666\",\"cwd\":\"/Users/dev/projects/webapp\",\"data\":{\"_v\":3,\"composerId\":\"aaaa0000-1111-4222-8333-444455556666\",\"name\":\"Cap websocket reconnect backoff\",\"createdAt\":1754300000000,\"lastUpdatedAt\":1754303600000,\"unifiedMode\":\"agent\",\"usageData\":{\"gpt-4.1\":{\"costInCents\":16,\"amount\":4}}}}"
   },
@@ -44,6 +45,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": null,
+    "gitBranch": null,
     "filesTouched": [],
     "raw": "{\"source\":\"cursor-ide\",\"t\":\"bubble\",\"composerId\":\"aaaa0000-1111-4222-8333-444455556666\",\"bubbleId\":\"b1\",\"data\":{\"type\":1,\"text\":\"cap the websocket reconnect backoff at 30s\"}}"
   },
@@ -68,6 +70,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": null,
+    "gitBranch": null,
     "filesTouched": [
       {
         "path": "src/hooks/useWebSocket.ts",
@@ -97,6 +100,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": null,
+    "gitBranch": null,
     "filesTouched": [],
     "raw": "{\"source\":\"cursor-ide\",\"t\":\"bubble_result\",\"composerId\":\"aaaa0000-1111-4222-8333-444455556666\",\"bubbleId\":\"b2\",\"data\":{\"toolFormerData\":{\"toolCallId\":\"call_env_01\",\"status\":\"completed\",\"result\":\"{\\\"applied\\\":true}\"}}}"
   },
@@ -121,6 +125,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": null,
+    "gitBranch": null,
     "filesTouched": [],
     "raw": "{\"source\":\"cursor-ide\",\"t\":\"bubble\",\"composerId\":\"aaaa0000-1111-4222-8333-444455556666\",\"bubbleId\":\"b3\",\"data\":{\"type\":2,\"text\":\"Backoff now caps at 30 seconds.\",\"tokenCount\":{\"inputTokens\":41626,\"outputTokens\":1268}}}"
   },
@@ -145,6 +150,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": null,
+    "gitBranch": null,
     "filesTouched": [],
     "raw": "{\"source\":\"cursor-ide\",\"t\":\"bubble\",\"composerId\":\"aaaa0000-1111-4222-8333-444455556666\",\"bubbleId\":\"b4\",\"data\":{\"type\":2,\"text\":\"\",\"allThinkingBlocks\":[{\"text\":\"The heartbeat handler resets the backoff state.\"}]}}"
   },
@@ -169,6 +175,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": null,
+    "gitBranch": null,
     "filesTouched": [],
     "raw": "{\"source\":\"cursor-ide\",\"t\":\"bubble\",\"composerId\":\"aaaa0000-1111-4222-8333-444455556666\",\"bubbleId\":\"b5\",\"data\":{\"type\":99,\"payload\":\"whatever the next Cursor release invents\"}}"
   },
@@ -193,6 +200,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": 0.16,
     "cwd": null,
+    "gitBranch": null,
     "filesTouched": [],
     "raw": "{\"source\":\"cursor-ide\",\"t\":\"usage\",\"composerId\":\"aaaa0000-1111-4222-8333-444455556666\",\"model\":\"gpt-4.1\",\"data\":{\"costInCents\":16,\"amount\":4,\"lastUpdatedAt\":1754303600000}}"
   },
@@ -217,6 +225,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": null,
+    "gitBranch": null,
     "filesTouched": [],
     "raw": "{\"source\":\"cursor-ide\",\"t\":\"legacy\",\"composerId\":\"bbbb0000-1111-4222-8333-444455556666\",\"bubbleId\":\"L1\",\"data\":{\"type\":1,\"text\":\"write a mobile app based on the docs\"}}"
   }

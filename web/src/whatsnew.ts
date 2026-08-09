@@ -18,6 +18,48 @@ export interface ReleaseNotes {
 
 export const RELEASES: ReleaseNotes[] = [
   {
+    version: '0.12.1',
+    date: '2026-08-10',
+    notes: [
+      {
+        kind: 'added',
+        text: 'Search by git branch. Every agent records the branch it worked on, and Turnlog used to throw it away — branch:feature/auth is a dimension now, and it composes with everything else, so branch:main is:error after:7d answers "what broke on main this week". It matches exactly, so branch:main never drags in main-experiment, and it appears as a refine chip beside tools and projects. Sessions that crossed branches count under each one, not just the last.',
+      },
+      {
+        kind: 'added',
+        text: '"Have I solved this before?" — every replay now carries a quiet related row: the other sessions that talk about what this one talks about, each link landing on the message where they say it. It is also a search operator, like:<session-id>, so it combines with everything else and your agent gets it over MCP without a new tool. Built from the session\u2019s own rarest words: no model involved, nothing leaves your machine.',
+      },
+      {
+        kind: 'added',
+        text: 'The sidebar keeps a rail when you collapse it, instead of disappearing. The rail holds your sessions as tiles — same order, same filters — and still shows which one you are reading, which are pinned and which are running. The open/close button also stopped moving: it used to jump to the header when closed, so it was never where you left it.',
+      },
+      {
+        kind: 'added',
+        text: 'Public documentation at turnlog.dev/docs: a tour of each screen, guides for search, annotation, MCP setup and sharing, and reference pages for every search operator, CLI flag, settings key and MCP tool.',
+      },
+      {
+        kind: 'improved',
+        text: 'A new Turnlog mark, in the header, the sidebar and the browser tab — still inverting with your theme.',
+      },
+      {
+        kind: 'improved',
+        text: 'The startup banner names each log source for the agent that wrote it, and says read-only on every line. Claude Code\u2019s was labelled "Projects", which now reads as Turnlog\u2019s own Projects screen.',
+      },
+      {
+        kind: 'fixed',
+        text: 'Files you edit by hand while an agent is running are searchable at last. Claude Code records the edit with a snippet of what you changed, and only the filename was indexed — so the change itself was findable by nothing. Same for a file you attached with @ and for an attached directory. All three are indexed now and the replay folds open to show them.',
+      },
+      {
+        kind: 'fixed',
+        text: 'Side-by-side diffs had uneven halves — the two columns were sized from the hunk header rather than from the declared widths, so "before" and "after" got whatever space was left. They are equal now at any window size.',
+      },
+      {
+        kind: 'fixed',
+        text: 'The bookmark toggle in a replay sat above the line it marks — on compact rows by half a row. It centres on the right line now.',
+      },
+    ],
+  },
+  {
     version: '0.12.0',
     date: '2026-08-09',
     notes: [

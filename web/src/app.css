@@ -10,16 +10,169 @@
   display: flex;
 }
 
-/* The rail clips the floating sidebar card so open/close reads as a slide;
-   the card keeps its full width inside, so content never reflows mid-motion. */
+/* The rail clips the sidebar so open/close reads as a slide; the zone keeps
+   its full width inside, so content never reflows mid-motion. Collapsed it
+   holds --sidebar-rail-w rather than nothing — that sliver is the way back. */
+/* The floating card IS the rail: it carries the surface, the radius and the
+   inset, and its width animates between the two states. Rounded on all four
+   sides and inset from the edges, collapsed as well as open. */
 .sidebar-rail {
+  position: relative;
   flex: none;
-  width: 0;
+  width: var(--sidebar-rail-w);
+  height: calc(100% - var(--gutter) * 2);
+  margin: var(--gutter) 0 var(--gutter) var(--gutter);
   overflow: hidden;
+  background: var(--card);
+  border-radius: var(--radius-lg);
   transition: width 260ms cubic-bezier(0.25, 0.8, 0.3, 1);
 }
 .sidebar-rail.open {
-  width: calc(var(--sidebar-w) + var(--gutter));
+  width: var(--sidebar-w);
+}
+
+/* The collapsed column: brand, then the projects. Absolute so the sidebar
+   beside it keeps its full width through the slide. */
+.rail-mini {
+  position: absolute;
+  inset: 14px 0 0;
+  width: var(--sidebar-rail-w);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  /* Closing: wait for the sidebar to clear before fading in, so the two never
+     overlap. Opening: leave at once — see the rule below. */
+  transition: opacity 140ms ease 150ms;
+}
+.sidebar-rail.open .rail-mini {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 100ms ease;
+}
+
+/* Shows the mark, becomes the open affordance under the pointer — but it is a
+   real button at all times, so keyboard and touch never depend on hover. */
+.rail-brand {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.rail-brand > * {
+  grid-area: 1 / 1;
+  transition: opacity 150ms ease;
+}
+.rail-brand-open {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--bg2);
+  color: var(--tx0);
+  opacity: 0;
+}
+
+/* Recent sessions as their tiles. Scrolls without a visible bar: the rail is
+   a glanceable stack, and a scrollbar in a 68px column is all chrome. */
+/* Side padding is not decoration: overflow-y makes this box clip horizontally
+   too, so the active marker's negative offset needs room inside it to paint. */
+.rail-sessions {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px 14px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.rail-sessions::-webkit-scrollbar {
+  display: none;
+}
+.rail-session {
+  position: relative;
+  flex: none;
+  display: block;
+  border-radius: var(--radius-sm);
+  transition: transform 150ms ease;
+}
+.rail-session:hover {
+  transform: scale(1.06);
+}
+/* "You are here" as a bar on the card ground, not a ring on the tile: tiles
+   invert to a light block in the dark theme, so a --contrast-solid ring drawn
+   on one is white on white. */
+.rail-session.active::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -13px;
+  width: 3px;
+  height: 22px;
+  margin-top: -11px;
+  border-radius: 999px;
+  background: var(--contrast-solid);
+}
+/* Running now — the row's live dot at tile scale, opposite corner to the pin
+   so a session that is both still reads as both. Static, unlike the row's:
+   a column of pulsing dots is a column that will not stop moving. */
+.rail-session-live {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--success);
+  border: 2px solid var(--card);
+}
+
+/* The same note-yellow that marks anything the user has flagged. */
+.rail-session-pin {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--c-note);
+  color: var(--tile-on);
+  border: 2px solid var(--card);
+}
+.rail-tip {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+/* A session name is something a person wrote, so it stays sans among the
+   mono figures under it. */
+.rail-tip-name {
+  font-family: var(--sans);
+  font-weight: 500;
+  max-width: 30ch;
+  overflow-wrap: anywhere;
+}
+.rail-brand:hover .rail-brand-mark,
+.rail-brand:focus-visible .rail-brand-mark {
+  opacity: 0;
+}
+.rail-brand:hover .rail-brand-open,
+.rail-brand:focus-visible .rail-brand-open {
+  opacity: 1;
+}
+/* Open, the sidebar's own row carries brand and collapse — the sliver's copy
+   steps aside rather than sitting under the expanded header. */
+.sidebar-rail.open .rail-brand {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .app-main {
@@ -446,41 +599,43 @@
 
 /* ── sidebar (sessions) — a floating card ──────────────────────────── */
 
-/* Rounded on all four sides, inset from the edges. (Superseded the original
-   square-edged "zone" treatment in v0.2.3; this header said "a zone, not a
-   floating card" for a while after the code stopped agreeing.) */
+/* Surface, radius and inset belong to the rail above; this keeps its full
+   width inside so content never reflows mid-slide. */
 .sidebar {
   width: var(--sidebar-w);
-  height: calc(100% - var(--gutter) * 2);
-  margin: var(--gutter) 0 var(--gutter) var(--gutter);
+  height: 100%;
   flex: none;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--card);
-  border-radius: var(--radius-lg);
   transition:
     transform 260ms cubic-bezier(0.25, 0.8, 0.3, 1),
     opacity 200ms ease;
 }
+/* Fully transparent, not dimmed: the rail keeps 68px open, so a half-visible
+   sidebar sits *behind* the collapsed column for the length of the slide. */
 .sidebar-rail:not(.open) .sidebar {
   transform: translateX(-24px);
-  opacity: 0.4;
+  opacity: 0;
   /* Off the focus order / a11y tree once the slide finishes. */
   visibility: hidden;
   transition:
     transform 260ms cubic-bezier(0.25, 0.8, 0.3, 1),
-    opacity 200ms ease,
+    opacity 160ms ease,
     visibility 0s 260ms;
 }
 
-/* While open, the card owns the toggle + brand (the header drops them). */
+/* Brand left, collapse hard right — against the edge it moves. */
 .sidebar-brand {
   flex: none;
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 14px 16px 2px;
+}
+.sidebar-brand .header-brand {
+  margin-right: auto;
+  min-width: 0;
 }
 /* The toggle here stands on the sidebar card, so it takes the quiet fill —
    see components/Primary.tsx. It used to be a --card button with an override
@@ -1102,6 +1257,18 @@
   color: var(--tx2);
 }
 /* Machine-measured — mono, like every other timestamp. */
+.replay-branch {
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 22ch;
+}
+.replay-branch:hover {
+  color: var(--accent);
+}
 .replay-date {
   font-family: var(--mono);
   font-size: var(--fs-12);
@@ -1216,6 +1383,14 @@
   padding: 0 24px;
   position: relative; /* anchors the bookmark gutter toggle */
 }
+/* Compact rows sit on a 2px padding rather than 8px, so their first line is
+   higher; the toggle follows it instead of floating above. */
+.block-slot:has(> .block-tool),
+.block-slot:has(> .block-system),
+.block-slot:has(> .block-unknown),
+.block-slot:has(> .block-mode) {
+  --bm-top: -1px;
+}
 /* "Mark this moment": appears in the left gutter on hover; stays when set.
    Bookmarks share the note-yellow language — marked things are yellow. */
 .block-bookmark {
@@ -1225,7 +1400,12 @@
      where the viewport clips it. 0 lands it flush in the gutter, left of the
      block rail. */
   left: 0;
-  top: 8px;
+  /* Centred on the block's FIRST LINE, which sits at the block's padding-top:
+     the block's margin collapses through the slot, so its border box starts
+     at the slot's top and the padding is the whole offset. Compact rows use a
+     smaller padding and set --bm-top accordingly — a single fixed value was
+     half a row out on those. */
+  top: var(--bm-top, 6px);
   width: 24px;
   height: 24px;
   display: inline-flex;
@@ -1318,6 +1498,18 @@
   font-size: var(--fs-12);
   font-family: var(--mono);
   overflow-wrap: anywhere;
+}
+/* An attachment carrying a body stacks head over payload; the flat flex row
+   above stays the layout for the ones that are only a path. */
+.block-attachment.has-body {
+  display: block;
+}
+.attach-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
 }
 .block-mode {
   border-left-color: var(--c-dim);
@@ -2432,13 +2624,20 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
+/* Centred, not baseline: the row mixes text with a round icon button and a
+   segmented pill, and only text has a baseline to share. */
 .file-diffs-head {
   flex: none;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 14px;
   padding: 14px 22px;
   border-bottom: 1px solid var(--line-soft);
+}
+/* The link refers to the file named beside it, so it sits beside it — the
+   toggle is the only thing in this row that owns the push to the right. */
+.file-diffs-head .fh-head-link {
+  margin-left: 0;
 }
 .file-diffs-path {
   font-family: var(--mono);
@@ -3876,6 +4075,45 @@ kbd {
   margin-top: 8px;
 }
 
+/* "Have I solved this before" — a sideways exit, so it sits below the tags and
+   stays quieter than everything above it. */
+.replay-related {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: var(--fs-12);
+}
+.replay-related-label {
+  color: var(--tx2);
+  font-family: var(--mono);
+  flex: none;
+}
+.replay-related-link {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--tx1);
+  max-width: 260px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.replay-related-when {
+  color: var(--tx2);
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+  flex: none;
+}
+.replay-related-link:hover,
+.replay-related-all:hover {
+  color: var(--accent);
+}
+.replay-related-all {
+  color: var(--tx2);
+  font-family: var(--mono);
+}
+
 /* Refine chips — what the current results actually contain, one click from
    narrowing to it. Quiet by design: they sit under the result count and must
    not compete with the hits themselves. */
@@ -4160,14 +4398,18 @@ kbd {
   table-layout: fixed;
   width: 100%;
 }
+/* Widths live on the columns, not the cells: fixed layout takes them from the
+   first row, which is a hunk header with a colspan and cannot express them. */
+.diff-col-no {
+  width: 38px;
+}
+.diff-col-side {
+  width: calc((100% - 76px) / 2);
+}
 .diff-split .diff-side {
-  width: 46%;
   max-width: 0; /* with fixed layout this is what makes overflow clip */
   overflow-x: auto;
   white-space: pre;
-}
-.diff-split .diff-no {
-  width: 4%;
 }
 /* An empty half of an uneven run — present, but clearly nothing. */
 .diff-split .diff-none {

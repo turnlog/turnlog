@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 
-export const SCHEMA_VERSION = 12;
+export const SCHEMA_VERSION = 14;
 
 export function openDb(path: string): Database.Database {
   const db = new Database(path);
@@ -222,6 +222,27 @@ function migrate(db: Database.Database): void {
     // makes a collection of moments usable. Nullable, so every existing
     // bookmark stays exactly as valid as it was.
     db.exec(`ALTER TABLE message_bookmarks ADD COLUMN caption TEXT;`);
+  }
+
+  if (version < 13) {
+    // How many messages each term appears in, straight from the FTS index —
+    // what makes `like:` able to tell a distinctive word from a common one
+    // without a stopword list. A view over messages_fts, not a copy: no
+    // storage, never stale, and rebuild()'s 'delete-all' leaves it valid.
+    db.exec(`CREATE VIRTUAL TABLE messages_vocab USING fts5vocab(messages_fts, 'row');`);
+  }
+
+  if (version < 14) {
+    // The branch a record was written on. Per message, not per session: a long
+    // session can cross branches, and "what did we do on feature/auth" should
+    // mean the work done there, not every session that ever touched it. The
+    // session column is the last-seen value, for the header and the facets.
+    // Backfilled by the ADAPTER_VERSION bumps shipping alongside.
+    db.exec(`
+      ALTER TABLE messages ADD COLUMN git_branch TEXT;
+      ALTER TABLE sessions ADD COLUMN branch TEXT;
+      CREATE INDEX idx_messages_branch ON messages(git_branch) WHERE git_branch IS NOT NULL;
+    `);
   }
 
   db.pragma(`user_version = ${SCHEMA_VERSION}`);

@@ -205,7 +205,7 @@ describe('adapter behavior', () => {
 
   it('never crashes, never drops: every non-blank line becomes a record', async () => {
     const records = await normalizeFile(sessionAFile);
-    expect(records).toHaveLength(23); // 24 lines, one blank
+    expect(records).toHaveLength(26); // 27 lines, one blank
   });
 
   it('classifies record kinds', async () => {
@@ -241,10 +241,41 @@ describe('adapter behavior', () => {
   it('normalizes attachments: path-shaped subtypes searchable, bookkeeping silent', async () => {
     const records = await normalizeFile(sessionAFile);
     const attachments = records.filter((r) => r.kind === 'attachment');
-    expect(attachments.map((r) => [r.subtype, r.text])).toEqual([
-      ['file', '/Users/dev/projects/webapp/docs/websocket.md'],
-      ['total_tokens_reminder', ''],
+    expect(attachments.map((r) => r.subtype)).toEqual([
+      'file',
+      'total_tokens_reminder',
+      'edited_text_file',
+      'directory',
+      'compact_file_reference',
     ]);
+    const bySubtype = new Map(attachments.map((r) => [r.subtype, r.text]));
+    // Bookkeeping stays silent: 2.7k of these would drown the index.
+    expect(bySubtype.get('total_tokens_reminder')).toBe('');
+    // A path with no body of its own is still findable by that path.
+    expect(bySubtype.get('compact_file_reference')).toBe(
+      '/Users/dev/projects/webapp/src/lib/socket.ts',
+    );
+  });
+
+  // The bug this guards: indexing an attachment's path alone threw away the
+  // body it carried, so a file you edited by hand mid-run — the change the
+  // agent then reacted to — was findable by neither search nor eye.
+  it('indexes the body an attachment carries, not just its path', async () => {
+    const records = await normalizeFile(sessionAFile);
+    const text = (subtype: string) =>
+      records.find((r) => r.kind === 'attachment' && r.subtype === subtype)?.text ?? '';
+
+    const edited = text('edited_text_file');
+    expect(edited).toContain('/Users/dev/projects/webapp/src/hooks/useWebSocket.ts');
+    expect(edited).toContain('cap the retry delay at 30s');
+
+    const file = text('file');
+    expect(file).toContain('/Users/dev/projects/webapp/docs/websocket.md');
+    expect(file).toContain('Reconnects must back off exponentially.');
+
+    const dir = text('directory');
+    expect(dir).toContain('/Users/dev/projects/webapp/src/hooks/');
+    expect(dir).toContain('reconnect.ts');
   });
 
   it('normalizes mode and permission-mode records with the value in subtype', async () => {

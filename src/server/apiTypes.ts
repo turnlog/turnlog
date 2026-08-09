@@ -17,6 +17,8 @@ export interface SessionMeta {
   startedAt: string | null;
   endedAt: string | null;
   model: string | null;
+  /** Last git branch seen in the session — the header's, and the facet's. */
+  branch: string | null;
   eventCount: number;
   inputTokens: number;
   outputTokens: number;
@@ -165,6 +167,8 @@ export interface SearchFacets {
   projects: SearchFacet[];
   /** Which agent wrote them. Only offered when more than one appears. */
   agents: SearchFacet[];
+  /** Which git branches the matching work happened on. */
+  branches: SearchFacet[];
 }
 
 export interface SearchAggregates {
@@ -183,6 +187,25 @@ export interface SearchResponse {
   aggregates: SearchAggregates | null;
   /** Null for a session-scoped find, where there is nothing to refine. */
   facets: SearchFacets | null;
+}
+
+/**
+ * "Have I solved this before?" — the other sessions that talk about what this
+ * one talks about (`GET /api/sessions/:id/related`). Computed from the index
+ * alone: the session's own rarest words, OR'd, its resume chain excluded.
+ */
+export interface RelatedSession {
+  session: SessionMeta;
+  /** Matching messages found in that session — the strength of the link. */
+  hits: number;
+  /** Where to land: the first matching message's idx. */
+  idx: number;
+}
+
+export interface RelatedResponse {
+  /** The words the match was built from — so the row can say why. */
+  terms: string[];
+  sessions: RelatedSession[];
 }
 
 /**

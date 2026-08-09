@@ -20,8 +20,9 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
-    "raw": "{\"timestamp\":\"2026-07-29T09:00:00.000Z\",\"type\":\"session_meta\",\"payload\":{\"session_id\":\"77777777-7777-4777-8777-777777777777\",\"id\":\"77777777-7777-4777-8777-777777777777\",\"timestamp\":\"2026-07-29T09:00:00.000Z\",\"cwd\":\"/Users/dev/projects/webapp\",\"originator\":\"codex-tui\",\"cli_version\":\"0.146.0\",\"source\":\"cli\",\"model_provider\":\"openai\",\"base_instructions\":{\"text\":\"You are Codex, an agent.\"}}}"
+    "raw": "{\"timestamp\":\"2026-07-29T09:00:00.000Z\",\"type\":\"session_meta\",\"payload\":{\"session_id\":\"77777777-7777-4777-8777-777777777777\",\"id\":\"77777777-7777-4777-8777-777777777777\",\"timestamp\":\"2026-07-29T09:00:00.000Z\",\"cwd\":\"/Users/dev/projects/webapp\",\"originator\":\"codex-tui\",\"cli_version\":\"0.146.0\",\"source\":\"cli\",\"model_provider\":\"openai\",\"base_instructions\":{\"text\":\"You are Codex, an agent.\"},\"git\":{\"branch\":\"main\",\"commit_hash\":\"75b809e995afa67155632e94d0757c869085649c\",\"repository_url\":\"git@github.com:dev/webapp.git\"}}}"
   },
   {
     "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:1",
@@ -44,6 +45,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:00:01.000Z\",\"type\":\"turn_context\",\"payload\":{\"model\":\"gpt-5-codex\",\"cwd\":\"/Users/dev/projects/webapp\",\"approval_policy\":\"on-request\"}}"
   },
@@ -68,6 +70,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:00:02.000Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"task_started\",\"model_context_window\":258400}}"
   },
@@ -92,6 +95,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:00:02.100Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"user_message\",\"message\":\"check the websocket reconnect logic\"}}"
   },
@@ -116,6 +120,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:00:02.200Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"<environment_context>cwd: /Users/dev/projects/webapp</environment_context>\"}]}}"
   },
@@ -140,6 +145,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:00:02.300Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"check the websocket reconnect logic\"}]}}"
   },
@@ -164,6 +170,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:00:05.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"reasoning\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"Reading the hook, then grepping for reconnect call sites.\"}]}}"
   },
@@ -188,6 +195,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:00:06.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"custom_tool_call\",\"name\":\"exec\",\"call_id\":\"call_001\",\"input\":\"const r = await tools.exec_command({\\\"cmd\\\":\\\"grep -n reconnect src/hooks/useWebSocket.ts\\\"});\"}}"
   },
@@ -212,6 +220,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:00:07.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"custom_tool_call_output\",\"call_id\":\"call_001\",\"output\":\"12:  scheduleReconnect(session_id);\"}}"
   },
@@ -236,6 +245,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:00:07.500Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"custom_tool_call\",\"name\":\"exec\",\"call_id\":\"call_003\",\"input\":\"const r = await tools.exec_command({\\\"cmd\\\":\\\"git log --oneline -1\\\"});\"}}"
   },
@@ -260,6 +270,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:00:08.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"custom_tool_call_output\",\"call_id\":\"call_003\",\"output\":[{\"type\":\"input_text\",\"text\":\"Script completed\\nWall time 0.4 seconds\\nOutput:\\n\"},{\"type\":\"input_text\",\"text\":\"75b809e reconnect backoff groundwork\"}]}}"
   },
@@ -284,6 +295,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:00:09.000Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"agent_message\",\"message\":\"Reconnect is scheduled with backoff in scheduleReconnect — the hook looks correct.\"}}"
   },
@@ -308,6 +320,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:00:09.100Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Reconnect is scheduled with backoff in scheduleReconnect — the hook looks correct.\"}]}}"
   },
@@ -332,6 +345,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:00:09.200Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":1200,\"cached_input_tokens\":800,\"cache_write_input_tokens\":100,\"output_tokens\":90,\"reasoning_output_tokens\":40,\"total_tokens\":1290},\"last_token_usage\":{\"input_tokens\":1200,\"cached_input_tokens\":800,\"cache_write_input_tokens\":100,\"output_tokens\":90,\"reasoning_output_tokens\":40,\"total_tokens\":1290},\"model_context_window\":258400}}}"
   },
@@ -356,6 +370,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:01:00.000Z\",\"type\":\"turn_context\",\"payload\":{\"model\":\"gpt-5-codex\",\"cwd\":\"/Users/dev/projects/webapp\",\"approval_policy\":\"on-request\"}}"
   },
@@ -380,6 +395,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:01:00.100Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"user_message\",\"message\":\"now run the failing test\"}}"
   },
@@ -404,6 +420,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:01:02.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"custom_tool_call\",\"name\":\"exec\",\"call_id\":\"call_002\",\"input\":\"const r = await tools.exec_command({\\\"cmd\\\":\\\"npm test -- reconnect\\\"});\"}}"
   },
@@ -428,6 +445,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:01:04.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"custom_tool_call_output\",\"call_id\":\"call_002\",\"output\":{\"output\":\"1 failing: reconnect backs off exponentially\",\"success\":false,\"metadata\":{\"exit_code\":1}}}}"
   },
@@ -452,6 +470,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:01:08.000Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"agent_message\",\"message\":\"The backoff test fails — the delay is constant. I'd multiply the timeout by the attempt count.\"}}"
   },
@@ -476,6 +495,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:01:08.100Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":3200,\"cached_input_tokens\":2400,\"cache_write_input_tokens\":100,\"output_tokens\":210,\"reasoning_output_tokens\":80,\"total_tokens\":3410},\"last_token_usage\":{\"input_tokens\":2000,\"cached_input_tokens\":1600,\"cache_write_input_tokens\":0,\"output_tokens\":120,\"reasoning_output_tokens\":40,\"total_tokens\":2120},\"model_context_window\":258400}}}"
   },
@@ -500,6 +520,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:01:09.000Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"task_complete\",\"last_agent_message\":\"The backoff test fails — the delay is constant.\"}}"
   },
@@ -524,6 +545,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": "/Users/dev/projects/webapp",
+    "gitBranch": "main",
     "filesTouched": [],
     "raw": "{\"timestamp\":\"2026-07-29T09:01:09.100Z\",\"type\":\"world_state\",\"payload\":{\"snapshot\":{\"files\":[\"src/hooks/useWebSocket.ts\"],\"git_branch\":\"main\"}}}"
   }

@@ -38,10 +38,11 @@ macOS, Linux, Windows. No build step, no installer, no postinstall scripts.
 
 ```
 turnlog <version>
-  UI:       http://127.0.0.1:52431/?token=a1b2c3…
-  Projects: /Users/you/.claude/projects
-  Codex:    /Users/you/.codex/sessions (read-only)
-  Cursor:   /Users/you/.cursor/projects (read-only)
+  UI:          http://127.0.0.1:<port>/?token=a1b2c3…
+  Claude Code: /Users/you/.claude/projects (read-only)
+  Codex:       /Users/you/.codex/sessions (read-only)
+  Cursor:      /Users/you/.cursor/projects (read-only)
+  Index:       /Users/you/.config/turnlog/index.sqlite
 ```
 
 The Codex and Cursor lines appear only if those histories exist; there is
@@ -82,8 +83,11 @@ time it starts, once nothing is holding the old file.
 - **Search everything** — full-text FTS5 across your whole history, grouped by
   session, jump straight to the match. Identifiers and `snake_case` included.
   Subagent transcripts (the separate files newer Claude Code versions write per
-  Task run) are indexed too. Filter by file (`path:api.ts`), by date in plain
-  words (`after:7d`), by agent (`agent:codex`), by your own tags
+  Task run) are indexed too, as is everything the run actually saw — including
+  files you attached with `@` and edits you made by hand while it was running.
+  Filter by file (`path:api.ts`), by date in plain
+  words (`after:7d`), by agent (`agent:codex`), by git branch
+  (`branch:feature/auth`), by your own tags
   (`tag:billing`), by tool, model, project or error — or click a **refine
   chip** to narrow by what the results actually contain. Flip to a
   **timeline** to see when a topic kept coming up, or build the opt-in **deep
@@ -92,6 +96,12 @@ time it starts, once nothing is holding the old file.
   links into the running UI. Search `is:error` and you also get **recurring
   failures**: the same error grouped across runs, ranked by how many sessions
   hit it — "this happened in 13 sessions across 3 projects".
+- **Related sessions** — "have I solved this before?" Every replay carries a
+  quiet **related** row: the other times this problem came up, one click from
+  the message where they came up. Also an operator — `like:<session-id>` —
+  so it composes with everything else, and your agent gets it over MCP for
+  free. Computed from your index alone: the session's own rarest words, no
+  model, nothing leaving the machine.
 - **Rich replay, every agent** — tool calls show the command or arguments
   they actually ran and pair with their output, and thinking folds away,
   whichever agent wrote the session.
@@ -123,7 +133,9 @@ time it starts, once nothing is holding the old file.
   at every response, with compaction points marked on the curve and on the turn
   where they happened.
 - **Keyboard-first** — `⌘K` opens a command palette over every session, screen
-  and saved search; `?` shows the cheat sheet.
+  and saved search; `?` shows the cheat sheet. Collapse the sidebar and it
+  keeps a rail of your sessions — same order, same filters — so the list is
+  never more than a click away.
 - **Export** — `turnlog export <id>` prints a session as markdown, HTML or JSON,
   optionally redacted; a share panel does the same from the UI. Your pins,
   names, notes, **tags** and bookmarks travel with
@@ -131,6 +143,10 @@ time it starts, once nothing is holding the old file.
 - **Agent memory (MCP)** — `turnlog mcp` serves your history to any MCP-capable
   agent as a read-only server, so it can search its own past sessions mid-task
   ("how did we fix this last month?").
+
+**Full documentation:** [turnlog.dev/docs](https://turnlog.dev/docs) — a tour of
+every screen, guides for search, annotation, MCP setup and sharing, and reference
+pages for every search operator, CLI flag, settings key and MCP tool.
 
 ## Give your agent memory (MCP)
 
@@ -189,7 +205,7 @@ turnlog export <id>         Print a session as markdown (id or unique prefix);
 turnlog search <query>      Search from the terminal (--limit n, --json);
                             same operators as the UI: tool: kind: is:error
                             is:pinned has:note tag: agent: project: model:
-                            path: before: after:
+                            path: branch: like:<session-id> before: after:
 turnlog annotations export  Print pins, names, notes, bookmarks and saved
                             searches as one JSON document
 turnlog annotations import <file>

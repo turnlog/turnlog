@@ -329,6 +329,7 @@ export default function Search({
   const facetChips = search.data?.facets
     ? [
         ...search.data.facets.agents,
+        ...search.data.facets.branches,
         ...search.data.facets.tools,
         ...search.data.facets.kinds,
         ...search.data.facets.projects,

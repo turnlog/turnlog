@@ -76,6 +76,7 @@ export function normalizeCursorCli(obj: any, raw: string, fallbackId: string): N
     cacheWrite1hTokens: 0,
     costUsd: null,
     cwd: null,
+    gitBranch: null,
     filesTouched: [],
     raw,
   };
