@@ -1,0 +1,99 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Turnlog",
+  "description": "Search and replay every coding-agent session you've ever run — locally. Free, MIT, no accounts, no telemetry.",
+  "colors": {
+    "primary": "#e8542f",
+    "light": "#f0663f",
+    "dark": "#e8542f"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Product",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "product/what-is-turnlog",
+              "product/getting-started",
+              "product/privacy"
+            ]
+          },
+          {
+            "group": "A tour",
+            "pages": [
+              "product/tour/sessions",
+              "product/tour/search",
+              "product/tour/replay",
+              "product/tour/projects-and-files",
+              "product/tour/spend"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Finding things",
+            "pages": [
+              "guides/search-your-history",
+              "guides/annotate-and-return"
+            ]
+          },
+          {
+            "group": "Agent memory",
+            "pages": [
+              "guides/mcp-claude-code",
+              "guides/mcp-other-agents"
+            ]
+          },
+          {
+            "group": "Sharing & upkeep",
+            "pages": [
+              "guides/share-a-session",
+              "guides/troubleshooting"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Reference",
+            "pages": [
+              "reference/search-operators",
+              "reference/cli",
+              "reference/settings",
+              "reference/mcp-tools",
+              "reference/supported-agents"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Contributing",
+        "groups": [
+          {
+            "group": "Contributing",
+            "pages": [
+              "contributing/architecture",
+              "contributing/adapters"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/turnlog/turnlog"
+      }
+    ]
+  }
+}
