@@ -64,7 +64,8 @@ All notable changes to Turnlog are documented here. The format follows
   ones you pasted into a prompt and the ones a tool handed back. Decoded
   from the record you already have: nothing is fetched, nothing new is
   stored, and a payload whose type can't be verified is still shown as text
-  rather than dropped.
+  rather than dropped. `turnlog demo` carries one now, so the feature can be
+  seen without opening your own history.
 
 ### Fixed
 
