@@ -1257,6 +1257,18 @@
   color: var(--tx2);
 }
 /* Machine-measured — mono, like every other timestamp. */
+.replay-branch {
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 22ch;
+}
+.replay-branch:hover {
+  color: var(--accent);
+}
 .replay-date {
   font-family: var(--mono);
   font-size: var(--fs-12);

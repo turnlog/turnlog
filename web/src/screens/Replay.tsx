@@ -264,6 +264,18 @@ export default function Replay({
               )}
               {s && <AgentBadge tool={s.tool} />}
               {s?.model && <Badge kind="model">{fmtModel(s.model)}</Badge>}
+              {/* Mono, because a branch is a name a machine keeps; a link,
+                  because the interesting thing is the rest of the work done
+                  there. */}
+              {s?.branch && (
+                <a
+                  className="replay-branch"
+                  href={searchHash(`branch:${s.branch}`)}
+                  title={`Everything on ${s.branch}`}
+                >
+                  {s.branch}
+                </a>
+              )}
               <span className="replay-date">{s ? fmtDate(s.startedAt) : ''}</span>
               {s && s.chainLen > 1 && <ChainNav sessionId={sessionId} />}
               {s?.note && <NoteDot note={s.note} />}

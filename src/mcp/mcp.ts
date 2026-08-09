@@ -72,6 +72,7 @@ function compactSession(s: SessionMeta) {
     startedAt: s.startedAt,
     endedAt: s.endedAt,
     model: s.model ?? undefined,
+    branch: s.branch ?? undefined,
     // Which agent wrote it: with more than one indexed, a row that does not
     // say is ambiguous — and an agent recalling its own past work needs to
     // know whether the past work was its own.
@@ -105,6 +106,7 @@ const TOOLS: McpTool[] = [
       'Supports operators combinable with text (or usable alone): tool:Bash, kind:prompt, is:error, ' +
       'project:<name>, model:<name>, path:<touched-file fragment>, ' +
       'agent:<claude|codex> (which agent wrote it), tag:<user label>, ' +
+      'branch:<git branch> (the branch the work was done on, exact), ' +
       'before:/after:<ISO date prefix, or 7d / today / yesterday>, ' +
       'is:pinned (user-pinned sessions), has:note (sessions the user annotated), ' +
       'has:bookmark (moments the user bookmarked), ' +

@@ -20,6 +20,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": null,
+    "gitBranch": null,
     "filesTouched": [],
     "raw": "{\"role\":\"user\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"Audit the reconnect changes for race conditions.\"}]}}"
   },
@@ -44,6 +45,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": null,
+    "gitBranch": null,
     "filesTouched": [],
     "raw": "{\"role\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\",\"id\":\"cur_sub_tool_01\",\"name\":\"read_file\",\"input\":{\"path\":\"src/hooks/useWebSocket.ts\"}}]}}"
   },
@@ -68,6 +70,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": null,
+    "gitBranch": null,
     "filesTouched": [],
     "raw": "{\"role\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"cur_sub_tool_01\",\"content\":\"useRef<number>(0) // attempt counter\"}]}}"
   },
@@ -92,6 +95,7 @@
     "cacheWrite1hTokens": 0,
     "costUsd": null,
     "cwd": null,
+    "gitBranch": null,
     "filesTouched": [],
     "raw": "{\"role\":\"assistant\",\"message\":{\"content\":\"No race: the ref is only touched from the single reconnect timer.\"}}"
   }

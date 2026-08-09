@@ -37,6 +37,7 @@ import { LENSES, SNIPPET_CLOSE, SNIPPET_OPEN, type Lens } from './apiTypes.js';
 
 const SESSION_COLUMNS = `
   id, project_path, project_key, parent_session_id, started_at, ended_at, model, event_count, tool,
+  branch,
   input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
   cost_usd, files_touched_count, ai_title, cc_title,
   COALESCE(session_meta.pinned, 0) AS pinned, custom_name, note,
@@ -61,6 +62,7 @@ function rowToSession(r: any): SessionMeta {
     startedAt: r.started_at,
     endedAt: r.ended_at,
     model: r.model,
+    branch: r.branch ?? null,
     eventCount: r.event_count,
     inputTokens: r.input_tokens,
     outputTokens: r.output_tokens,
@@ -1084,6 +1086,8 @@ export interface SearchFilters {
   tag?: string;
   /** agent: — which tool wrote the session (`claude-code`, `codex`, …). */
   agent?: string;
+  /** branch: — the git branch a message was written on. */
+  branch?: string;
   /** like: — "have I solved this before": session id or unique prefix. */
   like?: string;
   /**
@@ -1110,6 +1114,7 @@ const FILTER_OPS = new Set([
   'path',
   'tag',
   'agent',
+  'branch',
   'like',
   'before',
   'after',
@@ -1182,6 +1187,9 @@ export function parseSearchQuery(input: string): ParsedQuery {
       case 'agent':
         filters.agent = value.toLowerCase();
         break;
+      case 'branch':
+        filters.branch = value;
+        break;
       case 'like':
         filters.like = value;
         break;
@@ -1233,6 +1241,10 @@ function filterSql(f: SearchFilters, sessionAlias: string): { sql: string; param
     params.push(f.kind);
   }
   if (f.isError) clauses.push('m.is_error = 1');
+  if (f.branch !== undefined) {
+    clauses.push('m.git_branch = ? COLLATE NOCASE');
+    params.push(f.branch);
+  }
   // `like:` — the source conversation is not "related" to itself, and a
   // resumed session shares its whole history, so the family goes with it.
   if (f.excludeRoot !== undefined) {
@@ -1418,6 +1430,9 @@ function searchFacets(
       }),
     ),
     agents: choice(facet('s.tool', 'agent', true)),
+    // Counted per message, like tools and kinds: a session that crossed
+    // branches belongs to each of them, not to whichever it ended on.
+    branches: choice(facet('m.git_branch', 'branch', false)),
   };
 }
 
@@ -1463,7 +1478,7 @@ function searchAggregates(
 }
 
 const SESSION_JOIN_COLUMNS = `s.id, s.project_path, s.project_key, s.parent_session_id,
-                s.started_at, s.ended_at, s.model, s.tool,
+                s.started_at, s.ended_at, s.model, s.tool, s.branch,
                 s.event_count, s.input_tokens, s.output_tokens, s.cache_read_tokens,
                 s.cache_write_tokens, s.cost_usd, s.files_touched_count,
                 (SELECT COUNT(*) FROM sessions c

@@ -4,6 +4,7 @@ import { Indexer } from '../src/indexer/indexer.js';
 import {
   distinctiveTerms,
   getFileHistory,
+  getSession,
   parseSearchQuery,
   relatedSessions,
   searchFiles,
@@ -365,5 +366,47 @@ describe('like: — related sessions', () => {
       expect(r.session.id).not.toBe(SESSION_A);
       expect(r.hits).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('branch: — git branch as a search dimension', () => {
+  it('narrows to the work done on one branch, exactly', () => {
+    const onFeature = searchMessages(db, { query: 'branch:feature/auth' });
+    expect(onFeature.totalHits).toBeGreaterThan(0);
+    expect(onFeature.groups.map((g) => g.session.id)).toEqual([SESSION_C]);
+
+    // Exact, not a substring: a prefix of a real branch matches nothing,
+    // so `branch:main` can never drag in `main-experiment`.
+    expect(searchMessages(db, { query: 'branch:feature' }).totalHits).toBe(0);
+  });
+
+  it('is case-insensitive, the way branch names are typed', () => {
+    const exact = searchMessages(db, { query: 'branch:feature/auth' }).totalHits;
+    expect(searchMessages(db, { query: 'branch:FEATURE/Auth' }).totalHits).toBe(exact);
+  });
+
+  it('composes with text and with the rest of the grammar', () => {
+    const all = searchMessages(db, { query: 'branch:main' }).totalHits;
+    expect(all).toBeGreaterThan(0);
+    const narrowed = searchMessages(db, { query: 'branch:main is:error' }).totalHits;
+    expect(narrowed).toBeLessThan(all);
+    // A branch that exists AND a term that does not still yields nothing.
+    expect(searchMessages(db, { query: 'branch:main zzzznotinthecorpus' }).totalHits).toBe(0);
+  });
+
+  it('offers branches as a refine dimension, counted per message', () => {
+    const facets = searchMessages(db, { query: 'kind:prompt' }).facets;
+    const values = (facets?.branches ?? []).map((f) => f.value).sort();
+    expect(values).toContain('main');
+    expect(values).toContain('feature/auth');
+    for (const f of facets?.branches ?? []) {
+      expect(f.operator).toBe(`branch:${f.value}`);
+    }
+  });
+
+  it('puts the last branch seen on the session row', () => {
+    const s = getSession(db, SESSION_C);
+    expect(s?.branch).toBe('feature/auth');
+    expect(getSession(db, SESSION_A)?.branch).toBe('main');
   });
 });

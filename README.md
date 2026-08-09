@@ -86,7 +86,8 @@ time it starts, once nothing is holding the old file.
   Task run) are indexed too, as is everything the run actually saw — including
   files you attached with `@` and edits you made by hand while it was running.
   Filter by file (`path:api.ts`), by date in plain
-  words (`after:7d`), by agent (`agent:codex`), by your own tags
+  words (`after:7d`), by agent (`agent:codex`), by git branch
+  (`branch:feature/auth`), by your own tags
   (`tag:billing`), by tool, model, project or error — or click a **refine
   chip** to narrow by what the results actually contain. Flip to a
   **timeline** to see when a topic kept coming up, or build the opt-in **deep
@@ -198,7 +199,7 @@ turnlog export <id>         Print a session as markdown (id or unique prefix);
 turnlog search <query>      Search from the terminal (--limit n, --json);
                             same operators as the UI: tool: kind: is:error
                             is:pinned has:note tag: agent: project: model:
-                            path: like:<session-id> before: after:
+                            path: branch: like:<session-id> before: after:
 turnlog annotations export  Print pins, names, notes, bookmarks and saved
                             searches as one JSON document
 turnlog annotations import <file>

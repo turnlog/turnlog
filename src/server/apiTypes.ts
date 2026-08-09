@@ -17,6 +17,8 @@ export interface SessionMeta {
   startedAt: string | null;
   endedAt: string | null;
   model: string | null;
+  /** Last git branch seen in the session — the header's, and the facet's. */
+  branch: string | null;
   eventCount: number;
   inputTokens: number;
   outputTokens: number;
@@ -165,6 +167,8 @@ export interface SearchFacets {
   projects: SearchFacet[];
   /** Which agent wrote them. Only offered when more than one appears. */
   agents: SearchFacet[];
+  /** Which git branches the matching work happened on. */
+  branches: SearchFacet[];
 }
 
 export interface SearchAggregates {

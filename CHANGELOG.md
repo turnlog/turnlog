@@ -10,6 +10,16 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Added
 
+- **Search by git branch.** Every agent stamps the branch on every record it
+  writes, and Turnlog threw it away. `branch:feature/auth` is a dimension
+  now, composing with the whole grammar — `branch:main is:error after:7d`
+  answers "what broke on main this week", a question no cost tracker or log
+  scrubber can ask. It matches exactly, so `branch:main` never drags in
+  `main-experiment`, and it is a refine chip beside tools and projects. The
+  branch is per message rather than per session: a session that crossed
+  branches belongs to each of them, not to whichever it ended on. The
+  replay header shows the branch, one click from everything else done there.
+
 - **"Have I solved this before?"** — every replay carries a quiet **related**
   row: the other sessions that talk about what this one talks about, each
   link landing on the message where they say it rather than at the top of a

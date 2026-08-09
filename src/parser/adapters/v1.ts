@@ -77,6 +77,7 @@ export function normalizeV1(obj: any, raw: string, fallbackId: string): Normaliz
     cacheWrite1hTokens: 0,
     costUsd: typeof obj?.costUSD === 'number' ? obj.costUSD : null,
     cwd: str(obj?.cwd),
+    gitBranch: str(obj?.gitBranch),
     filesTouched: [],
     raw,
   };
