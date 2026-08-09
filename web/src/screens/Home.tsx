@@ -7,7 +7,6 @@ import {
   useStats,
   useStatus,
 } from '../api';
-import { setProjectFilter } from '../filterStore';
 import Button from '../components/Button';
 import Badge from '../components/Badge';
 import NowCard from '../components/NowCard';
@@ -24,7 +23,7 @@ import {
   sessionName,
   tileClass,
 } from '../format';
-import { navigate, searchHash, sessionHash } from '../router';
+import { navigate, projectHash, searchHash, sessionHash } from '../router';
 import { Skel, SkeletonRows } from '../components/Skeleton';
 import type { SessionMeta } from '../types';
 
@@ -322,14 +321,20 @@ export default function Home() {
         <section className="card list-card">
           <div className="list-card-head">
             <h2>Projects</h2>
+            <a className="card-head-link" href="#/projects">
+              all projects &rarr;
+            </a>
           </div>
           <ul className="project-list">
             {s?.projects.slice(0, 6).map((p) => (
               <li key={p.projectKey}>
-                <button
+                {/* Opens the repo's own page. It used to only set the
+                    sidebar filter, which was the best available answer
+                    before project pages existed. */}
+                <a
                   className="project-row"
-                  onClick={() => setProjectFilter(p.projectKey)}
-                  title="Show in sidebar"
+                  href={projectHash(p.projectKey)}
+                  title="Open this project"
                 >
                   <span className={`tile tile-xs ${tileClass(p.projectKey)}`}>
                     {projectName(p)[0]?.toUpperCase() ?? '·'}
@@ -338,7 +343,7 @@ export default function Home() {
                   <span className="project-count">
                     {fmtCount(p.sessionCount)}
                   </span>
-                </button>
+                </a>
               </li>
             ))}
           </ul>

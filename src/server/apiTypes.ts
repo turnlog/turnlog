@@ -283,6 +283,31 @@ export interface SavedSearch {
   createdAt: string | null;
 }
 
+/**
+ * A failure that keeps happening. The signature is the error text with
+ * everything per-occurrence (paths, ids, numbers, quoted payloads) replaced
+ * by placeholders, so two runs of the same problem land in one group.
+ */
+export interface ErrorSignature {
+  signature: string;
+  /** One real occurrence, unmodified — the signature is for grouping only. */
+  sample: string;
+  /** Occurrences (messages). */
+  count: number;
+  /** Distinct sessions — the recurrence that matters. */
+  sessions: number;
+  projects: number;
+  lastAt: string | null;
+  /** A few places to jump straight into. */
+  where: { sessionId: string; idx: number }[];
+}
+
+export interface ErrorSignaturesResponse {
+  signatures: ErrorSignature[];
+  /** Errors scanned (capped) — the denominator for the grouping. */
+  totalErrors: number;
+}
+
 /** One touched file across all sessions — the cross-session pivot's list. */
 export interface FileSummary {
   path: string;
@@ -301,6 +326,29 @@ export interface FileHistoryResponse {
 export interface BookmarksResponse {
   sessionId: string;
   idxs: number[];
+  /** Captions by idx, for the ones that have one. */
+  captions?: Record<number, string>;
+}
+
+/** One marked moment, with enough context to recognise it in a list. */
+export interface BookmarkEntry {
+  sessionId: string;
+  idx: number;
+  createdAt: string | null;
+  /** The user's own words for why this moment matters; null if unlabelled. */
+  caption: string | null;
+  /** The marked message's text (trimmed) — empty if the message is gone. */
+  text: string;
+  kind: string | null;
+  ts: string | null;
+  tool: string;
+  projectKey: string | null;
+  projectPath: string | null;
+  sessionName: string | null;
+}
+
+export interface BookmarksListResponse {
+  bookmarks: BookmarkEntry[];
 }
 
 /**
@@ -390,6 +438,40 @@ export interface ProjectInfo {
   sessionCount: number;
   /** Estimated — sum of the project's session costs. */
   costUsd: number;
+  /** Most recent activity in this repo — how the index orders by recency. */
+  lastActiveAt: string | null;
+  /** Which agents worked here — the cross-agent point, visible in the list. */
+  agents: string[];
+}
+
+/**
+ * One repo's whole story: every agent that worked on it, what it cost, what
+ * it touched. `GET /api/projects/:key`; the session list comes from the
+ * ordinary `GET /api/sessions?project=…` so it pages like every other list.
+ */
+export interface ProjectDetail {
+  projectKey: string;
+  projectPath: string | null;
+  /**
+   * Whether the recorded folder is still on disk; null when no path was
+   * logged. False is not an error — the logs live in the agent's own data
+   * dir, so a deleted or moved repo keeps its whole history. It is said out
+   * loud because a path that silently points nowhere reads as a bug.
+   */
+  pathExists: boolean | null;
+  sessionCount: number;
+  firstAt: string | null;
+  lastAt: string | null;
+  eventCount: number;
+  /** Estimated, chain-aware (resume copies counted once). */
+  costUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  /** Which agents worked here, busiest first — the cross-agent point, visible. */
+  agents: { tool: string; sessions: number }[];
+  topFiles: { path: string; sessions: number; lastTouched: string | null }[];
+  tags: { tag: string; count: number }[];
 }
 
 export interface SpendDay {

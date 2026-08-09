@@ -18,6 +18,44 @@ export interface ReleaseNotes {
 
 export const RELEASES: ReleaseNotes[] = [
   {
+    version: '0.12.0',
+    date: '2026-08-09',
+    notes: [
+      {
+        kind: 'added',
+        text: 'Every repo you have pointed an agent at now has a page — every agent’s sessions interleaved newest-first, who worked there and how much, what it cost, the files it touched most, its tags, and a live row when something is running in it right now. The new Projects screen in the header lists them all, filterable and sortable by recency, sessions or spend. If a folder has since moved or been deleted the page says so; the history is unaffected, because agent logs never lived in the repo.',
+      },
+      {
+        kind: 'added',
+        text: 'A bookmarks page — the bookmark button in the header, or ⌘K → Bookmarks. Every moment you ever marked, across every session, newest first. Bookmarks can carry a caption now, written from the replay, because thirty unlabelled marks are thirty message prefixes to re-read. Captions travel with your annotations export and survive re-indexing.',
+      },
+      {
+        kind: 'added',
+        text: 'Searching is:error now shows recurring failures above the results: the same failure grouped across runs, ranked by how many sessions hit it — “this happened in 13 sessions across 3 projects”. Click one to land on a real occurrence. The grouping is a mechanical rule you can read, not a model’s guess.',
+      },
+      {
+        kind: 'added',
+        text: 'Screenshots you shared with an agent show in the replay. The images were always in your logs; the replay only ever said “[image]”. They render as thumbnails you click to enlarge — both what you pasted into a prompt and what a tool handed back. Nothing is fetched and nothing new is stored: it is decoded from the record you already have.',
+      },
+      {
+        kind: 'added',
+        text: 'Diffs read side by side. A unified | split toggle sits wherever diffs are the point — the replay’s diffs lens and the file-history screen — and every diff in the app follows the choice, remembered between launches. Unified stays the default.',
+      },
+      {
+        kind: 'added',
+        text: 'A copy button on every prompt, on hover. Finding what you asked three weeks ago is usually the first half of asking it again.',
+      },
+      {
+        kind: 'improved',
+        text: 'Codex and Cursor sessions replay as richly as Claude Code ones. Their tool calls show what they actually ran — Codex’s exec as highlighted code, Cursor’s tools with their real arguments — and pair with their results; Codex reasoning becomes a collapsible thinking block. The replay recognises each agent from the record itself, and an unfamiliar shape still degrades to plain text rather than breaking.',
+      },
+      {
+        kind: 'fixed',
+        text: 'Codex tool output was missing from search entirely. Codex writes a tool’s result in a shape the adapter did not read, so every exec result was stored with no searchable text — command output, file contents, test results, none of it findable. It is indexed now, and the next scan after updating repairs your existing index automatically.',
+      },
+    ],
+  },
+  {
     version: '0.11.0',
     date: '2026-08-06',
     notes: [

@@ -218,6 +218,54 @@
   {
     "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:9",
     "parentUuid": null,
+    "kind": "tool_use",
+    "role": null,
+    "ts": "2026-07-29T09:00:07.500Z",
+    "isSidechain": false,
+    "toolName": "exec",
+    "toolUseId": "call_003",
+    "isError": false,
+    "model": null,
+    "messageId": null,
+    "subtype": "custom_tool_call",
+    "text": "const r = await tools.exec_command({\"cmd\":\"git log --oneline -1\"});",
+    "tokensIn": 0,
+    "tokensOut": 0,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 0,
+    "cacheWrite1hTokens": 0,
+    "costUsd": null,
+    "cwd": "/Users/dev/projects/webapp",
+    "filesTouched": [],
+    "raw": "{\"timestamp\":\"2026-07-29T09:00:07.500Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"custom_tool_call\",\"name\":\"exec\",\"call_id\":\"call_003\",\"input\":\"const r = await tools.exec_command({\\\"cmd\\\":\\\"git log --oneline -1\\\"});\"}}"
+  },
+  {
+    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:10",
+    "parentUuid": null,
+    "kind": "tool_result",
+    "role": null,
+    "ts": "2026-07-29T09:00:08.000Z",
+    "isSidechain": false,
+    "toolName": null,
+    "toolUseId": "call_003",
+    "isError": false,
+    "model": null,
+    "messageId": null,
+    "subtype": "custom_tool_call_output",
+    "text": "Script completed\nWall time 0.4 seconds\nOutput:\n\n75b809e reconnect backoff groundwork",
+    "tokensIn": 0,
+    "tokensOut": 0,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 0,
+    "cacheWrite1hTokens": 0,
+    "costUsd": null,
+    "cwd": "/Users/dev/projects/webapp",
+    "filesTouched": [],
+    "raw": "{\"timestamp\":\"2026-07-29T09:00:08.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"custom_tool_call_output\",\"call_id\":\"call_003\",\"output\":[{\"type\":\"input_text\",\"text\":\"Script completed\\nWall time 0.4 seconds\\nOutput:\\n\"},{\"type\":\"input_text\",\"text\":\"75b809e reconnect backoff groundwork\"}]}}"
+  },
+  {
+    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:11",
+    "parentUuid": null,
     "kind": "assistant",
     "role": "assistant",
     "ts": "2026-07-29T09:00:09.000Z",
@@ -240,7 +288,7 @@
     "raw": "{\"timestamp\":\"2026-07-29T09:00:09.000Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"agent_message\",\"message\":\"Reconnect is scheduled with backoff in scheduleReconnect — the hook looks correct.\"}}"
   },
   {
-    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:10",
+    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:12",
     "parentUuid": null,
     "kind": "meta",
     "role": "assistant",
@@ -264,7 +312,7 @@
     "raw": "{\"timestamp\":\"2026-07-29T09:00:09.100Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Reconnect is scheduled with backoff in scheduleReconnect — the hook looks correct.\"}]}}"
   },
   {
-    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:11",
+    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:13",
     "parentUuid": null,
     "kind": "meta",
     "role": null,
@@ -288,7 +336,7 @@
     "raw": "{\"timestamp\":\"2026-07-29T09:00:09.200Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":1200,\"cached_input_tokens\":800,\"cache_write_input_tokens\":100,\"output_tokens\":90,\"reasoning_output_tokens\":40,\"total_tokens\":1290},\"last_token_usage\":{\"input_tokens\":1200,\"cached_input_tokens\":800,\"cache_write_input_tokens\":100,\"output_tokens\":90,\"reasoning_output_tokens\":40,\"total_tokens\":1290},\"model_context_window\":258400}}}"
   },
   {
-    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:12",
+    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:14",
     "parentUuid": null,
     "kind": "meta",
     "role": null,
@@ -312,7 +360,7 @@
     "raw": "{\"timestamp\":\"2026-07-29T09:01:00.000Z\",\"type\":\"turn_context\",\"payload\":{\"model\":\"gpt-5-codex\",\"cwd\":\"/Users/dev/projects/webapp\",\"approval_policy\":\"on-request\"}}"
   },
   {
-    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:13",
+    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:15",
     "parentUuid": null,
     "kind": "prompt",
     "role": "user",
@@ -336,7 +384,7 @@
     "raw": "{\"timestamp\":\"2026-07-29T09:01:00.100Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"user_message\",\"message\":\"now run the failing test\"}}"
   },
   {
-    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:14",
+    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:16",
     "parentUuid": null,
     "kind": "tool_use",
     "role": null,
@@ -360,7 +408,7 @@
     "raw": "{\"timestamp\":\"2026-07-29T09:01:02.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"custom_tool_call\",\"name\":\"exec\",\"call_id\":\"call_002\",\"input\":\"const r = await tools.exec_command({\\\"cmd\\\":\\\"npm test -- reconnect\\\"});\"}}"
   },
   {
-    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:15",
+    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:17",
     "parentUuid": null,
     "kind": "tool_result",
     "role": null,
@@ -384,7 +432,7 @@
     "raw": "{\"timestamp\":\"2026-07-29T09:01:04.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"custom_tool_call_output\",\"call_id\":\"call_002\",\"output\":{\"output\":\"1 failing: reconnect backs off exponentially\",\"success\":false,\"metadata\":{\"exit_code\":1}}}}"
   },
   {
-    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:16",
+    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:18",
     "parentUuid": null,
     "kind": "assistant",
     "role": "assistant",
@@ -408,7 +456,7 @@
     "raw": "{\"timestamp\":\"2026-07-29T09:01:08.000Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"agent_message\",\"message\":\"The backoff test fails — the delay is constant. I'd multiply the timeout by the attempt count.\"}}"
   },
   {
-    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:17",
+    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:19",
     "parentUuid": null,
     "kind": "meta",
     "role": null,
@@ -432,7 +480,7 @@
     "raw": "{\"timestamp\":\"2026-07-29T09:01:08.100Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":3200,\"cached_input_tokens\":2400,\"cache_write_input_tokens\":100,\"output_tokens\":210,\"reasoning_output_tokens\":80,\"total_tokens\":3410},\"last_token_usage\":{\"input_tokens\":2000,\"cached_input_tokens\":1600,\"cache_write_input_tokens\":0,\"output_tokens\":120,\"reasoning_output_tokens\":40,\"total_tokens\":2120},\"model_context_window\":258400}}}"
   },
   {
-    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:18",
+    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:20",
     "parentUuid": null,
     "kind": "meta",
     "role": null,
@@ -456,7 +504,7 @@
     "raw": "{\"timestamp\":\"2026-07-29T09:01:09.000Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"task_complete\",\"last_agent_message\":\"The backoff test fails — the delay is constant.\"}}"
   },
   {
-    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:19",
+    "uuid": "rollout-2026-07-29T09-00-00-77777777-7777-4777-8777-777777777777:21",
     "parentUuid": null,
     "kind": "unknown",
     "role": null,

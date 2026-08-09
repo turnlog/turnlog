@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { usePaletteSessions, useSavedSearches } from '../api';
+import { usePaletteSessions, useProjects, useSavedSearches } from '../api';
 import { fuzzyScore } from '../fuzzy';
 import { fmtDate, projectName, sessionName, tileClass } from '../format';
 import {
+  BookmarkIcon,
   CalendarIcon,
   ChartIcon,
   ChatIcon,
@@ -13,12 +14,12 @@ import {
   SidebarIcon,
   WalletIcon,
 } from '../icons';
-import { navigate, searchHash, sessionHash } from '../router';
+import { navigate, projectHash, searchHash, sessionHash } from '../router';
 import { SHORTCUTS } from '../keys';
 import { APP_EVENT, emitAppEvent, onAppEvent } from '../events';
 import { getTheme, setTheme } from '../theme';
 import Overlay from './Overlay';
-import type { SessionMeta } from '../types';
+import type { ProjectInfo, SessionMeta } from '../types';
 
 /**
  * The command palette (⌘K / Ctrl-K): a fuzzy session switcher plus screens,
@@ -31,7 +32,7 @@ type ScreenIcon = typeof HistoryIcon;
 
 interface Item {
   key: string;
-  kind: 'session' | 'screen' | 'saved' | 'search' | 'action';
+  kind: 'session' | 'screen' | 'saved' | 'search' | 'action' | 'project';
   label: string;
   /** Secondary line: project · date for sessions, a kind tag otherwise. */
   sub: string;
@@ -49,7 +50,9 @@ interface Item {
 const SCREENS: { label: string; hash: string; Icon: ScreenIcon; keys?: string[] }[] = [
   { label: 'Overview', hash: '#/', Icon: HistoryIcon },
   { label: 'Search', hash: '#/search', Icon: MagniferIcon, keys: SHORTCUTS.search },
+  { label: 'Projects', hash: '#/projects', Icon: FolderIcon },
   { label: 'Files', hash: '#/files', Icon: FolderIcon },
+  { label: 'Bookmarks', hash: '#/bookmarks', Icon: BookmarkIcon },
   { label: 'Spend', hash: '#/spend', Icon: WalletIcon },
   { label: 'Calendar', hash: '#/spend?v=calendar', Icon: CalendarIcon },
   { label: 'Disk usage', hash: '#/spend?v=disk', Icon: ChartIcon },
@@ -108,6 +111,18 @@ function sessionItem(s: SessionMeta): Item {
   };
 }
 
+/** A repo, by the name you call it — the palette is how you reach its page. */
+function projectItem(p: ProjectInfo): Item {
+  return {
+    key: `project:${p.projectKey}`,
+    kind: 'project',
+    label: projectName({ projectKey: p.projectKey, projectPath: p.projectPath }),
+    sub: `project · ${p.sessionCount} session${p.sessionCount === 1 ? '' : 's'}`,
+    hash: projectHash(p.projectKey),
+    Icon: FolderIcon,
+  };
+}
+
 function screenItem(s: (typeof SCREENS)[number]): Item {
   return {
     key: `screen:${s.hash}`,
@@ -140,6 +155,7 @@ export default function Palette() {
 
   const sessions = usePaletteSessions(open);
   const saved = useSavedSearches();
+  const projects = useProjects();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -171,6 +187,9 @@ export default function Palette() {
     if (q === '') {
       return [
         ...pool.slice(0, EMPTY_SESSIONS).map(sessionItem),
+        // Projects above screens: a repo is a destination you actually think
+        // in, and the page has no other obvious way in.
+        ...(projects.data ?? []).slice(0, 5).map(projectItem),
         ...SCREENS.map(screenItem),
         ...ACTION_ITEMS,
         ...(saved.data ?? []).slice(0, 5).map(savedItem),
@@ -182,6 +201,9 @@ export default function Palette() {
       if (score !== null) scored.push({ item, score });
     };
     for (const s of pool) consider(sessionItem(s), `${sessionName(s)} ${projectName(s)}`);
+    for (const p of projects.data ?? []) {
+      consider(projectItem(p), `${projectName({ projectKey: p.projectKey, projectPath: p.projectPath })} project ${p.projectKey}`);
+    }
     for (const s of SCREENS) consider(screenItem(s), s.label);
     for (const a of ACTION_ITEMS) consider(a, a.label);
     for (const s of saved.data ?? []) consider(savedItem(s), `${s.name} ${s.query}`);
@@ -197,7 +219,7 @@ export default function Palette() {
       Icon: MagniferIcon,
     });
     return out;
-  }, [sessions.data, saved.data, query]);
+  }, [sessions.data, saved.data, projects.data, query]);
 
   useEffect(() => setActive(0), [query]);
 

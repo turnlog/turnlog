@@ -7,13 +7,13 @@ import Badge from '../components/Badge';
 import { SkeletonLines } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
 import { fmtCount, fmtTime } from '../format';
-import { BookmarkFilledIcon, BookmarkIcon } from '../icons';
+import { BookmarkFilledIcon, BookmarkIcon, CheckIcon, CopyIcon } from '../icons';
 import Markdown from '../md/Markdown';
 import type { ChildSessionSummary, MessageRow } from '../types';
 import { BookmarkContext, type BookmarkState } from './bookmarkContext';
 import { ChildSessionsContext, matchChildSession } from './childSessions';
 import { EditDiff, WriteDiff } from './DiffView';
-import { parseRaw, prettyRaw, type ToolResultView } from './raw';
+import { parseRaw, prettyRaw, type ImageView, type ToolResultView } from './raw';
 import { buildChildBlocks, type Block } from './thread';
 
 /* ── shared bits ─────────────────────────────────────────────────────── */
@@ -45,6 +45,36 @@ function ClampedText({ text, mono = true }: { text: string; mono?: boolean }) {
   );
 }
 
+/**
+ * Images the log carried inline — a pasted screenshot, or one a tool
+ * returned. Thumbnails until clicked, so a session full of screenshots still
+ * scrolls; the bytes are already in the record, decoded here as a data: URI.
+ * Nothing is fetched, and nothing is written — same promise as every pixel
+ * in this app.
+ */
+function Thumbs({ images, label }: { images: ImageView[]; label: string }) {
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
+  if (images.length === 0) return null;
+  return (
+    <div className="thumbs">
+      {images.map((img, i) => {
+        const open = openIdx === i;
+        return (
+          <button
+            key={i}
+            className={`thumb ${open ? 'open' : ''}`}
+            onClick={() => setOpenIdx(open ? null : i)}
+            title={open ? 'Click to shrink' : 'Click to view full size'}
+          >
+            <img src={img.src} alt={`${label}${images.length > 1 ? ` ${i + 1}` : ''}`} loading="lazy" />
+            <span className="thumb-size">{Math.max(1, Math.round(img.bytes / 1024))} KB</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function RawDetails({ raw }: { raw: string }) {
   const [open, setOpen] = useState(false);
   return (
@@ -62,15 +92,47 @@ function RawDetails({ raw }: { raw: string }) {
 const COMMAND_RE = /<command-name>([^<]*)<\/command-name>/;
 const STDOUT_RE = /<local-command-stdout>([\s\S]*?)<\/local-command-stdout>/;
 
+/**
+ * Copy this ask. Prompt reuse is a real loop — you find the thing you asked
+ * three weeks ago precisely so you can ask it again — and the spine already
+ * isolates the asks. Appears on hover so it costs the reading view nothing.
+ */
+function CopyPrompt({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  if (text.trim() === '') return null;
+  const copy = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // the block header is clickable in some views
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* clipboard denied — nothing actionable */
+    }
+  };
+  return (
+    <button
+      className={`copy-prompt ${copied ? 'ok' : ''}`}
+      onClick={copy}
+      aria-label={copied ? 'Prompt copied' : 'Copy this prompt'}
+      title={copied ? 'Copied' : 'Copy this prompt'}
+    >
+      {copied ? <CheckIcon size={13} /> : <CopyIcon size={13} />}
+    </button>
+  );
+}
+
 const PromptBlock = memo(function PromptBlock({ row }: { row: MessageRow }) {
   const command = COMMAND_RE.exec(row.text)?.[1]?.trim();
   const stdout = STDOUT_RE.exec(row.text)?.[1]?.trim();
+  const { images } = parseRaw(row);
 
   return (
     <div className="block block-user">
       <div className="block-head">
         <span className="block-label">you</span>
         <Ts iso={row.ts} />
+        <CopyPrompt text={row.text} />
       </div>
       {command ? (
         <div className="prompt-command">
@@ -78,8 +140,9 @@ const PromptBlock = memo(function PromptBlock({ row }: { row: MessageRow }) {
           {stdout && stdout !== '' && <ClampedText text={stdout} />}
         </div>
       ) : (
-        <ClampedText text={row.text} />
+        row.text !== '' && <ClampedText text={row.text} />
       )}
+      <Thumbs images={images} label="pasted image" />
     </div>
   );
 });
@@ -168,7 +231,21 @@ function TodoList({ todos }: { todos: unknown[] }) {
   );
 }
 
-function ToolBody({ name, input }: { name: string; input: Record<string, unknown> }) {
+function ToolBody({
+  name,
+  input,
+  body,
+}: {
+  name: string;
+  input: Record<string, unknown>;
+  /** Free-form call body (Codex exec's JavaScript) — code, not arguments. */
+  body?: string;
+}) {
+  // A call whose payload is a snippet reads as the snippet, not as a JSON
+  // string with escaped newlines.
+  if (body !== undefined && body !== '') {
+    return <CodeBlock code={body} langHint="javascript" />;
+  }
   switch (name) {
     case 'Bash': {
       const cmd = str(input.command);
@@ -244,14 +321,16 @@ function ResultBody({ result }: { result: MessageRow }) {
   const first: ToolResultView | undefined = view.toolResults[0];
   const text = first?.text !== undefined && first.text !== '' ? first.text : result.text;
   const isError = first?.isError === true;
+  const images = first?.images ?? [];
   return (
     <div className={`tool-result ${isError ? 'error' : ''}`}>
       <div className="tool-result-label">{isError ? 'result · error' : 'result'}</div>
-      {text === '' ? (
+      {text === '' && images.length === 0 ? (
         <div className="tool-note">(empty)</div>
       ) : (
-        <ClampedText text={text} />
+        text !== '' && <ClampedText text={text} />
       )}
+      <Thumbs images={images} label="tool screenshot" />
     </div>
   );
 }
@@ -345,6 +424,59 @@ function ChildSessionRun({ child, label }: { child: ChildSessionSummary; label: 
   );
 }
 
+/**
+ * The words for why a moment matters. Thirty unlabelled bookmarks are thirty
+ * message prefixes to re-read; one line of your own makes the collection
+ * usable. Only offered once a block is marked — captioning is the second
+ * step, never a reason not to bookmark.
+ */
+function BookmarkCaption({
+  idx,
+  caption,
+  onSave,
+}: {
+  idx: number;
+  caption: string;
+  onSave: (idx: number, caption: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(caption);
+
+  if (!editing) {
+    return (
+      <button
+        className={`bm-caption ${caption ? '' : 'empty'}`}
+        onClick={() => {
+          setDraft(caption);
+          setEditing(true);
+        }}
+        title={caption ? 'Edit this caption' : 'Say why this moment matters'}
+      >
+        {caption || 'add a caption'}
+      </button>
+    );
+  }
+  const commit = () => {
+    setEditing(false);
+    if (draft.trim() !== caption) onSave(idx, draft.trim());
+  };
+  return (
+    <input
+      className="bm-caption-input"
+      value={draft}
+      autoFocus
+      maxLength={300}
+      placeholder="why does this matter?"
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') commit();
+        if (e.key === 'Escape') setEditing(false);
+      }}
+    />
+  );
+}
+
 const ToolBlockView = memo(function ToolBlockView({
   block,
   forceOpen,
@@ -359,7 +491,14 @@ const ToolBlockView = memo(function ToolBlockView({
   const use = useMemo(
     () =>
       view.toolUses.find((t) => t.id === block.use.toolUseId) ??
-      view.toolUses[0] ?? { id: null, name: block.use.toolName ?? 'tool', input: {} },
+      view.toolUses[0] ?? {
+        id: null,
+        name: block.use.toolName ?? 'tool',
+        input: {},
+        // Nothing structured to show: fall back to the indexed text, which
+        // for an unrecognized agent is the whole call.
+        body: block.use.text || undefined,
+      },
     [view, block.use.toolUseId, block.use.toolName],
   );
   const isOpen = open || forceOpen;
@@ -394,7 +533,7 @@ const ToolBlockView = memo(function ToolBlockView({
       </button>
       {isOpen && (
         <div className="tool-body">
-          <ToolBody name={use.name} input={use.input} />
+          <ToolBody name={use.name} input={use.input} body={use.body} />
           {block.result && <ResultBody result={block.result} />}
           <RawDetails raw={block.use.raw} />
         </div>
@@ -624,6 +763,13 @@ export function BlockView({
             {marked ? <BookmarkFilledIcon size={14} /> : <BookmarkIcon size={14} />}
           </button>
         </Tooltip>
+      )}
+      {marked && bookmarks.setCaption && (
+        <BookmarkCaption
+          idx={block.repIdx}
+          caption={bookmarks.captions?.get(block.repIdx) ?? ''}
+          onSave={bookmarks.setCaption}
+        />
       )}
       {inner}
     </div>

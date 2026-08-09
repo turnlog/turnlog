@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   useDeleteSavedSearch,
+  useErrorSignatures,
   useHealth,
   useSavedSearches,
   useSaveSearch,
@@ -321,6 +322,10 @@ export default function Search({
   const health = useHealth();
   const deepBuilt = health.data?.deepSearch === true;
   const search = useSearch(query, undefined, deep && deepBuilt);
+  // Only error queries pay for the grouping scan.
+  const errorsAsked = /(^|\s)is:error(\s|$)/.test(query);
+  const errors = useErrorSignatures(query, errorsAsked, deep);
+
   const facetChips = search.data?.facets
     ? [
         ...search.data.facets.agents,
@@ -432,6 +437,34 @@ export default function Search({
                 <em>{fmtCount(f.count)}</em>
               </button>
             ))}
+          </div>
+        )}
+        {/* Recurring failures across THIS match set — "the same error in 14
+            sessions" is a search question, not a dashboard, so it lives with
+            the results and only when the query is about errors. */}
+        {errorsAsked && (errors.data?.signatures.length ?? 0) > 0 && (
+          <div className="err-sigs">
+            <div className="err-sigs-head">
+              recurring failures in these results
+              <em>{fmtCount(errors.data!.totalErrors)} errors grouped</em>
+            </div>
+            <ul>
+              {errors.data!.signatures.slice(0, 6).map((sig) => (
+                <li key={sig.signature}>
+                  <button
+                    className="err-sig"
+                    onClick={() => navigate(sessionHash(sig.where[0]!.sessionId, { m: sig.where[0]!.idx }))}
+                    title={sig.sample}
+                  >
+                    <span className="err-sig-text">{sig.signature}</span>
+                    <span className="err-sig-meta">
+                      {fmtCount(sig.sessions)} session{sig.sessions === 1 ? '' : 's'}
+                      {sig.projects > 1 && ` · ${fmtCount(sig.projects)} projects`}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
         <div className="search-ops">

@@ -52,7 +52,7 @@ import ResumeButton from '../replay/ResumeButton';
 import SharePanel from '../replay/SharePanel';
 import SpineView from '../replay/Spine';
 import StatsPanel from '../replay/Stats';
-import { navigate, sessionHash } from '../router';
+import { navigate, projectHash, sessionHash } from '../router';
 import type { Lens, ViewParam } from '../router';
 
 /** Stable identity for the no-subagents case — most sessions. */
@@ -163,6 +163,12 @@ export default function Replay({
       idxs: new Set(bookmarks.data?.idxs ?? []),
       toggle: (idx: number) =>
         toggleBookmark.mutate({ idx, on: !(bookmarks.data?.idxs ?? []).includes(idx) }),
+      captions: new Map(
+        Object.entries(bookmarks.data?.captions ?? {}).map(([k, v]) => [Number(k), v]),
+      ),
+      // Writing a caption keeps the bookmark on — it is an edit, not a toggle.
+      setCaption: (idx: number, caption: string) =>
+        toggleBookmark.mutate({ idx, on: true, caption }),
     }),
     [bookmarks.data, toggleBookmark],
   );
@@ -208,7 +214,14 @@ export default function Replay({
               {/* A title displaces the project from the heading — keep it here.
                   Its own class: a project is human-named (sans), the date
                   beside it is machine-measured (mono). */}
-              {s && sessionName(s) !== projectName(s) && (
+              {/* The repo is a place, not a label: from a session, one click
+                  to everything every agent did here. */}
+              {s && sessionName(s) !== projectName(s) && s.projectKey && (
+                <a className="replay-project-sub" href={projectHash(s.projectKey)}>
+                  {projectName(s)}
+                </a>
+              )}
+              {s && sessionName(s) !== projectName(s) && !s.projectKey && (
                 <span className="replay-project-sub">{projectName(s)}</span>
               )}
               {s && <AgentBadge tool={s.tool} />}

@@ -12,6 +12,10 @@ export function sessionName(
 
 /** `-Users-gor-WebstormProjects-turnlog` → `turnlog`; real paths → basename. */
 export function projectName(s: Pick<SessionMeta, 'projectPath' | 'projectKey'>): string {
+  // Cursor IDE composers whose workspace could not be resolved carry a
+  // sentinel key, not a path. Splitting it on '-' yields "ide", which reads
+  // as a repo by that name — say what it actually is.
+  if (s.projectKey === 'cursor-ide' && !s.projectPath) return 'Cursor (no workspace)';
   const p = s.projectPath;
   if (p && p !== '') {
     const parts = p.split(/[\\/]/).filter(Boolean);

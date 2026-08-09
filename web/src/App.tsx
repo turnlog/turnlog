@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { hasToken, shutdownServer, useLiveEvents, useStatus } from './api';
 import {
+  BookmarkIcon,
   Brandmark,
   CloseIcon,
   FolderIcon,
@@ -9,6 +10,7 @@ import {
   PowerIcon,
   SidebarIcon,
   SunIcon,
+  WidgetIcon,
   WalletIcon,
 } from './icons';
 import { navigate, useRoute } from './router';
@@ -19,6 +21,9 @@ import DesignSystem from './screens/DesignSystem';
 import Home from './screens/Home';
 import Replay from './screens/Replay';
 import FileHistory from './screens/FileHistory';
+import Bookmarks from './screens/Bookmarks';
+import Project from './screens/Project';
+import Projects from './screens/Projects';
 import Search from './screens/Search';
 import Spend from './screens/Spend';
 import WhatsNew from './screens/WhatsNew';
@@ -342,12 +347,28 @@ export default function App() {
             </>
           )}
           <div className="header-right">
+            <Primary
+              href="#/projects"
+              active={route.name === 'projects' || route.name === 'project'}
+              icon={<WidgetIcon />}
+            >
+              Projects
+            </Primary>
             <Primary href="#/files" active={route.name === 'files'} icon={<FolderIcon />}>
               Files
             </Primary>
             <Primary href="#/spend" active={route.name === 'spend'} icon={<WalletIcon />}>
               Spend
             </Primary>
+            {/* Icon-only: the marks are a personal shelf, not a fourth peer of
+                Projects/Files/Spend. */}
+            <Primary
+              href="#/bookmarks"
+              active={route.name === 'bookmarks'}
+              label="Bookmarks"
+              tooltip="Bookmarks"
+              icon={<BookmarkIcon />}
+            />
             <SearchButton />
             <Primary
               label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
@@ -373,6 +394,11 @@ export default function App() {
           {route.name === 'files' && (
             <FileHistory query={route.query} path={route.path} find={route.find} />
           )}
+          {route.name === 'project' && (
+            <Project key={route.projectKey} projectKey={route.projectKey} />
+          )}
+          {route.name === 'bookmarks' && <Bookmarks />}
+          {route.name === 'projects' && <Projects />}
           {route.name === 'session' && (
             <Replay
               key={route.id}

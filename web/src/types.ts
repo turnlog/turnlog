@@ -3,6 +3,8 @@
  * type-only (erased at build time — nothing from src/ ends up in the bundle).
  */
 export type {
+  BookmarkEntry,
+  BookmarksListResponse,
   BookmarksResponse,
   ChildSessionSummary,
   CompactionMark,
@@ -19,6 +21,8 @@ export type {
   MessageListResponse,
   MessageRow,
   PrefsResponse,
+  ErrorSignaturesResponse,
+  ProjectDetail,
   ProjectInfo,
   SavedSearch,
   SearchFacet,

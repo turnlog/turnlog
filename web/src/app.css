@@ -1483,6 +1483,58 @@
   color: var(--tx1);
   word-break: break-all;
 }
+/* Inline images (pasted screenshots, tool captures). Thumbnails until
+   clicked: a session full of screenshots has to stay scrollable, and the
+   virtualizer measures rows, so growth must come from a click and not from
+   an image finishing its decode. The checkerboard reads through transparent
+   PNGs, which are otherwise invisible on either theme. */
+.thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.thumb {
+  position: relative;
+  display: block;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background:
+    repeating-conic-gradient(var(--bg2) 0% 25%, var(--bg1) 0% 50%) 50% / 14px 14px;
+  cursor: zoom-in;
+  transition: border-color 0.15s ease;
+}
+.thumb:hover {
+  border-color: var(--tx2);
+}
+.thumb.open {
+  cursor: zoom-out;
+}
+.thumb img {
+  display: block;
+  max-height: 180px;
+  max-width: 100%;
+  border-radius: var(--radius-xs);
+}
+.thumb.open img {
+  max-height: none;
+}
+.thumb-size {
+  display: block;
+  padding-top: 3px;
+  color: var(--tx2);
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+  line-height: 1.4;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.thumb:hover .thumb-size,
+.thumb:focus-visible .thumb-size {
+  opacity: 1;
+}
+
 .tool-result {
   border-top: 1px dashed var(--line-soft);
   padding-top: 6px;
@@ -2945,6 +2997,24 @@
   gap: 11px;
   padding: 11px 2px;
 }
+/* The by-project row is a link to that repo's page; it keeps the row's own
+   geometry so the list reads unchanged until hovered. */
+.split-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  margin: -4px -8px;
+  padding: 4px 8px;
+  transition: background 0.15s ease;
+}
+.split-link:hover {
+  background: var(--bg1);
+}
 .split-name {
   font-size: var(--fs-14);
   font-weight: 500;
@@ -3871,4 +3941,582 @@ kbd {
 .outline-item.focused {
   background: var(--bg2);
   color: var(--tx0);
+}
+
+/* ── project page ──────────────────────────────────────────────────────
+   One repo, every agent. The cross-agent promise as a place rather than a
+   filter: header, stat strip, who worked here, then the two lists that
+   answer "what happened" and "what changed". */
+.project-screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gutter);
+  overflow-y: auto;
+}
+.proj-head {
+  min-width: 0;
+  padding-top: 4px;
+}
+.proj-head h1 {
+  margin: 0;
+  font-size: var(--fs-24);
+  font-weight: 600;
+  color: var(--tx0);
+  letter-spacing: -0.01em;
+}
+.proj-path {
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx2);
+  margin: 3px 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.proj-stats {
+  margin-top: 2px;
+}
+
+/* Who worked here — agent badges carrying their session counts, each a
+   scoped search. Tags ride the same row: both answer "what is this repo". */
+.proj-agents {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.proj-agent {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px 5px 5px;
+  border-radius: 999px;
+  background: var(--bg1);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.proj-agent:hover {
+  background: var(--bg2);
+}
+.proj-agent-n {
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx1);
+}
+/* Tags and the scoped-search button close the row from the right — what you
+   called this repo, then the way into it. */
+.proj-agents-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+/* The chip is a Badge — the button only makes it clickable, and carries the
+   hover the way .proj-agent does for the agent badges beside it. */
+.proj-tag {
+  display: inline-flex;
+  cursor: pointer;
+}
+.proj-tag:hover .badge {
+  background: var(--bg3);
+}
+.proj-tag em {
+  font-style: normal;
+  color: var(--tx2);
+}
+
+/* .card brings no padding of its own — every variant carries the ladder's,
+   and these three sit with .list-card. */
+.proj-live,
+.proj-sessions,
+.proj-files {
+  padding: 20px 26px 14px;
+}
+.proj-live .now-list {
+  margin-top: 0;
+}
+/* Rows are inset from the card's text column; pull them level with the
+   heading, the same correction .now-list makes on the home card. */
+.proj-list,
+.proj-files-list {
+  margin: 0 -10px;
+}
+.proj-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: var(--gutter);
+  align-items: start;
+}
+@media (max-width: 1000px) {
+  .proj-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.proj-note {
+  font-size: var(--fs-12);
+  color: var(--tx2);
+  margin-left: auto;
+}
+.proj-list,
+.proj-files-list {
+  list-style: none;
+}
+.proj-row-btn,
+.proj-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+.proj-row-btn:hover,
+.proj-file:hover {
+  background: var(--bg1);
+}
+.proj-row-main {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  flex: 1;
+}
+.proj-row-title {
+  font-size: var(--fs-14);
+  color: var(--tx0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.proj-row-meta {
+  display: flex;
+  gap: 12px;
+  flex: none;
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+  color: var(--tx2);
+}
+.proj-file-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.proj-more {
+  margin-top: 6px;
+}
+.proj-path-gone {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--bg2);
+  color: var(--tx2);
+  font-family: var(--sans);
+  font-size: var(--fs-10);
+  cursor: help;
+}
+
+/* Copy-prompt: a hover control on the prompt's own header row. Hidden until
+   the block is hovered so the reading view stays quiet; always present for
+   keyboard users, who have no hover to reveal it with. */
+.copy-prompt {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-xs);
+  color: var(--tx2);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.block-user:hover .copy-prompt,
+.copy-prompt:focus-visible {
+  opacity: 1;
+}
+.copy-prompt:hover {
+  background: var(--bg2);
+  color: var(--tx0);
+}
+.copy-prompt.ok {
+  opacity: 1;
+  color: var(--success-tx);
+}
+
+/* Split diffs: before and after in two columns. The table is fixed-layout so
+   the halves stay even regardless of content, and each cell scrolls its own
+   long lines rather than pushing the column wider. */
+.diff.is-split table {
+  table-layout: fixed;
+  width: 100%;
+}
+.diff-split .diff-side {
+  width: 46%;
+  max-width: 0; /* with fixed layout this is what makes overflow clip */
+  overflow-x: auto;
+  white-space: pre;
+}
+.diff-split .diff-no {
+  width: 4%;
+}
+/* An empty half of an uneven run — present, but clearly nothing. */
+.diff-split .diff-none {
+  background: var(--bg1);
+}
+.file-diffs-head .view-toggle {
+  margin-left: auto;
+}
+
+/* Recurring failures over a match set — a quiet band with the results, never
+   a dashboard. Ranked by how many SESSIONS hit each one: one runaway loop
+   firing 400 times is one problem, not four hundred. */
+.err-sigs {
+  margin: 10px 0 2px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg1);
+}
+.err-sigs-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: var(--fs-12);
+  color: var(--tx1);
+  margin-bottom: 6px;
+}
+.err-sigs-head em {
+  font-style: normal;
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+  color: var(--tx2);
+}
+.err-sigs ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.err-sig {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+.err-sig:hover {
+  background: var(--bg2);
+}
+.err-sig-text {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--danger-tx);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.err-sig-meta {
+  flex: none;
+  font-size: var(--fs-10);
+  color: var(--tx2);
+}
+
+/* ── bookmarks page ────────────────────────────────────────────────────
+   Marked moments were per-session and so invisible in aggregate; collected
+   here they are a scrapbook, which is what captions are for. */
+.bookmarks-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+.bm-head {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 4px;
+}
+.bm-head h1 {
+  margin: 0;
+  font-size: var(--fs-24);
+  font-weight: 600;
+  color: var(--tx0);
+  letter-spacing: -0.01em;
+}
+.bm-lede {
+  font-size: var(--fs-12);
+  color: var(--tx2);
+  margin: 3px 0 0;
+}
+.bm-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bm-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+.bm-btn:hover {
+  background: var(--bg1);
+}
+.bm-top {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+.bm-mark {
+  color: var(--c-note);
+  flex: none;
+  align-self: center;
+}
+.bm-label {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-14);
+  color: var(--tx0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* No caption yet: the raw message stands in, quieter, so the two are never
+   mistaken for each other. */
+.bm-label.is-raw {
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx1);
+}
+.bm-label em {
+  font-style: normal;
+  color: var(--tx2);
+}
+.bm-when {
+  flex: none;
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+  color: var(--tx2);
+}
+.bm-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: var(--fs-10);
+  color: var(--tx2);
+}
+.bm-session {
+  color: var(--tx1);
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bm-project {
+  color: var(--tx2);
+  border-bottom: 1px dashed var(--line);
+  cursor: pointer;
+}
+.bm-project:hover {
+  color: var(--tx0);
+}
+.bm-idx,
+.bm-time {
+  font-family: var(--mono);
+}
+.bm-quote {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
+/* A bookmark's caption sits INSIDE the block, above its content.
+   It began in the gutter beside the bookmark toggle, where it looked right
+   and could not be clicked: the gutter element hangs below the slot's own
+   box, and the next block's DOM sits on top of it. Inline cannot overlap. */
+.bm-caption,
+.bm-caption-input {
+  display: block;
+  width: 100%;
+  margin: 0 0 4px;
+  font-size: var(--fs-10);
+  line-height: 1.5;
+  text-align: left;
+}
+.bm-caption {
+  color: var(--c-note);
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+  padding: 2px 6px;
+  background: var(--note-dim);
+  transition: background 0.15s ease;
+}
+.bm-caption:hover {
+  background: var(--bg2);
+}
+/* Unlabelled: offered on hover only, so an uncaptioned bookmark stays quiet. */
+.bm-caption.empty {
+  color: var(--tx2);
+  background: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.block-slot:hover .bm-caption.empty,
+.bm-caption.empty:focus-visible {
+  opacity: 1;
+}
+.bm-caption-input {
+  background: var(--bg1);
+  border-radius: var(--radius-xs);
+  padding: 3px 6px;
+  color: var(--tx0);
+}
+
+/* ── projects index ────────────────────────────────────────────────────
+   The front door to project pages, which were previously reachable only if
+   you already knew to search for one. */
+.projects-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+.pj-head {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 4px;
+}
+.pj-head h1 {
+  margin: 0;
+  font-size: var(--fs-24);
+  font-weight: 600;
+  color: var(--tx0);
+  letter-spacing: -0.01em;
+}
+.pj-lede {
+  font-size: var(--fs-12);
+  color: var(--tx2);
+  margin: 3px 0 0;
+}
+/* A screen's filter/sort row: its own line under the title, so the lede is a
+   subtitle rather than a neighbour the controls crowd. */
+.screen-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.screen-controls .search-field {
+  flex: 1;
+  min-width: 0;
+}
+.pj-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pj-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--card);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+.pj-card:hover {
+  background: var(--bg1);
+}
+.pj-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+.pj-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.pj-name {
+  font-size: var(--fs-14);
+  font-weight: 500;
+  color: var(--tx0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pj-path {
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+  color: var(--tx2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pj-agents {
+  display: flex;
+  gap: 5px;
+  flex: none;
+}
+/* Labelled figures, like every other set of measurements in the app —
+   three bare numbers in a row is a puzzle. */
+.pj-figures {
+  display: flex;
+  gap: 18px;
+  flex: none;
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--tx1);
+}
+.pj-figures em {
+  font-style: normal;
+  color: var(--tx2);
+  margin-right: 5px;
+}
+.card-head-link {
+  margin-left: auto;
+  font-size: var(--fs-12);
+  color: var(--tx2);
+}
+.card-head-link:hover {
+  color: var(--tx0);
+}
+@media (max-width: 860px) {
+  .pj-figures {
+    display: none;
+  }
 }

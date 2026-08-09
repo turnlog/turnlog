@@ -12,6 +12,9 @@ import type {
   FileSummary,
   MessageListResponse,
   MessageRow,
+  BookmarksListResponse,
+  ErrorSignaturesResponse,
+  ProjectDetail,
   ProjectInfo,
   LiveResponse,
   SavedSearch,
@@ -464,24 +467,49 @@ export function listBookmarks(db: Database.Database, sessionId: string): number[
   ).map((r) => r.idx);
 }
 
+/** Captions for one session's bookmarks, keyed by idx — only the ones set. */
+export function listBookmarkCaptions(
+  db: Database.Database,
+  sessionId: string,
+): Record<number, string> {
+  const rows = db
+    .prepare(
+      `SELECT idx, caption FROM message_bookmarks
+        WHERE session_id = ? AND caption IS NOT NULL`,
+    )
+    .all(sessionId) as { idx: number; caption: string }[];
+  return Object.fromEntries(rows.map((r) => [r.idx, r.caption]));
+}
+
 /**
  * Set or clear one bookmark; returns the session's bookmarks after the write.
  * Null = no message at that (session, idx) — never bookmark thin air.
  */
+const CAPTION_MAX = 300;
+
 export function setBookmark(
   db: Database.Database,
   sessionId: string,
   idx: number,
   on: boolean,
+  /** undefined leaves any existing caption alone; a string sets it, '' clears. */
+  caption?: string,
 ): number[] | null {
   const target = db
     .prepare(`SELECT 1 FROM messages WHERE session_id = ? AND idx = ?`)
     .get(sessionId, idx);
   if (!target) return null;
   if (on) {
+    const text =
+      caption === undefined ? null : caption.trim().slice(0, CAPTION_MAX) || null;
     db.prepare(
-      `INSERT OR IGNORE INTO message_bookmarks (session_id, idx, created_at) VALUES (?, ?, ?)`,
-    ).run(sessionId, idx, new Date().toISOString());
+      `INSERT INTO message_bookmarks (session_id, idx, created_at, caption)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT (session_id, idx) DO UPDATE SET
+         caption = CASE WHEN @keep THEN message_bookmarks.caption ELSE excluded.caption END`,
+    ).run(sessionId, idx, new Date().toISOString(), text, {
+      keep: caption === undefined ? 1 : 0,
+    });
   } else {
     db.prepare(`DELETE FROM message_bookmarks WHERE session_id = ? AND idx = ?`).run(
       sessionId,
@@ -489,6 +517,64 @@ export function setBookmark(
     );
   }
   return listBookmarks(db, sessionId);
+}
+
+/**
+ * Every marked moment, newest first — the bookmarks page. Each row carries
+ * enough to recognise it without opening the session: the caption if there
+ * is one, the message's own text if not, and where it lives.
+ */
+export function listAllBookmarks(
+  db: Database.Database,
+  opts: { limit?: number } = {},
+): BookmarksListResponse {
+  const limit = Math.min(Math.max(opts.limit ?? 200, 1), 1000);
+  const rows = db
+    .prepare(
+      `SELECT b.session_id AS sessionId, b.idx AS idx, b.created_at AS createdAt,
+              b.caption AS caption,
+              substr(m.text, 1, 240) AS text, m.kind AS kind, m.ts AS ts,
+              s.tool AS tool, s.project_key AS projectKey, s.project_path AS projectPath,
+              s.ai_title AS aiTitle, s.cc_title AS ccTitle, sm.custom_name AS customName
+         FROM message_bookmarks b
+         JOIN sessions s ON s.id = b.session_id
+         LEFT JOIN messages m ON m.session_id = b.session_id AND m.idx = b.idx
+         LEFT JOIN session_meta sm ON sm.session_id = b.session_id
+        ORDER BY b.created_at DESC, b.session_id, b.idx
+        LIMIT ?`,
+    )
+    .all(limit) as {
+    sessionId: string;
+    idx: number;
+    createdAt: string | null;
+    caption: string | null;
+    text: string | null;
+    kind: string | null;
+    ts: string | null;
+    tool: string;
+    projectKey: string | null;
+    projectPath: string | null;
+    aiTitle: string | null;
+    ccTitle: string | null;
+    customName: string | null;
+  }[];
+  return {
+    bookmarks: rows.map((r) => ({
+      sessionId: r.sessionId,
+      idx: r.idx,
+      createdAt: r.createdAt,
+      caption: r.caption,
+      // A bookmark whose message vanished (a reindex after the log was
+      // rewritten) keeps its caption and its jump — never a blank row.
+      text: (r.text ?? '').replace(/\s+/g, ' ').trim(),
+      kind: r.kind,
+      ts: r.ts,
+      tool: r.tool,
+      projectKey: r.projectKey,
+      projectPath: r.projectPath,
+      sessionName: r.customName ?? r.aiTitle ?? r.ccTitle ?? null,
+    })),
+  };
 }
 
 /* ── UI preferences (server-side; the random port resets localStorage) ── */
@@ -1778,11 +1864,269 @@ export function getFileHistory(db: Database.Database, path: string): FileHistory
   return { path, sessions: rows.map(rowToSession) };
 }
 
+/**
+ * Message rows that are resume duplicates, as a subquery.
+ *
+ * Chain-aware money: resuming a session copies its whole history into the new
+ * file — same message uuids under a new session id — so summing session
+ * aggregates bills a 3-part chain's shared prefix 3×. Within each multi-part
+ * family (root_uuid + project), every message uuid's first occurrence
+ * (earliest part) keeps its usage and the rest drop. Chains are rare, so
+ * ranking only family messages is cheap; it spans ALL sessions, not just a
+ * window — a prefix owned by a part outside the window stays outside it.
+ *
+ * One definition on purpose: spend and the project page must agree on what a
+ * duplicate is, or the same repo shows two different totals on two screens.
+ */
+const DUP_ROWIDS_SQL = `
+    SELECT mrowid FROM (
+      SELECT m2.rowid AS mrowid,
+             ROW_NUMBER() OVER (
+               PARTITION BY s2.root_uuid, s2.project_key, m2.uuid
+               ORDER BY s2.started_at, s2.id
+             ) AS rn
+      FROM messages m2
+      JOIN sessions s2 ON s2.id = m2.session_id
+      JOIN (SELECT root_uuid, project_key FROM sessions
+            WHERE root_uuid IS NOT NULL AND parent_session_id IS NULL
+            GROUP BY root_uuid, project_key HAVING COUNT(*) > 1) fam
+        ON fam.root_uuid = s2.root_uuid AND fam.project_key IS s2.project_key
+    ) WHERE rn > 1`;
+
+/**
+ * One repo, every agent — the page behind a project name. Exact key match,
+ * never the `project:` operator's LIKE: a page about `-Users-me-app` must not
+ * quietly fold in `-Users-me-app-v2`.
+ *
+ * Totals count messages, not session aggregates, so a family's subagent
+ * transcripts contribute once and resume copies not at all.
+ */
+export function getProject(db: Database.Database, projectKey: string): ProjectDetail | null {
+  const head = db
+    .prepare(
+      `SELECT MAX(project_path) AS project_path, COUNT(*) AS n,
+              MIN(started_at) AS first_at, MAX(COALESCE(ended_at, started_at)) AS last_at
+         FROM sessions
+        WHERE project_key = ? AND parent_session_id IS NULL`,
+    )
+    .get(projectKey) as {
+    project_path: string | null;
+    n: number;
+    first_at: string | null;
+    last_at: string | null;
+  };
+  if (head.n === 0) return null;
+
+  const agents = db
+    .prepare(
+      `SELECT tool, COUNT(*) AS n FROM sessions
+        WHERE project_key = ? AND parent_session_id IS NULL
+        GROUP BY tool ORDER BY n DESC`,
+    )
+    .all(projectKey) as { tool: string; n: number }[];
+
+  const totals = db
+    .prepare(
+      `SELECT COALESCE(SUM(m.cost_usd), 0) AS cost,
+              COALESCE(SUM(m.tokens_in), 0) AS tin,
+              COALESCE(SUM(m.tokens_out), 0) AS tout,
+              COALESCE(SUM(m.cache_read_tokens), 0) AS cr,
+              COUNT(*) AS events
+         FROM messages m
+         JOIN sessions s ON s.id = m.session_id
+        WHERE s.project_key = ? AND m.rowid NOT IN (${DUP_ROWIDS_SQL})`,
+    )
+    .get(projectKey) as {
+    cost: number;
+    tin: number;
+    tout: number;
+    cr: number;
+    events: number;
+  };
+
+  const topFiles = db
+    .prepare(
+      `SELECT ft.path AS path,
+              COUNT(DISTINCT COALESCE(s.parent_session_id, s.id)) AS n,
+              MAX(COALESCE(s.ended_at, s.started_at)) AS last
+         FROM files_touched ft
+         JOIN sessions s ON s.id = ft.session_id
+        WHERE s.project_key = ?
+        GROUP BY ft.path
+        ORDER BY n DESC, last DESC
+        LIMIT 12`,
+    )
+    .all(projectKey) as { path: string; n: number; last: string | null }[];
+
+  const tags = db
+    .prepare(
+      `SELECT st.tag AS tag, COUNT(*) AS n
+         FROM session_tags st
+         JOIN sessions s ON s.id = st.session_id
+        WHERE s.project_key = ?
+        GROUP BY st.tag ORDER BY n DESC, st.tag LIMIT 20`,
+    )
+    .all(projectKey) as { tag: string; n: number }[];
+
+  return {
+    projectKey,
+    projectPath: head.project_path,
+    pathExists:
+      head.project_path === null || head.project_path === ''
+        ? null
+        : fs.existsSync(head.project_path),
+    sessionCount: head.n,
+    firstAt: head.first_at,
+    lastAt: head.last_at,
+    eventCount: totals.events,
+    costUsd: totals.cost,
+    inputTokens: totals.tin,
+    outputTokens: totals.tout,
+    cacheReadTokens: totals.cr,
+    agents: agents.map((a) => ({ tool: a.tool, sessions: a.n })),
+    topFiles: topFiles.map((f) => ({ path: f.path, sessions: f.n, lastTouched: f.last })),
+    tags: tags.map((t) => ({ tag: t.tag, count: t.n })),
+  };
+}
+
+/**
+ * Reduce one error message to a signature — what makes two failures "the
+ * same failure". Everything that varies per occurrence is replaced by a
+ * placeholder; what is left is the shape of the problem.
+ *
+ * Deliberately mechanical (no LLM, no fuzzy clustering): a rule you can read
+ * is one you can trust, and the local promise forbids the alternative. Over-
+ * merging is the failure mode to avoid, so only unmistakably-variable things
+ * are replaced — paths, ids, numbers, quoted payloads.
+ */
+export function errorSignature(text: string): string {
+  return (
+    text
+      // Agents wrap tool failures; the wrapper is noise, the message is not.
+      .replace(/<\/?tool_use_error>/g, ' ')
+      // A quoted payload is the input that failed, not the failure.
+      .replace(/"[^"]{8,}"/g, '"…"')
+      .replace(/'[^']{8,}'/g, "'…'")
+      // Absolute paths (POSIX and Windows) — same error, different file.
+      .replace(/(?:[A-Za-z]:)?[/\\][\w.\-/\\ ]{3,}/g, '<path>')
+      // URLs before ids, so a URL does not decay into <id> soup.
+      .replace(/\bhttps?:\/\/\S+/g, '<url>')
+      .replace(/\b[0-9a-f]{8}-[0-9a-f-]{20,}\b/gi, '<id>')
+      .replace(/\b[0-9a-f]{7,}\b/gi, '<id>')
+      // No word boundaries: "10m 0s" and "3m 42s" are the same timeout, and
+      // \b never fires between a digit and a letter.
+      .replace(/\d+(?:\.\d+)*/g, '<n>')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^(.{24,}?[.!?])\s+\S.*$/, '$1') // keep the first sentence…
+      .slice(0, 160) // …or, when there isn't one, a bounded prefix
+  );
+}
+
+/**
+ * Recurring failures across a match set: "this exact error happened in 14
+ * sessions across 3 projects". Search-derived stats in the blessed sense —
+ * aggregates attached to results, not a dashboard: it answers a question
+ * about the errors you are already looking at.
+ */
+export function getErrorSignatures(
+  db: Database.Database,
+  q: { query?: string; limit?: number; deep?: boolean },
+): ErrorSignaturesResponse {
+  const limit = Math.min(Math.max(q.limit ?? 12, 1), 50);
+  const parsed = parseForSearch(q.query ?? '', db, q.deep);
+  const filter = filterSql(parsed.parsed.filters, 's');
+
+  const rows = (() => {
+    try {
+      return db
+        .prepare(
+          parsed.match !== null
+            ? `SELECT m.text AS text, m.idx AS idx, m.ts AS ts,
+                      COALESCE(s.parent_session_id, s.id) AS root, s.project_key AS pk
+                 FROM ${parsed.fts}
+                 JOIN messages m ON m.rowid = ${parsed.fts}.rowid
+                 JOIN sessions s ON s.id = m.session_id
+                WHERE ${parsed.fts} MATCH ? AND m.is_error = 1 AND m.text != '' ${filter.sql}
+                LIMIT 20000`
+            : `SELECT m.text AS text, m.idx AS idx, m.ts AS ts,
+                      COALESCE(s.parent_session_id, s.id) AS root, s.project_key AS pk
+                 FROM messages m
+                 JOIN sessions s ON s.id = m.session_id
+                WHERE m.is_error = 1 AND m.text != '' ${filter.sql}
+                LIMIT 20000`,
+        )
+        .all(
+          ...(parsed.match !== null ? [parsed.match, ...filter.params] : filter.params),
+        ) as { text: string; idx: number; ts: string | null; root: string; pk: string | null }[];
+    } catch {
+      return []; // MATCH errors must never 500 — same posture as search
+    }
+  })();
+
+  interface Group {
+    signature: string;
+    sample: string;
+    count: number;
+    sessions: Set<string>;
+    projects: Set<string>;
+    lastAt: string | null;
+    where: { sessionId: string; idx: number }[];
+  }
+  const groups = new Map<string, Group>();
+  for (const r of rows) {
+    const signature = errorSignature(r.text);
+    if (signature === '') continue;
+    let g = groups.get(signature);
+    if (!g) {
+      g = {
+        signature,
+        sample: r.text.replace(/\s+/g, ' ').trim().slice(0, 300),
+        count: 0,
+        sessions: new Set(),
+        projects: new Set(),
+        lastAt: null,
+        where: [],
+      };
+      groups.set(signature, g);
+    }
+    g.count += 1;
+    g.sessions.add(r.root);
+    if (r.pk !== null) g.projects.add(r.pk);
+    if (r.ts !== null && (g.lastAt === null || r.ts > g.lastAt)) g.lastAt = r.ts;
+    // A handful of jump targets is enough to act on; the rest is a count.
+    if (g.where.length < 8 && !g.where.some((w) => w.sessionId === r.root)) {
+      g.where.push({ sessionId: r.root, idx: r.idx });
+    }
+  }
+
+  // Recurrence is the point: rank by how many sessions hit it, not by raw
+  // count — one runaway loop firing 400 times is not 400 problems.
+  const out = [...groups.values()]
+    .sort((a, b) => b.sessions.size - a.sessions.size || b.count - a.count)
+    .slice(0, limit)
+    .map((g) => ({
+      signature: g.signature,
+      sample: g.sample,
+      count: g.count,
+      sessions: g.sessions.size,
+      projects: g.projects.size,
+      lastAt: g.lastAt,
+      where: g.where,
+    }));
+  return { signatures: out, totalErrors: rows.length };
+}
+
 export function listProjects(db: Database.Database): ProjectInfo[] {
   const rows = db
     .prepare(
       `SELECT project_key, MAX(project_path) AS project_path, COUNT(*) AS n,
-              COALESCE(SUM(cost_usd), 0) AS cost
+              COALESCE(SUM(cost_usd), 0) AS cost,
+              MAX(COALESCE(ended_at, started_at)) AS last_at,
+              -- Which agents worked here, as a sorted distinct list. GROUP
+              -- BY inside GROUP_CONCAT is not available, so dedupe client
+              -- side; the cardinality is one row per session and tiny.
+              GROUP_CONCAT(tool) AS tools
        FROM sessions WHERE parent_session_id IS NULL
        GROUP BY project_key ORDER BY n DESC`,
     )
@@ -1792,6 +2136,8 @@ export function listProjects(db: Database.Database): ProjectInfo[] {
     projectPath: r.project_path,
     sessionCount: r.n,
     costUsd: r.cost,
+    lastActiveAt: r.last_at ?? null,
+    agents: [...new Set(String(r.tools ?? '').split(',').filter(Boolean))].sort(),
   }));
 }
 
@@ -1815,28 +2161,7 @@ export function getSpend(
   const parsedQ = parseForSearch(q.query ?? '');
   const match = parsedQ.match;
 
-  // Chain-aware money: resuming a session copies its whole history into the
-  // new file — same message uuids under a new session id — so summing session
-  // aggregates bills a 3-part chain's shared prefix 3×. The copies are
-  // excluded up front: within each multi-part family (root_uuid + project),
-  // every message uuid's first occurrence (earliest part) keeps its usage and
-  // the rest drop. Chains are rare, so ranking only family messages is cheap;
-  // it spans ALL sessions, not just the window — a prefix owned by a part
-  // outside the window stays outside it.
-  const dupRowids = `
-    SELECT mrowid FROM (
-      SELECT m2.rowid AS mrowid,
-             ROW_NUMBER() OVER (
-               PARTITION BY s2.root_uuid, s2.project_key, m2.uuid
-               ORDER BY s2.started_at, s2.id
-             ) AS rn
-      FROM messages m2
-      JOIN sessions s2 ON s2.id = m2.session_id
-      JOIN (SELECT root_uuid, project_key FROM sessions
-            WHERE root_uuid IS NOT NULL AND parent_session_id IS NULL
-            GROUP BY root_uuid, project_key HAVING COUNT(*) > 1) fam
-        ON fam.root_uuid = s2.root_uuid AND fam.project_key IS s2.project_key
-    ) WHERE rn > 1`;
+  const dupRowids = DUP_ROWIDS_SQL;
 
   // One join-free scan of messages, aggregated per (session, model) — the
   // join to sessions per row is what made SQL-side grouping slow (~0.5s on a
@@ -2150,7 +2475,7 @@ export interface AnnotationsDump {
     note: string | null;
     updatedAt: string | null;
   }[];
-  bookmarks: { sessionId: string; idx: number; createdAt: string | null }[];
+  bookmarks: { sessionId: string; idx: number; createdAt: string | null; caption?: string }[];
   savedSearches: { name: string; query: string; createdAt: string | null }[];
   /**
    * Optional so a dump written before tags existed still imports — the
@@ -2164,8 +2489,8 @@ export function exportAnnotations(db: Database.Database): AnnotationsDump {
     .prepare(`SELECT session_id, pinned, custom_name, note, updated_at FROM session_meta`)
     .all() as { session_id: string; pinned: number; custom_name: string | null; note: string | null; updated_at: string | null }[];
   const bookmarks = db
-    .prepare(`SELECT session_id, idx, created_at FROM message_bookmarks`)
-    .all() as { session_id: string; idx: number; created_at: string | null }[];
+    .prepare(`SELECT session_id, idx, created_at, caption FROM message_bookmarks`)
+    .all() as { session_id: string; idx: number; created_at: string | null; caption: string | null }[];
   const saved = db
     .prepare(`SELECT name, query, created_at FROM saved_searches`)
     .all() as { name: string; query: string; created_at: string | null }[];
@@ -2186,6 +2511,8 @@ export function exportAnnotations(db: Database.Database): AnnotationsDump {
       sessionId: b.session_id,
       idx: b.idx,
       createdAt: b.created_at,
+      // Optional on purpose: a pre-caption export must still import.
+      ...(b.caption === null ? {} : { caption: b.caption }),
     })),
     savedSearches: saved.map((sv) => ({
       name: sv.name,
@@ -2225,8 +2552,18 @@ export function importAnnotations(
     `INSERT OR REPLACE INTO session_meta (session_id, pinned, custom_name, note, updated_at)
      VALUES (?, ?, ?, ?, ?)`,
   );
+  // Upsert so the file's caption wins on conflict (the same rule pins,
+  // names and notes follow) — but `changes` then counts an unchanged
+  // re-import as work, and importing twice must report nothing new. So
+  // newness is asked separately and drives the count.
+  const bookmarkExists = db.prepare(
+    `SELECT 1 FROM message_bookmarks WHERE session_id = ? AND idx = ? LIMIT 1`,
+  );
   const insertBookmark = db.prepare(
-    `INSERT OR IGNORE INTO message_bookmarks (session_id, idx, created_at) VALUES (?, ?, ?)`,
+    `INSERT INTO message_bookmarks (session_id, idx, created_at, caption)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT (session_id, idx) DO UPDATE SET
+       caption = COALESCE(excluded.caption, message_bookmarks.caption)`,
   );
   const savedExists = db.prepare(
     `SELECT 1 FROM saved_searches WHERE name = ? AND query = ? LIMIT 1`,
@@ -2251,12 +2588,14 @@ export function importAnnotations(
     }
     for (const b of d.bookmarks!) {
       if (typeof b?.sessionId !== 'string' || !Number.isInteger(b.idx)) continue;
-      const res = insertBookmark.run(
+      const isNew = bookmarkExists.get(b.sessionId, b.idx) === undefined;
+      insertBookmark.run(
         b.sessionId,
         b.idx,
         typeof b.createdAt === 'string' ? b.createdAt : null,
+        typeof b.caption === 'string' ? b.caption.slice(0, CAPTION_MAX) : null,
       );
-      counts.bookmarks += res.changes;
+      if (isNew) counts.bookmarks += 1;
     }
     for (const sv of d.savedSearches!) {
       if (typeof sv?.name !== 'string' || typeof sv.query !== 'string') continue;

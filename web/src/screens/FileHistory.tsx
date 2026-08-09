@@ -5,6 +5,7 @@ import IconButton from '../components/IconButton';
 import { SkeletonRows } from '../components/Skeleton';
 import { fmtCost, fmtDate, fmtTime, projectName, sessionName, tileClass } from '../format';
 import { CodeFileIcon } from '../icons';
+import { DiffModeToggle } from '../replay/DiffView';
 import { dirName, EditBody, fileName, groupByFile } from '../replay/Files';
 import { filesHash, navigate, sessionHash } from '../router';
 import type { SessionMeta } from '../types';
@@ -141,6 +142,7 @@ export default function FileHistory({
           <>
             <div className="file-diffs-head">
               <span className="file-diffs-path">{path}</span>
+              <DiffModeToggle />
               {status.data?.editorConfigured && (
                 <IconButton
                   label="Open this file in your editor"

@@ -4,6 +4,76 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.12.0] — 2026-08-09
+
+### Added
+
+- A **Projects screen** in the header, next to Files and Spend: every repo
+  you have pointed an agent at, with the agents that worked on each one,
+  its sessions, spend and last activity — filterable, and sortable by
+  recency, sessions or spend. Project pages existed before this; they were
+  reachable only if you already knew to search for one. The home screen's
+  project rows now open the repo's page too, instead of only filtering the
+  sidebar.
+
+- **Codex and Cursor sessions replay as richly as Claude Code ones.** Their
+  tool calls now show what they actually ran (Codex's `exec` as highlighted
+  code, Cursor's tools with their real arguments) and pair with their
+  results; Codex reasoning becomes a collapsible thinking block. The replay
+  used to understand only Claude Code's record shape and fall back to plain
+  text for everyone else — it now recognises each agent from the record
+  itself, and an unfamiliar shape still degrades to plain text rather than
+  breaking.
+
+- A **bookmarks page** — the header's bookmark button, or ⌘K → Bookmarks:
+  every moment you ever marked, across every session, newest first — filter
+  them, and click one to land exactly where it was. Bookmarks can now carry a **caption**,
+  written from the replay, because thirty unlabelled marks are thirty
+  message prefixes to re-read. Captions travel with your annotations export
+  and survive re-indexing, like every other thing you wrote.
+
+- Searching `is:error` now shows **recurring failures** above the results:
+  the same failure grouped across runs, ranked by how many sessions hit it,
+  with the project count beside it — "this happened in 13 sessions across 3
+  projects". Click one to land on a real occurrence. Grouping is mechanical
+  (paths, ids, numbers and quoted payloads are replaced, then the first
+  sentence is the key), so it is a rule you can read, and no model is
+  involved.
+
+- Diffs can be read **side by side**: a unified | split toggle sits wherever
+  diffs are the point — the replay's diffs lens and the file-history screen —
+  and every diff in the app follows the choice, which is remembered between
+  launches. Unified stays the default.
+
+- A **copy button on every prompt**, on hover. Finding what you asked three
+  weeks ago is usually the first half of asking it again.
+
+- Every repo now has a page: **one place per project**, with every agent's
+  sessions interleaved newest-first, who worked there and how much, what it
+  cost, the files it touched most, its tags, and a live row when something
+  is running in it right now. Reach it from the ⌘K palette, from the project
+  name in any session's header, or from a row on the Spend screen. If the
+  folder has since moved or been deleted the page says so — the history
+  itself is unaffected, because agent logs never lived in the repo.
+
+- Screenshots you shared with an agent now show in the replay. The images
+  were always in your logs — and in the index — but the replay only ever
+  said "[image]"; they render as thumbnails you click to enlarge, both the
+  ones you pasted into a prompt and the ones a tool handed back. Decoded
+  from the record you already have: nothing is fetched, nothing new is
+  stored, and a payload whose type can't be verified is still shown as text
+  rather than dropped.
+
+### Fixed
+
+- **Codex tool output was missing from the index entirely.** Codex writes a
+  tool's result as a list of text blocks, a shape the adapter did not read,
+  so every `exec` result was stored with empty search text — command output,
+  file contents, test results, none of it findable. It is indexed now, and
+  the next scan after updating repairs existing indexes automatically.
+
 ## [0.11.0] — 2026-08-06
 
 ### Added

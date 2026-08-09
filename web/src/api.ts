@@ -8,8 +8,11 @@ import {
   type InfiniteData,
 } from '@tanstack/react-query';
 import type {
+  BookmarkEntry,
+  BookmarksListResponse,
   BookmarksResponse,
   DiskUsageResponse,
+  ErrorSignaturesResponse,
   FileHistoryResponse,
   FileSummary,
   HealthResponse,
@@ -18,6 +21,7 @@ import type {
   MessageListResponse,
   MessageRow,
   PrefsResponse,
+  ProjectDetail,
   SavedSearch,
   SpendResponse,
   ProjectInfo,
@@ -174,7 +178,7 @@ type AppQueryClient = ReturnType<typeof useQueryClient>;
 
 /** Refresh everything derived from the index; target one session when known. */
 function invalidateIndexDerived(queryClient: AppQueryClient, sessionId: string | null): void {
-  for (const key of ['sessions', 'sessions-range', 'stats', 'projects', 'spend', 'health', 'live']) {
+  for (const key of ['sessions', 'sessions-range', 'stats', 'projects', 'project', 'spend', 'health', 'live']) {
     void queryClient.invalidateQueries({ queryKey: [key] });
   }
   if (sessionId !== null) {
@@ -296,6 +300,40 @@ export function useProjects() {
   return useQuery({
     queryKey: ['projects'],
     queryFn: () => apiFetch<ProjectInfo[]>('/api/projects'),
+  });
+}
+
+/**
+ * Recurring failures across the current match set. Only asked for when the
+ * query is about errors — grouping is a scan, and every other search must
+ * not pay for it.
+ */
+export function useErrorSignatures(query: string, enabled: boolean, deep = false) {
+  return useQuery({
+    queryKey: ['errors', query, deep],
+    queryFn: () =>
+      apiFetch<ErrorSignaturesResponse>(
+        `/api/errors?q=${encodeURIComponent(query)}${deep ? '&deep=1' : ''}`,
+      ),
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
+/** Every marked moment across every session — the bookmarks page. */
+export function useAllBookmarks() {
+  return useQuery({
+    queryKey: ['bookmarks-all'],
+    queryFn: () => apiFetch<BookmarksListResponse>('/api/bookmarks'),
+  });
+}
+
+/** One repo's rollup — agents, spend, top files, tags. */
+export function useProject(projectKey: string) {
+  return useQuery({
+    queryKey: ['project', projectKey],
+    queryFn: () =>
+      apiFetch<ProjectDetail>(`/api/projects/${encodeURIComponent(projectKey)}`),
   });
 }
 
@@ -589,12 +627,15 @@ export function useBookmarks(sessionId: string) {
 export function useToggleBookmark(sessionId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ idx, on }: { idx: number; on: boolean }) =>
+    mutationFn: ({ idx, on, caption }: { idx: number; on: boolean; caption?: string }) =>
       apiPost<BookmarksResponse>(
         `/api/sessions/${encodeURIComponent(sessionId)}/bookmarks`,
-        { idx, on },
+        caption === undefined ? { idx, on } : { idx, on, caption },
       ),
-    onSuccess: (updated) => queryClient.setQueryData(['bookmarks', sessionId], updated),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['bookmarks', sessionId], updated);
+      void queryClient.invalidateQueries({ queryKey: ['bookmarks-all'] });
+    },
   });
 }
 

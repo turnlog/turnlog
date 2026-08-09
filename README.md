@@ -75,7 +75,10 @@ time it starts, once nothing is holding the old file.
 - **Every agent, one history** — Claude Code, OpenAI Codex, and Cursor
   sessions are all indexed, read-only, and appear side by side. Every session
   says which agent wrote it, and a repo you worked on with several reads as
-  one timeline.
+  one timeline. A **Projects screen** lists every repo you've worked in, and
+  each gets its own **project page**: every agent's
+  sessions interleaved, who worked there, what it cost, the files it touched
+  most, and a live row when something is running in it right now.
 - **Search everything** — full-text FTS5 across your whole history, grouped by
   session, jump straight to the match. Identifiers and `snake_case` included.
   Subagent transcripts (the separate files newer Claude Code versions write per
@@ -86,11 +89,24 @@ time it starts, once nothing is holding the old file.
   **timeline** to see when a topic kept coming up, or build the opt-in **deep
   search** index to match inside words — `eWebSock` finds `useWebSocket`.
   Also from the terminal: `turnlog search <query>` prints hits with deep
-  links into the running UI.
+  links into the running UI. Search `is:error` and you also get **recurring
+  failures**: the same error grouped across runs, ranked by how many sessions
+  hit it — "this happened in 13 sessions across 3 projects".
+- **Rich replay, every agent** — tool calls show the command or arguments
+  they actually ran and pair with their output, and thinking folds away,
+  whichever agent wrote the session.
 - **Turn spine** — a 5,000-message session collapses to ten scannable turns,
-  each with a mechanical summary (reads, edits, commands, errors).
+  each with a mechanical summary (reads, edits, commands, errors). Any prompt
+  copies with one click, because finding what you asked is usually the first
+  half of asking it again.
 - **Lenses & files** — collapse a session to just its diffs, commands, or
-  errors; or pivot to a file and read every change it made, in order.
+  errors; or pivot to a file and read every change it made, in order. Diffs
+  read **unified or side-by-side**, your choice, everywhere they appear.
+- **Bookmarks** — mark any moment in a replay, give it a caption in your own
+  words, and find every marked moment later on one page.
+- **Screenshots** — images you pasted to an agent, and screenshots tools
+  handed back, render inline in the replay. They were always in your logs;
+  now you can see them.
 - **Spend tracker** — cost by day, model, or project — and, uniquely, cost
   filtered by a search query ("what did *this kind of work* cost me"). Usage is
   counted once per API response (the logs repeat it per line), priced from a
@@ -191,6 +207,37 @@ and the Cursor IDE's state databases (via a copy — the originals are never
 opened), and never writes to any of them. The index lives in
 `~/.config/turnlog/` (`%APPDATA%\turnlog` on Windows); override with
 `TURNLOG_DATA_DIR`.
+
+## Settings
+
+Optional, and there is no settings UI on purpose — create
+`~/.config/turnlog/settings.json` (`%APPDATA%\turnlog\settings.json` on
+Windows) only if you want one of these:
+
+```jsonc
+{
+  // Correct the shipped price table for your rates — Bedrock, Vertex,
+  // enterprise agreements, or simple disagreement. USD per million tokens;
+  // any field you omit keeps the shipped value. Matched by model id.
+  "modelPricing": {
+    "claude-sonnet-4-5-20250929": { "input": 2.4, "output": 12 }
+  },
+
+  // Open-in-editor buttons in the web UI. Unset, they don't render.
+  // `{path}` is replaced with the file's absolute path; never run through a
+  // shell. Try "code -g {path}" or "webstorm {path}".
+  "editorCommand": "code -g {path}",
+
+  // Skip the npm version check on startup (same as TURNLOG_NO_UPDATE_CHECK=1).
+  "checkUpdates": false,
+
+  // Drop the "Exported with Turnlog" footer from markdown exports.
+  "exportFooter": false
+}
+```
+
+Costs stay labeled estimates either way — they are computed from the token
+counts in your own logs, not from a bill.
 
 ## License
 
