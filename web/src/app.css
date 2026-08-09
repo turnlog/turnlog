@@ -1383,6 +1383,14 @@
   padding: 0 24px;
   position: relative; /* anchors the bookmark gutter toggle */
 }
+/* Compact rows sit on a 2px padding rather than 8px, so their first line is
+   higher; the toggle follows it instead of floating above. */
+.block-slot:has(> .block-tool),
+.block-slot:has(> .block-system),
+.block-slot:has(> .block-unknown),
+.block-slot:has(> .block-mode) {
+  --bm-top: -1px;
+}
 /* "Mark this moment": appears in the left gutter on hover; stays when set.
    Bookmarks share the note-yellow language — marked things are yellow. */
 .block-bookmark {
@@ -1392,7 +1400,12 @@
      where the viewport clips it. 0 lands it flush in the gutter, left of the
      block rail. */
   left: 0;
-  top: 8px;
+  /* Centred on the block's FIRST LINE, which sits at the block's padding-top:
+     the block's margin collapses through the slot, so its border box starts
+     at the slot's top and the padding is the whole offset. Compact rows use a
+     smaller padding and set --bm-top accordingly — a single fixed value was
+     half a row out on those. */
+  top: var(--bm-top, 6px);
   width: 24px;
   height: 24px;
   display: inline-flex;
