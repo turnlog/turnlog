@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { hasToken, shutdownServer, useLiveEvents, useStatus } from './api';
 import {
+  BookmarkIcon,
   Brandmark,
   CloseIcon,
   FolderIcon,
@@ -359,6 +360,15 @@ export default function App() {
             <Primary href="#/spend" active={route.name === 'spend'} icon={<WalletIcon />}>
               Spend
             </Primary>
+            {/* Icon-only: the marks are a personal shelf, not a fourth peer of
+                Projects/Files/Spend. */}
+            <Primary
+              href="#/bookmarks"
+              active={route.name === 'bookmarks'}
+              label="Bookmarks"
+              tooltip="Bookmarks"
+              icon={<BookmarkIcon />}
+            />
             <SearchButton />
             <Primary
               label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}

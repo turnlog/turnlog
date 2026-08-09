@@ -33,9 +33,9 @@ All notable changes to Turnlog are documented here. The format follows
   itself, and an unfamiliar shape still degrades to plain text rather than
   breaking.
 
-- A **bookmarks page** (`#/bookmarks`, or ⌘K → Bookmarks): every moment you
-  ever marked, across every session, newest first — filter them, and click
-  one to land exactly where it was. Bookmarks can now carry a **caption**,
+- A **bookmarks page** — the header's bookmark button, or ⌘K → Bookmarks:
+  every moment you ever marked, across every session, newest first — filter
+  them, and click one to land exactly where it was. Bookmarks can now carry a **caption**,
   written from the replay, because thirty unlabelled marks are thirty
   message prefixes to re-read. Captions travel with your annotations export
   and survive re-indexing, like every other thing you wrote.

@@ -86,23 +86,25 @@ export default function Projects() {
             Every repo you&rsquo;ve pointed an agent at — and which agents those were.
           </p>
         </div>
-        <SearchField
-          value={filter}
-          onChange={setFilter}
-          placeholder="Filter projects…"
-          ariaLabel="Filter projects"
-        />
-        <Segmented
-          fill="card"
-          ariaLabel="Sort projects"
-          value={sort}
-          onChange={setSort}
-          options={[
-            { value: 'recent', label: 'recent' },
-            { value: 'sessions', label: 'sessions' },
-            { value: 'cost', label: 'spend' },
-          ]}
-        />
+        <div className="screen-controls">
+          <SearchField
+            value={filter}
+            onChange={setFilter}
+            placeholder="Filter projects…"
+            ariaLabel="Filter projects"
+          />
+          <Segmented
+            fill="card"
+            ariaLabel="Sort projects"
+            value={sort}
+            onChange={setSort}
+            options={[
+              { value: 'recent', label: 'recent' },
+              { value: 'sessions', label: 'sessions' },
+              { value: 'cost', label: 'spend' },
+            ]}
+          />
+        </div>
       </header>
 
       {projects.isLoading ? (

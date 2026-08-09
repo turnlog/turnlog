@@ -332,6 +332,15 @@ a:hover {
   color: var(--accent);
 }
 
+/* Lists are layout here, never bullets. Reset centrally: five lists shipped
+   with the UA's 40px indent because they set only `list-style`. */
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 button {
   font: inherit;
   color: inherit;

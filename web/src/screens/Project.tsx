@@ -66,36 +66,64 @@ export default function Project({ projectKey }: { projectKey: string }) {
   return (
     <div className="project-screen">
       <header className="proj-head">
-        <div className="proj-head-main">
-          <h1>{title}</h1>
-          {p?.projectPath && (
-            <p className="proj-path">
-              {p.projectPath}
-              {/* The history is safe either way — it lives in the agent's own
-                  data dir, not the repo. Saying so beats a path that quietly
-                  points nowhere. */}
-              {p.pathExists === false && (
-                <Tooltip content="The folder is gone or moved. These sessions are still complete — agent logs live outside the repo.">
-                  <span className="proj-path-gone">not on disk</span>
-                </Tooltip>
-              )}
-            </p>
-          )}
-        </div>
-        <div className="proj-head-actions">
-          <Tooltip content="Search inside this project">
-            <IconButton
-              label={`Search within ${title}`}
-              onClick={() => navigate(searchHash(`project:${projectKey}`))}
-            >
-              <MagniferIcon size={16} />
-            </IconButton>
-          </Tooltip>
-        </div>
+        <h1>{title}</h1>
+        {p?.projectPath && (
+          <p className="proj-path">
+            {p.projectPath}
+            {/* The history is safe either way — it lives in the agent's own
+                data dir, not the repo. Saying so beats a path that quietly
+                points nowhere. */}
+            {p.pathExists === false && (
+              <Tooltip content="The folder is gone or moved. These sessions are still complete — agent logs live outside the repo.">
+                <span className="proj-path-gone">not on disk</span>
+              </Tooltip>
+            )}
+          </p>
+        )}
       </header>
 
       {p && (
         <>
+          {/* The differentiator, stated: who worked here, and how much. Above
+              the figures, because it says what this repo IS; the figures then
+              say how much of it there was. */}
+          <div className="proj-agents">
+            {p.agents.map((a) => (
+              <button
+                key={a.tool}
+                className="proj-agent"
+                onClick={() => navigate(searchHash(`project:${projectKey} agent:${a.tool}`))}
+                title={`Search ${a.tool} sessions in this project`}
+              >
+                <AgentBadge tool={a.tool} />
+                <span className="proj-agent-n">{fmtCount(a.sessions)}</span>
+              </button>
+            ))}
+            <span className="proj-agents-right">
+              {p.tags.map((t) => (
+                <button
+                  key={t.tag}
+                  className="proj-tag"
+                  title={`Search this project's ${t.tag} sessions`}
+                  onClick={() => navigate(searchHash(`project:${projectKey} tag:"${t.tag}"`))}
+                >
+                  <Badge className="tag-badge-row">
+                    {t.tag}
+                    <em>{t.count}</em>
+                  </Badge>
+                </button>
+              ))}
+              <Tooltip content="Search inside this project">
+                <IconButton
+                  label={`Search within ${title}`}
+                  onClick={() => navigate(searchHash(`project:${projectKey}`))}
+                >
+                  <MagniferIcon size={16} />
+                </IconButton>
+              </Tooltip>
+            </span>
+          </div>
+
           <div className="stat-strip proj-stats">
             <div className="stat-tile">
               <div className="stat-value">{fmtCount(p.sessionCount)}</div>
@@ -118,35 +146,6 @@ export default function Project({ projectKey }: { projectKey: string }) {
               <div className="stat-sub">to {fmtDate(p.lastAt)}</div>
               <div className="stat-label">active</div>
             </div>
-          </div>
-
-          {/* The differentiator, stated: who worked here, and how much. */}
-          <div className="proj-agents">
-            {p.agents.map((a) => (
-              <button
-                key={a.tool}
-                className="proj-agent"
-                onClick={() => navigate(searchHash(`project:${projectKey} agent:${a.tool}`))}
-                title={`Search ${a.tool} sessions in this project`}
-              >
-                <AgentBadge tool={a.tool} />
-                <span className="proj-agent-n">{fmtCount(a.sessions)}</span>
-              </button>
-            ))}
-            {p.tags.length > 0 && (
-              <span className="proj-tags">
-                {p.tags.map((t) => (
-                  <button
-                    key={t.tag}
-                    className="tag-badge-row proj-tag"
-                    onClick={() => navigate(searchHash(`project:${projectKey} tag:"${t.tag}"`))}
-                  >
-                    {t.tag}
-                    <em>{t.count}</em>
-                  </button>
-                ))}
-              </span>
-            )}
           </div>
         </>
       )}

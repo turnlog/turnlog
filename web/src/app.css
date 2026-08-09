@@ -3948,23 +3948,17 @@ kbd {
    filter: header, stat strip, who worked here, then the two lists that
    answer "what happened" and "what changed". */
 .project-screen {
-  padding: 0 var(--gutter) var(--gutter);
   display: flex;
   flex-direction: column;
   gap: var(--gutter);
   overflow-y: auto;
 }
 .proj-head {
-  display: flex;
-  align-items: flex-end;
-  gap: 16px;
+  min-width: 0;
   padding-top: 4px;
 }
-.proj-head-main {
-  min-width: 0;
-  flex: 1;
-}
 .proj-head h1 {
+  margin: 0;
   font-size: var(--fs-24);
   font-weight: 600;
   color: var(--tx0);
@@ -3974,13 +3968,10 @@ kbd {
   font-family: var(--mono);
   font-size: var(--fs-12);
   color: var(--tx2);
-  margin-top: 3px;
+  margin: 3px 0 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.proj-head-actions {
-  flex: none;
 }
 .proj-stats {
   margin-top: 2px;
@@ -4012,21 +4003,26 @@ kbd {
   font-size: var(--fs-12);
   color: var(--tx1);
 }
-.proj-tags {
+/* Tags and the scoped-search button close the row from the right — what you
+   called this repo, then the way into it. */
+.proj-agents-right {
   display: inline-flex;
+  align-items: center;
   gap: 6px;
   flex-wrap: wrap;
   margin-left: auto;
 }
+/* The chip is a Badge — the button only makes it clickable, and carries the
+   hover the way .proj-agent does for the agent badges beside it. */
 .proj-tag {
-  cursor: pointer;
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  cursor: pointer;
+}
+.proj-tag:hover .badge {
+  background: var(--bg3);
 }
 .proj-tag em {
   font-style: normal;
-  font-family: var(--mono);
   color: var(--tx2);
 }
 
@@ -4245,7 +4241,6 @@ kbd {
    Marked moments were per-session and so invisible in aggregate; collected
    here they are a scrapbook, which is what captions are for. */
 .bookmarks-screen {
-  padding: 0 var(--gutter) var(--gutter);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -4253,11 +4248,12 @@ kbd {
 }
 .bm-head {
   display: flex;
-  align-items: flex-end;
-  gap: 16px;
+  flex-direction: column;
+  gap: 12px;
   padding-top: 4px;
 }
 .bm-head h1 {
+  margin: 0;
   font-size: var(--fs-24);
   font-weight: 600;
   color: var(--tx0);
@@ -4266,11 +4262,7 @@ kbd {
 .bm-lede {
   font-size: var(--fs-12);
   color: var(--tx2);
-  margin-top: 3px;
-}
-.bm-head .search-field {
-  margin-left: auto;
-  min-width: 220px;
+  margin: 3px 0 0;
 }
 .bm-list {
   list-style: none;
@@ -4412,7 +4404,6 @@ kbd {
    The front door to project pages, which were previously reachable only if
    you already knew to search for one. */
 .projects-screen {
-  padding: 0 var(--gutter) var(--gutter);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -4420,12 +4411,12 @@ kbd {
 }
 .pj-head {
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
   gap: 12px;
   padding-top: 4px;
-  flex-wrap: wrap;
 }
 .pj-head h1 {
+  margin: 0;
   font-size: var(--fs-24);
   font-weight: 600;
   color: var(--tx0);
@@ -4434,11 +4425,18 @@ kbd {
 .pj-lede {
   font-size: var(--fs-12);
   color: var(--tx2);
-  margin-top: 3px;
+  margin: 3px 0 0;
 }
-.pj-head .search-field {
-  margin-left: auto;
-  min-width: 210px;
+/* A screen's filter/sort row: its own line under the title, so the lede is a
+   subtitle rather than a neighbour the controls crowd. */
+.screen-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.screen-controls .search-field {
+  flex: 1;
+  min-width: 0;
 }
 .pj-list {
   list-style: none;

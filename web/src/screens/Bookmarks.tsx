@@ -83,12 +83,14 @@ export default function Bookmarks() {
             Moments you marked, newest first. Add a caption from the replay to say why.
           </p>
         </div>
-        <SearchField
-          value={filter}
-          onChange={setFilter}
-          placeholder="Filter bookmarks…"
-          ariaLabel="Filter bookmarks"
-        />
+        <div className="screen-controls">
+          <SearchField
+            value={filter}
+            onChange={setFilter}
+            placeholder="Filter bookmarks…"
+            ariaLabel="Filter bookmarks"
+          />
+        </div>
       </header>
 
       {all.isLoading ? (
