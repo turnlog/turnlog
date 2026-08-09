@@ -94,6 +94,12 @@ time it starts, once nothing is holding the old file.
   links into the running UI. Search `is:error` and you also get **recurring
   failures**: the same error grouped across runs, ranked by how many sessions
   hit it — "this happened in 13 sessions across 3 projects".
+- **Related sessions** — "have I solved this before?" Every replay carries a
+  quiet **related** row: the other times this problem came up, one click from
+  the message where they came up. Also an operator — `like:<session-id>` —
+  so it composes with everything else, and your agent gets it over MCP for
+  free. Computed from your index alone: the session's own rarest words, no
+  model, nothing leaving the machine.
 - **Rich replay, every agent** — tool calls show the command or arguments
   they actually ran and pair with their output, and thinking folds away,
   whichever agent wrote the session.
@@ -191,7 +197,7 @@ turnlog export <id>         Print a session as markdown (id or unique prefix);
 turnlog search <query>      Search from the terminal (--limit n, --json);
                             same operators as the UI: tool: kind: is:error
                             is:pinned has:note tag: agent: project: model:
-                            path: before: after:
+                            path: like:<session-id> before: after:
 turnlog annotations export  Print pins, names, notes, bookmarks and saved
                             searches as one JSON document
 turnlog annotations import <file>

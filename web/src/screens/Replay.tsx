@@ -3,6 +3,7 @@ import {
   revealSession,
   useBookmarks,
   useErrorIdxs,
+  useRelatedSessions,
   useSearch,
   useSession,
   useSessionChildren,
@@ -52,7 +53,7 @@ import ResumeButton from '../replay/ResumeButton';
 import SharePanel from '../replay/SharePanel';
 import SpineView from '../replay/Spine';
 import StatsPanel from '../replay/Stats';
-import { navigate, projectHash, sessionHash } from '../router';
+import { navigate, projectHash, searchHash, sessionHash } from '../router';
 import type { Lens, ViewParam } from '../router';
 
 /** Stable identity for the no-subagents case — most sessions. */
@@ -67,6 +68,43 @@ const LENS_LABELS: { value: Lens; label: string; Icon: typeof DiffLensIcon }[] =
   { value: 'errors', label: 'errors', Icon: ErrorLensIcon },
   { value: 'prompts', label: 'prompts', Icon: ChatIcon },
 ];
+
+/**
+ * "Have I solved this before?" — the other sessions that talk about what this
+ * one talks about, one click from where they say it.
+ *
+ * Quiet on purpose, and absent when there is nothing to show: it is a sideways
+ * exit from a session you are already reading, not a recommendation feed. The
+ * links carry the matching message's idx, so a click lands on the sentence
+ * rather than at the top of a 3,000-message replay.
+ */
+function RelatedRow({ sessionId }: { sessionId: string }) {
+  const related = useRelatedSessions(sessionId);
+  const rows = related.data?.sessions ?? [];
+  if (rows.length === 0) return null;
+  return (
+    <div className="replay-related">
+      <span className="replay-related-label">related</span>
+      {rows.slice(0, 4).map((r) => (
+        <a
+          key={r.session.id}
+          className="replay-related-link"
+          href={sessionHash(r.session.id, { m: r.idx })}
+          title={`${r.hits} matching message${r.hits === 1 ? '' : 's'}`}
+        >
+          {sessionName(r.session)}
+          {/* Untitled sessions fall back to their project name, so four
+              entries can read the same without a date to tell them apart —
+              and "when" is half the answer to "have I solved this before". */}
+          <span className="replay-related-when">{fmtDate(r.session.startedAt)}</span>
+        </a>
+      ))}
+      <a className="replay-related-all" href={searchHash(`like:${sessionId}`)}>
+        see all
+      </a>
+    </div>
+  );
+}
 
 export default function Replay({
   sessionId,
@@ -233,6 +271,7 @@ export default function Replay({
             {/* Tags sit under the meta line rather than in it: the row is
                 already dense, and a session can carry several. */}
             {s && <TagEditor sessionId={sessionId} tags={s.tags} />}
+            <RelatedRow sessionId={sessionId} />
           </div>
           <div className="replay-controls-right">
             <div className="replay-views">

@@ -2,8 +2,10 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import type Database from 'better-sqlite3';
 import { Indexer } from '../src/indexer/indexer.js';
 import {
+  distinctiveTerms,
   getFileHistory,
   parseSearchQuery,
+  relatedSessions,
   searchFiles,
   searchMessages,
   searchTimeline,
@@ -307,5 +309,61 @@ describe('relative date sugar', () => {
     const junk = parseSearchQuery('after:banana');
     expect(junk.filters.after).toBeUndefined();
     expect(junk.terms).toBe('after:banana');
+  });
+});
+
+describe('like: — related sessions', () => {
+  it('builds its terms from the session and excludes its own chain family', () => {
+    const terms = distinctiveTerms(db, SESSION_A);
+    expect(terms.length).toBeGreaterThan(0);
+    // Rarity ranking, not a stopword list: nothing generic survives.
+    expect(terms).not.toContain('the');
+
+    const res = searchMessages(db, { query: `like:${SESSION_A}` });
+    expect(res.groups.length).toBeGreaterThan(0);
+    // The source conversation is not "related" to itself.
+    expect(res.groups.map((g) => g.session.id)).not.toContain(SESSION_A);
+  });
+
+  it('accepts a unique id prefix, like every other place ids are typed', () => {
+    const full = searchMessages(db, { query: `like:${SESSION_A}` });
+    const prefix = searchMessages(db, { query: `like:${SESSION_A.slice(0, 8)}` });
+    expect(prefix.groups.map((g) => g.session.id)).toEqual(full.groups.map((g) => g.session.id));
+  });
+
+  it('narrows rather than widens when text is typed alongside it', () => {
+    const alone = searchMessages(db, { query: `like:${SESSION_A}` }).totalHits;
+    const narrowed = searchMessages(db, {
+      query: `like:${SESSION_A} zzzznotinthecorpus`,
+    }).totalHits;
+    expect(narrowed).toBeLessThanOrEqual(alone);
+    expect(narrowed).toBe(0);
+  });
+
+  it('returns nothing for an unknown session rather than everything', () => {
+    // The failure that matters: a bad id must not fall through to an
+    // unfiltered match set.
+    expect(searchMessages(db, { query: 'like:no-such-session' }).totalHits).toBe(0);
+    expect(relatedSessions(db, 'no-such-session').sessions).toEqual([]);
+  });
+
+  it('credits a subagent transcript to the run it belongs to', () => {
+    // Children are hidden from every list; a match inside one means the
+    // PARENT session is related, not some transcript the user never sees.
+    const related = relatedSessions(db, SESSION_A, 10);
+    for (const r of related.sessions) {
+      expect(r.session.parentSessionId).toBeNull();
+    }
+  });
+
+  it('surfaces the same answer through relatedSessions, with its terms', () => {
+    const related = relatedSessions(db, SESSION_A, 3);
+    expect(related.terms.length).toBeGreaterThan(0);
+    expect(related.sessions.length).toBeGreaterThan(0);
+    expect(related.sessions.length).toBeLessThanOrEqual(3);
+    for (const r of related.sessions) {
+      expect(r.session.id).not.toBe(SESSION_A);
+      expect(r.hits).toBeGreaterThan(0);
+    }
   });
 });

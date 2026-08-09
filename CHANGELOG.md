@@ -10,6 +10,18 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Added
 
+- **"Have I solved this before?"** — every replay carries a quiet **related**
+  row: the other sessions that talk about what this one talks about, each
+  link landing on the message where they say it rather than at the top of a
+  3,000-message replay. It is also a search operator, `like:<session-id>`,
+  so it composes with the rest of the grammar (`like:d987e733 is:error
+  after:30d`) and an agent using Turnlog as memory gets it through the
+  existing `search` tool, with no new tool to learn. The match is built from
+  the session's own rarest words — how rare a word is across your index is
+  what separates a distinctive one from filler, so there is no stopword list
+  to maintain and no model involved — and the session's own resume chain is
+  left out, because a conversation is not related to itself.
+
 - A **Projects screen** in the header, next to Files and Spend: every repo
   you have pointed an agent at, with the agents that worked on each one,
   its sessions, spend and last activity — filterable, and sortable by

@@ -17,6 +17,7 @@ import type {
   ProjectDetail,
   ProjectInfo,
   LiveResponse,
+  RelatedResponse,
   SavedSearch,
   SearchAggregates,
   SearchFacet,
@@ -1083,6 +1084,13 @@ export interface SearchFilters {
   tag?: string;
   /** agent: — which tool wrote the session (`claude-code`, `codex`, …). */
   agent?: string;
+  /** like: — "have I solved this before": session id or unique prefix. */
+  like?: string;
+  /**
+   * Resolved from `like:` at search time, never typed: the chain family to
+   * leave out, so a resumed conversation doesn't come back as its own match.
+   */
+  excludeRoot?: string;
 }
 
 export interface ParsedQuery {
@@ -1102,6 +1110,7 @@ const FILTER_OPS = new Set([
   'path',
   'tag',
   'agent',
+  'like',
   'before',
   'after',
 ]);
@@ -1173,6 +1182,9 @@ export function parseSearchQuery(input: string): ParsedQuery {
       case 'agent':
         filters.agent = value.toLowerCase();
         break;
+      case 'like':
+        filters.like = value;
+        break;
       case 'tag': {
         // Normalised the same way on the way in and the way out, so typing
         // `tag:Refactor` finds what the chip stored as `refactor`.
@@ -1221,6 +1233,14 @@ function filterSql(f: SearchFilters, sessionAlias: string): { sql: string; param
     params.push(f.kind);
   }
   if (f.isError) clauses.push('m.is_error = 1');
+  // `like:` — the source conversation is not "related" to itself, and a
+  // resumed session shares its whole history, so the family goes with it.
+  if (f.excludeRoot !== undefined) {
+    clauses.push(
+      `COALESCE(${sessionAlias}.root_uuid, ${sessionAlias}.id) != ? AND ${sessionAlias}.id != ?`,
+    );
+    params.push(f.excludeRoot, f.excludeRoot);
+  }
   if (f.model !== undefined) {
     clauses.push('m.model LIKE ?');
     params.push(`%${f.model}%`);
@@ -1463,6 +1483,89 @@ type FtsTable = 'messages_fts' | 'messages_trigram';
  * back to word matching rather than failing, so a stale UI toggle degrades
  * instead of erroring.
  */
+/**
+ * How many of a session's own words to OR together. Enough that a session
+ * about two things still matches on either; few enough that the tail of
+ * merely-uncommon words doesn't drag in everything.
+ */
+const LIKE_TERMS = 12;
+/** Words in more than this share of all messages are the index's own filler. */
+const LIKE_MAX_DOC_SHARE = 0.1;
+
+/**
+ * The words that make a session *this* session — its prompts' vocabulary,
+ * ranked by how rare each word is across the whole index.
+ *
+ * Rarity does the work a stopword list would: "the" is in nearly every
+ * message and sorts last on its own, so there is no English-specific list to
+ * maintain and nothing to get wrong in another language. Plain SQLite
+ * throughout — the promise holds, no model is involved.
+ *
+ * Words appearing in only ONE message are dropped, not kept: they are the
+ * most distinctive words there are, and they can only match the session we
+ * are about to exclude.
+ */
+export function distinctiveTerms(db: Database.Database, sessionId: string): string[] {
+  const prompts = db
+    .prepare(
+      `SELECT text FROM messages
+       WHERE session_id = ? AND kind = 'prompt' AND text != ''
+       ORDER BY idx LIMIT 50`,
+    )
+    .all(sessionId) as { text: string }[];
+  if (prompts.length === 0) return [];
+
+  // The FTS tokenizer's alphabet: unicode61 plus the tokenchars the schema
+  // adds, so a candidate here is a term the index can actually be asked for.
+  const candidates = new Set<string>();
+  for (const p of prompts) {
+    for (const raw of p.text.toLowerCase().split(/[^\p{L}\p{N}_$.]+/u)) {
+      const t = raw.replace(/^[.$]+|[.$]+$/g, '');
+      if (t.length >= 3 && t.length <= 40 && !/^\d+$/.test(t)) candidates.add(t);
+    }
+  }
+  if (candidates.size === 0) return [];
+
+  const total = (db.prepare(`SELECT count(*) AS n FROM messages`).get() as { n: number }).n;
+  const ceiling = Math.max(2, Math.floor(total * LIKE_MAX_DOC_SHARE));
+  const list = [...candidates].slice(0, 400);
+  const rows = db
+    .prepare(
+      `SELECT term, doc FROM messages_vocab
+       WHERE term IN (${list.map(() => '?').join(',')}) AND doc > 1 AND doc <= ?`,
+    )
+    .all(...list, ceiling) as { term: string; doc: number }[];
+
+  return rows
+    .sort((a, b) => a.doc - b.doc || a.term.localeCompare(b.term))
+    .slice(0, LIKE_TERMS)
+    .map((r) => r.term);
+}
+
+/**
+ * Turn `like:<id>` into an FTS match plus the exclusion that keeps the
+ * session (and the rest of its resume chain) out of its own results.
+ * Returns null when the session is unknown or has nothing distinctive to say.
+ */
+function resolveLike(
+  db: Database.Database,
+  idOrPrefix: string,
+): { match: string; excludeRoot: string } | null {
+  const id = resolveSessionId(db, idOrPrefix);
+  if (id === null) return null;
+  const terms = distinctiveTerms(db, id);
+  if (terms.length === 0) return null;
+  const row = db.prepare(`SELECT root_uuid FROM sessions WHERE id = ?`).get(id) as
+    | { root_uuid: string | null }
+    | undefined;
+  return {
+    match: `(${terms.map((t) => `"${t.replace(/"/g, '""')}"`).join(' OR ')})`,
+    // No root_uuid (a session of pure bookkeeping) — fall back to the id, so
+    // the exclusion still excludes something rather than silently nothing.
+    excludeRoot: row?.root_uuid ?? id,
+  };
+}
+
 function parseForSearch(
   query: string,
   db?: Database.Database,
@@ -1474,14 +1577,29 @@ function parseForSearch(
   fts: FtsTable;
 } {
   const parsed = parseSearchQuery(query);
-  const useDeep = deep === true && db !== undefined && hasDeepIndex(db);
+  // `like:` reads the word index to build its terms, so it always runs against
+  // messages_fts — a trigram index has no notion of a word to be rare.
+  const useDeep = deep === true && db !== undefined && hasDeepIndex(db) && parsed.filters.like === undefined;
   const fts: FtsTable = useDeep ? 'messages_trigram' : 'messages_fts';
-  const match =
+  let match =
     parsed.terms !== ''
       ? useDeep
         ? toTrigramQuery(parsed.terms)
         : toFtsQuery(parsed.terms)
       : null;
+
+  if (parsed.filters.like !== undefined && db !== undefined) {
+    const like = resolveLike(db, parsed.filters.like);
+    if (like === null) {
+      // An unknown id or a session with nothing to match on returns nothing,
+      // rather than quietly widening to every session in the index.
+      return { parsed, match: null, empty: true, fts };
+    }
+    // Typed text still narrows: "the other times this came up, about auth".
+    match = match === null ? like.match : `${like.match} AND (${match})`;
+    parsed.filters.excludeRoot = like.excludeRoot;
+  }
+
   return { parsed, match, empty: match === null && !parsed.hasFilters, fts };
 }
 
@@ -1576,6 +1694,45 @@ export function searchMessages(
     // Nothing to refine inside one session — the find bar is already scoped.
     facets: q.sessionId === undefined ? searchFacets(db, match, parsed.filters, fts) : null,
   };
+}
+
+/**
+ * The other times this came up. Nothing here that `like:` in the search box
+ * doesn't already do — this is the same query, shaped for a header row, which
+ * is why the MCP `search` tool got related sessions without a tool of its own.
+ */
+export function relatedSessions(
+  db: Database.Database,
+  id: string,
+  limit = 5,
+): RelatedResponse {
+  const sessionId = resolveSessionId(db, id);
+  if (sessionId === null) return { terms: [], sessions: [] };
+  const terms = distinctiveTerms(db, sessionId);
+  if (terms.length === 0) return { terms: [], sessions: [] };
+
+  // Ask for more hits than sessions wanted: hits cluster, and 5 sessions can
+  // hide behind 200 hits in one of them.
+  const found = searchMessages(db, { query: `like:${sessionId}`, limit: 400 });
+
+  // A subagent transcript is part of its parent's run, not a session of its
+  // own — it is hidden from every list, so it is rolled up here too. Rank
+  // order is preserved: the first group to name a parent fixes its place.
+  const byRoot = new Map<string, { session: SessionMeta; hits: number; idx: number }>();
+  for (const g of found.groups) {
+    const rootId = g.session.parentSessionId ?? g.session.id;
+    // A child of the source session is the source session's own work.
+    if (rootId === sessionId) continue;
+    const seen = byRoot.get(rootId);
+    if (seen) {
+      seen.hits += g.hits.length;
+      continue;
+    }
+    const session = g.session.parentSessionId === null ? g.session : getSession(db, rootId);
+    if (!session) continue;
+    byRoot.set(rootId, { session, hits: g.hits.length, idx: g.hits[0]?.idx ?? 0 });
+  }
+  return { terms, sessions: [...byRoot.values()].slice(0, Math.min(Math.max(limit, 1), 20)) };
 }
 
 /**

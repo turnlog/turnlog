@@ -3888,6 +3888,45 @@ kbd {
   margin-top: 8px;
 }
 
+/* "Have I solved this before" — a sideways exit, so it sits below the tags and
+   stays quieter than everything above it. */
+.replay-related {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: var(--fs-12);
+}
+.replay-related-label {
+  color: var(--tx2);
+  font-family: var(--mono);
+  flex: none;
+}
+.replay-related-link {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--tx1);
+  max-width: 260px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.replay-related-when {
+  color: var(--tx2);
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+  flex: none;
+}
+.replay-related-link:hover,
+.replay-related-all:hover {
+  color: var(--accent);
+}
+.replay-related-all {
+  color: var(--tx2);
+  font-family: var(--mono);
+}
+
 /* Refine chips — what the current results actually contain, one click from
    narrowing to it. Quiet by design: they sit under the result count and must
    not compete with the hits themselves. */

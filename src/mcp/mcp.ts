@@ -107,7 +107,10 @@ const TOOLS: McpTool[] = [
       'agent:<claude|codex> (which agent wrote it), tag:<user label>, ' +
       'before:/after:<ISO date prefix, or 7d / today / yesterday>, ' +
       'is:pinned (user-pinned sessions), has:note (sessions the user annotated), ' +
-      'has:bookmark (moments the user bookmarked). ' +
+      'has:bookmark (moments the user bookmarked), ' +
+      'like:<sessionId> ("have I solved this before" — the other sessions that talk ' +
+      'about what that one talks about, its own resume chain excluded; combine with ' +
+      'text to narrow, e.g. like:d987e733 auth). ' +
       'A value containing a space must be quoted: tag:"needs review". ' +
       'Returns hits grouped by session; use each hit’s sessionId + idx with get_messages to read the surrounding context.',
     inputSchema: {

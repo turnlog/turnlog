@@ -186,6 +186,25 @@ export interface SearchResponse {
 }
 
 /**
+ * "Have I solved this before?" — the other sessions that talk about what this
+ * one talks about (`GET /api/sessions/:id/related`). Computed from the index
+ * alone: the session's own rarest words, OR'd, its resume chain excluded.
+ */
+export interface RelatedSession {
+  session: SessionMeta;
+  /** Matching messages found in that session — the strength of the link. */
+  hits: number;
+  /** Where to land: the first matching message's idx. */
+  idx: number;
+}
+
+export interface RelatedResponse {
+  /** The words the match was built from — so the row can say why. */
+  terms: string[];
+  sessions: RelatedSession[];
+}
+
+/**
  * One matched session placed on the time axis (`GET /api/search/timeline`).
  * The timeline answers "when did this keep coming up?" — sessions are the
  * markers because a session is one work episode; 50 hits inside it are still

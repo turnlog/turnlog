@@ -27,6 +27,7 @@ import type {
   ProjectInfo,
   SearchResponse,
   SearchTimelineResponse,
+  RelatedResponse,
   SessionContextResponse,
   SessionChainResponse,
   SessionChildrenResponse,
@@ -465,6 +466,19 @@ export function useSessionContext(sessionId: string) {
       apiFetch<SessionContextResponse>(
         `/api/sessions/${encodeURIComponent(sessionId)}/context`,
       ),
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * "Have I solved this before?" — the other sessions that talk about what this
+ * one talks about. Computed from the index; nothing leaves the machine.
+ */
+export function useRelatedSessions(sessionId: string) {
+  return useQuery({
+    queryKey: ['related', sessionId],
+    queryFn: () =>
+      apiFetch<RelatedResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/related`),
     staleTime: 60_000,
   });
 }

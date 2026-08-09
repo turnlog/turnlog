@@ -38,6 +38,7 @@ import {
   listSessions,
   listTurns,
   pruneMissingSessions,
+  relatedSessions,
   searchFiles,
   searchMessages,
   searchTimeline,
@@ -752,6 +753,16 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
   if (contextMatch) {
     const result = getSessionContext(db, decodeURIComponent(contextMatch[1]!));
     if (!result) return sendJson(res, 404, { error: 'session not found' });
+    return sendJson(res, 200, result);
+  }
+
+  const relatedMatch = /^\/api\/sessions\/([^/]+)\/related$/.exec(p);
+  if (relatedMatch) {
+    const result = relatedSessions(
+      db,
+      decodeURIComponent(relatedMatch[1]!),
+      numParam(q, 'limit') ?? 5,
+    );
     return sendJson(res, 200, result);
   }
 
