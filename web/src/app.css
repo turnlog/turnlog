@@ -2444,13 +2444,20 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
+/* Centred, not baseline: the row mixes text with a round icon button and a
+   segmented pill, and only text has a baseline to share. */
 .file-diffs-head {
   flex: none;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 14px;
   padding: 14px 22px;
   border-bottom: 1px solid var(--line-soft);
+}
+/* The link refers to the file named beside it, so it sits beside it — the
+   toggle is the only thing in this row that owns the push to the right. */
+.file-diffs-head .fh-head-link {
+  margin-left: 0;
 }
 .file-diffs-path {
   font-family: var(--mono);
@@ -4211,14 +4218,18 @@ kbd {
   table-layout: fixed;
   width: 100%;
 }
+/* Widths live on the columns, not the cells: fixed layout takes them from the
+   first row, which is a hunk header with a colspan and cannot express them. */
+.diff-col-no {
+  width: 38px;
+}
+.diff-col-side {
+  width: calc((100% - 76px) / 2);
+}
 .diff-split .diff-side {
-  width: 46%;
   max-width: 0; /* with fixed layout this is what makes overflow clip */
   overflow-x: auto;
   white-space: pre;
-}
-.diff-split .diff-no {
-  width: 4%;
 }
 /* An empty half of an uneven run — present, but clearly nothing. */
 .diff-split .diff-none {

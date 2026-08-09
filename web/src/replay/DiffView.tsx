@@ -76,6 +76,15 @@ function SplitRows({ lines }: { lines: DiffLine[] }) {
   const rows = useMemo(() => toSplitRows(lines), [lines]);
   return (
     <table className="diff-split">
+      {/* Fixed layout reads column widths from the FIRST row only — and that
+          row is the hunk header, one gutter cell plus a colspan. Declaring
+          them here instead is what actually makes the two halves equal. */}
+      <colgroup>
+        <col className="diff-col-no" />
+        <col className="diff-col-side" />
+        <col className="diff-col-no" />
+        <col className="diff-col-side" />
+      </colgroup>
       <tbody>
         {rows.map((row, i) =>
           row.hunk !== undefined ? (

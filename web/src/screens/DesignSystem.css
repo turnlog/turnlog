@@ -582,6 +582,26 @@
   overflow-wrap: anywhere;
 }
 
+/* Drawn at their real sizes, like the radius ladder above — a mark that only
+   ever appears at one scale on a specimen sheet hides what it does at 16. */
+.dsn-brandmarks {
+  display: flex;
+  align-items: flex-end;
+  gap: 22px;
+  flex-wrap: wrap;
+}
+.dsn-brandmark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.dsn-brandmark span {
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+  color: var(--tx2);
+}
+
 .dsn-keys {
   display: flex;
   flex-wrap: wrap;

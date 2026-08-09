@@ -81,6 +81,11 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Changed
 
+- **A new Turnlog mark**, in the header, the sidebar and the browser tab. It
+  keeps the old one's habit of inverting with the theme — a dark disc on the
+  light theme, a light one on the dark — and the tab icon keeps its accent
+  tile, which has no theme to follow.
+
 - The startup banner names each source for the **agent that wrote it**, and
   says read-only on every line. Claude Code's directory was labelled
   "Projects", which now reads as Turnlog's own Projects screen rather than
@@ -89,6 +94,14 @@ All notable changes to Turnlog are documented here. The format follows
   it deserves. `turnlog doctor` reports it the same way.
 
 ### Fixed
+
+- **Side-by-side diffs had uneven halves.** The two columns were sized from
+  the first row of the table, which is the hunk header and spans the width —
+  so the widths declared for the two sides were never read, and "before" and
+  "after" got whatever space was left over. They are equal now, at any window
+  size. The file header above them also lines its controls up on a common
+  centre, and the "history across sessions" link sits beside the filename it
+  refers to instead of drifting into the middle of the row.
 
 - **The files you edit by hand mid-session were unsearchable.** When you
   change a file while an agent is running, Claude Code records the edit

@@ -375,16 +375,39 @@ export function CursorMark(props: IconProps) {
 /** The Turnlog brandmark (hand-authored, not Solar). Lives here so both the
  *  header and the open sidebar can render it without an import cycle. */
 /* 44px to match the Primary buttons it sits beside in the header row. */
-export function Brandmark({ size = 44 }: { size?: number }) {
+/* Two strokes and a stop: the turn, and the end of it.
+ *
+ * Vermilion disc, white glyph — the app's own accent pair, so the mark
+ * belongs to the palette rather than importing a second one. The disc is part
+ * of the art, not something CSS draws around it.
+ *
+ * The source art ships a clipPath; it is dropped, because every path already
+ * sits inside the clip rect (12–36 on both axes) so it clips nothing, and a
+ * fixed SVG id repeated for every instance on the page is a real collision.
+ *
+ * Duplicated once in web/public/favicon.svg — a tab icon cannot be a React
+ * component, and has no tokens to read. Keep the two in step. */
+const BRANDMARK_PATHS = [
+  'M29.2373 16.7906C29.5641 15.5713 30.8174 14.8477 32.0368 15.1744C33.2561 15.5011 33.9797 16.7545 33.653 17.9738L30.1035 31.2208C29.7768 32.4402 28.5234 33.1638 27.3041 32.837C26.0847 32.5103 25.3611 31.257 25.6878 30.0376L29.2373 16.7906Z',
+  'M18.5411 16.7906C18.8678 15.5713 20.1211 14.8477 21.3405 15.1744C22.5598 15.5011 23.2834 16.7545 22.9567 17.9738L19.4072 31.2208C19.0805 32.4402 17.8271 33.1638 16.6078 32.837C15.3884 32.5103 14.6648 31.257 14.9915 30.0376L18.5411 16.7906Z',
+  'M25.7143 15.04C26.9767 15.04 28 16.0634 28 17.3258C28 18.5881 26.9767 19.6115 25.7143 19.6115L14.2857 19.6115C13.0233 19.6115 12 18.5881 12 17.3258C12 16.0634 13.0233 15.04 14.2857 15.04L25.7143 15.04Z',
+  'M31.4287 30.5828C31.4287 29.3205 32.4521 28.2971 33.7144 28.2971C34.9768 28.2971 36.0001 29.3205 36.0001 30.5828C36.0001 31.8452 34.9768 32.8685 33.7144 32.8685C32.4521 32.8685 31.4287 31.8452 31.4287 30.5828Z',
+];
+
+export function Brandmark({ size = 44, className }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden>
-      <circle cx="20" cy="20" r="20" fill="var(--contrast-solid)" />
-      <path
-        d="M12 14h16M12 20h11M12 26h14"
-        stroke="var(--contrast-on)"
-        strokeWidth="2.6"
-        strokeLinecap="round"
-      />
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 48 48"
+      fill="none"
+      className={`brandmark ${className ?? ''}`.trim()}
+      aria-hidden
+    >
+      <rect width="48" height="48" rx="24" fill="var(--contrast-solid)" />
+      {BRANDMARK_PATHS.map((d) => (
+        <path key={d} d={d} fill="var(--contrast-on)" />
+      ))}
     </svg>
   );
 }
