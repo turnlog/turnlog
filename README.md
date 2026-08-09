@@ -208,6 +208,37 @@ opened), and never writes to any of them. The index lives in
 `~/.config/turnlog/` (`%APPDATA%\turnlog` on Windows); override with
 `TURNLOG_DATA_DIR`.
 
+## Settings
+
+Optional, and there is no settings UI on purpose — create
+`~/.config/turnlog/settings.json` (`%APPDATA%\turnlog\settings.json` on
+Windows) only if you want one of these:
+
+```jsonc
+{
+  // Correct the shipped price table for your rates — Bedrock, Vertex,
+  // enterprise agreements, or simple disagreement. USD per million tokens;
+  // any field you omit keeps the shipped value. Matched by model id.
+  "modelPricing": {
+    "claude-sonnet-4-5-20250929": { "input": 2.4, "output": 12 }
+  },
+
+  // Open-in-editor buttons in the web UI. Unset, they don't render.
+  // `{path}` is replaced with the file's absolute path; never run through a
+  // shell. Try "code -g {path}" or "webstorm {path}".
+  "editorCommand": "code -g {path}",
+
+  // Skip the npm version check on startup (same as TURNLOG_NO_UPDATE_CHECK=1).
+  "checkUpdates": false,
+
+  // Drop the "Exported with Turnlog" footer from markdown exports.
+  "exportFooter": false
+}
+```
+
+Costs stay labeled estimates either way — they are computed from the token
+counts in your own logs, not from a bill.
+
 ## License
 
 [MIT](LICENSE) — free and open source. Index and open every session, no limits.
