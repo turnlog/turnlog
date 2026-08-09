@@ -86,6 +86,7 @@
             "group": "Contributing",
             "pages": [
               "contributing/architecture",
+              "contributing/design-system",
               "contributing/adapters"
             ]
           }
