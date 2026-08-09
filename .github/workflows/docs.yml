@@ -1,0 +1,30 @@
+name: Docs
+
+# The cheap half of ci.yml's path filter. That workflow skips the 6-leg matrix
+# for prose; this one still checks that the prose agrees with the code —
+# operators, CLI flags, settings keys and MCP tools all match their source, and
+# the site's nav, links, frontmatter and assets hold together.
+on:
+  push:
+    branches: [main, development]
+    paths:
+      - 'docs/**'
+      - '**.md'
+      - 'test/docs.test.ts'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - '**.md'
+      - 'test/docs.test.ts'
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run test/docs.test.ts

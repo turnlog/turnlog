@@ -13,7 +13,14 @@ import { ROOT } from './helpers.js';
  * check silently rots as things are removed.
  */
 
-const read = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+/**
+ * Line endings are normalized because the repo has no `.gitattributes`, so
+ * Windows checks these files out with CRLF — and a frontmatter check anchored
+ * on `\n` then fails on every page at once. That failure only ever appears on
+ * the CI matrix's Windows leg, never locally.
+ */
+const read = (rel: string): string =>
+  fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n');
 const DOCS = path.join(ROOT, 'docs');
 
 /** Every .md under docs/, as nav-style paths ("product/getting-started"). */
