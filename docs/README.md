@@ -21,7 +21,7 @@ renders. What is left is account-side (see Status).
   the two.
 - **Logo/favicon:** not set in `docs.json`. The mark now exists as
   `web/public/favicon.svg` (accent tile) and as `Brandmark` in `web/src/icons.tsx`; add
-  `docs-site/logo/{light,dark}.svg` and wire up `logo`/`favicon` before going live.
+  `docs/logo/{light,dark}.svg` and wire up `logo`/`favicon` before going live.
 - **Links** are written without `.md` extensions and rooted at `/docs/…`, matching the
   served path. If you add a page, add it to `docs.json`'s `navigation` too — pages are
   not auto-discovered.
@@ -32,7 +32,7 @@ Four sections, matching distinct reader intent (loosely the
 [Diátaxis](https://diataxis.fr/) split):
 
 ```
-docs-site/
+docs/
   product/        What it is, getting started, privacy, and a tour of each screen.
                   Read once, orients. Not task-oriented.
   guides/         Task-oriented, followed with a terminal open. Search, annotation,
