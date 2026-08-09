@@ -2,13 +2,11 @@ import { useEffect, useState } from 'react';
 import { hasToken, shutdownServer, useLiveEvents, useStatus } from './api';
 import {
   BookmarkIcon,
-  Brandmark,
   CloseIcon,
   FolderIcon,
   MagniferIcon,
   MoonIcon,
   PowerIcon,
-  SidebarIcon,
   SunIcon,
   WidgetIcon,
   WalletIcon,
@@ -35,8 +33,7 @@ import Shortcuts from './components/Shortcuts';
 import Tooltip from './components/Tooltip';
 import { setTheme, useTheme } from './theme';
 
-/** Header search entry: a circle button into the search screen (its input
- *  autofocuses). The global `/` shortcut lands there too. */
+/** Header search entry into the search screen; the global `/` lands there too. */
 function SearchButton() {
   const route = useRoute();
 
@@ -318,34 +315,18 @@ export default function App() {
     <div className="app">
       <Palette />
       <Shortcuts />
-      {/* Always mounted so open/close can animate; the rail clips at width 0. */}
-      <div className={`sidebar-rail ${sidebarOpen ? 'open' : ''}`} aria-hidden={!sidebarOpen}>
+      {/* Always mounted so open/close can animate; the rail clips to --rail-w. */}
+      <div className={`sidebar-rail ${sidebarOpen ? 'open' : ''}`}>
         <Sidebar
           activeId={route.name === 'session' ? route.id : null}
           onToggle={toggleSidebar}
+          open={sidebarOpen}
         />
       </div>
       <div className="app-main">
         <header className="header">
-          {/* While the sidebar is open, its own top row carries these. */}
-          {!sidebarOpen && (
-            <>
-              <Primary
-                label="Show sessions"
-                tooltip="Show sessions"
-                shortcut={SHORTCUTS.sidebar}
-                onClick={toggleSidebar}
-                icon={<SidebarIcon />}
-              />
-              <a href="#/" className="header-brand" aria-label="Turnlog — overview">
-                <Brandmark />
-                <span className="header-title">
-                  Turnlog
-                  <em>Search &amp; replay</em>
-                </span>
-              </a>
-            </>
-          )}
+          {/* The brand and the sidebar toggle live in the rail now, in both
+              states — the header no longer borrows them while it is closed. */}
           <div className="header-right">
             <Primary
               href="#/projects"

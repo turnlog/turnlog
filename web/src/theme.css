@@ -134,8 +134,7 @@
   --contrast-line: rgba(20, 22, 27, 0.12);
 
   /* The user speaks in the accent — aliased, not copied, so the rail and the
-     CTA can never drift apart. Decided 2026-08-03 over the alternative (a
-     warm rose short of the accent). Two consequences to know about: the
+     CTA can never drift apart. Two consequences to know about: the
      "one hot accent per screen" rule no longer holds in the replay, where
      every user turn carries it; and the prompts lens, which borrows this
      token, now sits beside the errors lens in --danger — two reds in one
@@ -183,10 +182,7 @@
        24  screen titles — every h1
        32  display numbers — indexed history, spend total, disk total
        40  the two headline figures — the home hero and the accent card
-
-     (Trimmed from fourteen steps on 2026-08-02: 8/20/22/28/48 were never
-     used, and 36 held the hero alone one notch under the accent figure it
-     had no reason to differ from.)                                       */
+                                                                        */
   --fs-10: 10px;
   --fs-12: 12px;
   --fs-14: 14px;
@@ -216,6 +212,9 @@
   --radius-lg: 24px; /* cards */
 
   --sidebar-w: 356px;
+  /* Collapsed, the sidebar keeps a rail wide enough for one 44px control with
+     even air either side — so the open/close toggle never leaves its column. */
+  --rail-w: 68px;
   /* The gutter the screen, sidebar, and any full-width band share. */
   --gutter: 14px;
 }

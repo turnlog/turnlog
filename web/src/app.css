@@ -10,16 +10,152 @@
   display: flex;
 }
 
-/* The rail clips the floating sidebar card so open/close reads as a slide;
-   the card keeps its full width inside, so content never reflows mid-motion. */
+/* The rail clips the sidebar so open/close reads as a slide; the zone keeps
+   its full width inside, so content never reflows mid-motion. Collapsed it
+   holds --rail-w rather than nothing — that sliver is the way back. */
 .sidebar-rail {
+  position: relative;
   flex: none;
-  width: 0;
+  width: var(--rail-w);
   overflow: hidden;
+  background: var(--card);
   transition: width 260ms cubic-bezier(0.25, 0.8, 0.3, 1);
 }
 .sidebar-rail.open {
-  width: calc(var(--sidebar-w) + var(--gutter));
+  width: var(--sidebar-w);
+}
+.sidebar-holder {
+  height: 100%;
+}
+
+/* The collapsed column: brand, then the projects. Absolute so the sidebar
+   beside it keeps its full width through the slide. */
+.rail-mini {
+  position: absolute;
+  inset: 14px 0 0;
+  width: var(--rail-w);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  /* Closing: wait for the sidebar to clear before fading in, so the two never
+     overlap. Opening: leave at once — see the rule below. */
+  transition: opacity 140ms ease 150ms;
+}
+.sidebar-rail.open .rail-mini {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 100ms ease;
+}
+
+/* Shows the mark, becomes the open affordance under the pointer — but it is a
+   real button at all times, so keyboard and touch never depend on hover. */
+.rail-brand {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.rail-brand > * {
+  grid-area: 1 / 1;
+  transition: opacity 150ms ease;
+}
+.rail-brand-open {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--bg2);
+  color: var(--tx0);
+  opacity: 0;
+}
+
+/* Recent sessions as their tiles. Scrolls without a visible bar: the rail is
+   a glanceable stack, and a scrollbar in a 68px column is all chrome. */
+/* Side padding is not decoration: overflow-y makes this box clip horizontally
+   too, so the active marker's negative offset needs room inside it to paint. */
+.rail-sessions {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px 14px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.rail-sessions::-webkit-scrollbar {
+  display: none;
+}
+.rail-session {
+  position: relative;
+  flex: none;
+  display: block;
+  border-radius: var(--radius-sm);
+  transition: transform 150ms ease;
+}
+.rail-session:hover {
+  transform: scale(1.06);
+}
+/* "You are here" as a bar on the card ground, not a ring on the tile: tiles
+   invert to a light block in the dark theme, so a --contrast-solid ring drawn
+   on one is white on white. */
+.rail-session.active::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -13px;
+  width: 3px;
+  height: 22px;
+  margin-top: -11px;
+  border-radius: 999px;
+  background: var(--contrast-solid);
+}
+/* The same note-yellow that marks anything the user has flagged. */
+.rail-session-pin {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--c-note);
+  color: var(--tile-on);
+  border: 2px solid var(--card);
+}
+.rail-tip {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+/* A session name is something a person wrote, so it stays sans among the
+   mono figures under it. */
+.rail-tip-name {
+  font-family: var(--sans);
+  font-weight: 500;
+  max-width: 30ch;
+  overflow-wrap: anywhere;
+}
+.rail-brand:hover .rail-brand-mark,
+.rail-brand:focus-visible .rail-brand-mark {
+  opacity: 0;
+}
+.rail-brand:hover .rail-brand-open,
+.rail-brand:focus-visible .rail-brand-open {
+  opacity: 1;
+}
+/* Open, the sidebar's own row carries brand and collapse — the sliver's copy
+   steps aside rather than sitting under the expanded header. */
+.sidebar-rail.open .rail-brand {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .app-main {
@@ -444,43 +580,46 @@
 
 /* The custom dropdown lives in components/Dropdown.css. */
 
-/* ── sidebar (sessions) — a floating card ──────────────────────────── */
+/* ── sidebar (sessions) — a fixed zone ─────────────────────────────── */
 
-/* Rounded on all four sides, inset from the edges. (Superseded the original
-   square-edged "zone" treatment in v0.2.3; this header said "a zone, not a
-   floating card" for a while after the code stopped agreeing.) */
+/* Flush on three sides, full height, square. Separation from the content is
+   by tone — --card against the --bg0 canvas — not by inset or hairline. */
 .sidebar {
   width: var(--sidebar-w);
-  height: calc(100% - var(--gutter) * 2);
-  margin: var(--gutter) 0 var(--gutter) var(--gutter);
+  height: 100%;
   flex: none;
   display: flex;
   flex-direction: column;
   min-height: 0;
   background: var(--card);
-  border-radius: var(--radius-lg);
   transition:
     transform 260ms cubic-bezier(0.25, 0.8, 0.3, 1),
     opacity 200ms ease;
 }
+/* Fully transparent, not dimmed: the rail keeps 68px open, so a half-visible
+   sidebar sits *behind* the collapsed column for the length of the slide. */
 .sidebar-rail:not(.open) .sidebar {
   transform: translateX(-24px);
-  opacity: 0.4;
+  opacity: 0;
   /* Off the focus order / a11y tree once the slide finishes. */
   visibility: hidden;
   transition:
     transform 260ms cubic-bezier(0.25, 0.8, 0.3, 1),
-    opacity 200ms ease,
+    opacity 160ms ease,
     visibility 0s 260ms;
 }
 
-/* While open, the card owns the toggle + brand (the header drops them). */
+/* Brand left, collapse hard right — against the edge it moves. */
 .sidebar-brand {
   flex: none;
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 14px 16px 2px;
+}
+.sidebar-brand .header-brand {
+  margin-right: auto;
+  min-width: 0;
 }
 /* The toggle here stands on the sidebar card, so it takes the quiet fill —
    see components/Primary.tsx. It used to be a --card button with an override

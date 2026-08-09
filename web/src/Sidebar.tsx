@@ -178,12 +178,70 @@ function Item({
   );
 }
 
+
+/**
+ * The collapsed rail: the same list, one tile per session — all of them, in
+ * the same order, scrolling. It reads the rows the open list uses, so a filter
+ * or a sort you set stays true when the sidebar closes; a collapsed sidebar
+ * showing a different set would be a different list wearing the same column.
+ */
+function RailSessions({
+  rows,
+  activeId,
+  open,
+}: {
+  rows: SessionMeta[];
+  activeId: string | null;
+  open: boolean;
+}) {
+  if (rows.length === 0) return null;
+  return (
+    <nav className="rail-sessions" aria-label="Sessions">
+      {rows.map((s) => (
+        <Tooltip
+          key={s.id}
+          content={
+            <span className="rail-tip">
+              <span className="rail-tip-name">{sessionName(s)}</span>
+              <Facts
+                rows={Object.values(sessionFacts(s)).map((f) => ({
+                  label: f.label,
+                  value: f.value,
+                }))}
+              />
+            </span>
+          }
+        >
+          <a
+            href={sessionHash(s.id)}
+            className={`rail-session ${s.id === activeId ? 'active' : ''}`}
+            aria-current={s.id === activeId ? 'page' : undefined}
+            aria-label={sessionName(s)}
+            tabIndex={open ? -1 : 0}
+          >
+            <span className={`tile tile-sm ${tileClass(s.projectKey)}`}>
+              {projectName(s)[0]?.toUpperCase() ?? '\u00b7'}
+            </span>
+            {s.pinned && (
+              <span className="rail-session-pin" aria-hidden>
+                <PinFilledIcon size={9} />
+              </span>
+            )}
+          </a>
+        </Tooltip>
+      ))}
+    </nav>
+  );
+}
+
 export default function Sidebar({
   activeId,
   onToggle,
+  open,
 }: {
   activeId: string | null;
   onToggle: () => void;
+  open: boolean;
 }) {
   // Activity first: the most recently touched session is the one you want.
   const [sort, setSort] = useState<NonNullable<SessionsQuery['sort']>>('ended_at');
@@ -256,9 +314,36 @@ export default function Sidebar({
   }, [filtersOpen]);
 
   return (
-    <aside className="sidebar">
+    <>
+      <div className="rail-mini" aria-hidden={open}>
+        <button
+          className="rail-brand"
+          onClick={onToggle}
+          aria-label="Show sessions"
+          aria-expanded={open}
+          tabIndex={open ? -1 : 0}
+        >
+          {/* Both glyphs always render and cross-fade — a control that exists
+              only on hover is unreachable by keyboard and touch. */}
+          <Brandmark size={40} className="rail-brand-mark" />
+          <span className="rail-brand-open" aria-hidden>
+            <SidebarIcon size={20} />
+          </span>
+        </button>
+        <RailSessions rows={rows} activeId={activeId} open={open} />
+      </div>
+      <aside className="sidebar">
       <div className="sidebar-brand">
-        {/* quiet, not card: this one stands on the sidebar card. */}
+        <a href="#/" className="header-brand" aria-label="Turnlog — overview">
+          <Brandmark size={40} />
+          <span className="header-title">
+            Turnlog
+            <em>Search &amp; replay</em>
+          </span>
+        </a>
+        {/* Collapse sits against the edge it moves, and is the last thing your
+            eye reaches after the list. quiet, not card: it stands on the
+            sidebar's own surface. */}
         <Primary
           fill="quiet"
           label="Hide sessions"
@@ -267,13 +352,6 @@ export default function Sidebar({
           onClick={onToggle}
           icon={<SidebarIcon />}
         />
-        <a href="#/" className="header-brand" aria-label="Turnlog — overview">
-          <Brandmark />
-          <span className="header-title">
-            Turnlog
-            <em>Search &amp; replay</em>
-          </span>
-        </a>
       </div>
       <div className="sidebar-controls" ref={controlsRef}>
         <div className="sidebar-controls-row">
@@ -400,6 +478,7 @@ export default function Sidebar({
           )}
         />
       )}
-    </aside>
+      </aside>
+    </>
   );
 }
