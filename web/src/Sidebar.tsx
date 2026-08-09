@@ -79,6 +79,11 @@ function sessionFacts(s: SessionMeta): Record<string, { value: string; label: st
 /** A session whose last record is this recent is treated as running now. */
 const ACTIVE_MS = 5 * 60_000;
 
+/** One rule, read by the open row and the collapsed tile alike. */
+function isLive(s: SessionMeta): boolean {
+  return s.endedAt !== null && Date.now() - new Date(s.endedAt).getTime() < ACTIVE_MS;
+}
+
 function Item({
   s,
   active,
@@ -118,7 +123,7 @@ function Item({
       <span className="side-item-main">
         <span className="side-item-top">
           <span className="side-item-project">{sessionName(s)}</span>
-          {s.endedAt !== null && Date.now() - new Date(s.endedAt).getTime() < ACTIVE_MS && (
+          {isLive(s) && (
             <span className="side-item-live" role="img" aria-label="active in the last 5 minutes" />
           )}
           {s.note && <NoteDot note={s.note} />}
@@ -223,6 +228,13 @@ function RailSessions({
               <span className="rail-session-pin" aria-hidden>
                 <PinFilledIcon size={9} />
               </span>
+            )}
+            {isLive(s) && (
+              <span
+                className="rail-session-live"
+                role="img"
+                aria-label="active in the last 5 minutes"
+              />
             )}
           </a>
         </Tooltip>

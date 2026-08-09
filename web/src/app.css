@@ -118,6 +118,20 @@
   border-radius: 999px;
   background: var(--contrast-solid);
 }
+/* Running now — the row's live dot at tile scale, opposite corner to the pin
+   so a session that is both still reads as both. Static, unlike the row's:
+   a column of pulsing dots is a column that will not stop moving. */
+.rail-session-live {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--success);
+  border: 2px solid var(--card);
+}
+
 /* The same note-yellow that marks anything the user has flagged. */
 .rail-session-pin {
   position: absolute;
