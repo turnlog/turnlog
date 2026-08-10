@@ -224,6 +224,11 @@ opened), and never writes to any of them. The index lives in
 `~/.config/turnlog/` (`%APPDATA%\turnlog` on Windows); override with
 `TURNLOG_DATA_DIR`.
 
+The size shown on the home screen's index card is the whole footprint —
+the database plus SQLite's write-ahead log beside it. Turnlog truncates the
+log after every indexing pass, so the number goes down on its own; the
+**repack** action on the same card reclaims the rest after a prune.
+
 ## Settings
 
 Optional, and there is no settings UI on purpose — create

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import type Database from 'better-sqlite3';
+import { checkpointWal, indexBytes } from '../indexer/db.js';
 import { DEEP_MIN_CHARS, hasDeepIndex } from '../indexer/deepSearch.js';
 import { pricingForModel, type ModelPricing } from '../cost/pricing.js';
 import { sessionToHtml } from '../export/html.js';
@@ -2559,9 +2560,7 @@ export function getIndexHealth(db: Database.Database): {
     )
     .get() as { n: number };
   if (garbage.n > 0) unknownTypes.push({ type: '(unparseable)', count: garbage.n });
-  const dbBytes =
-    (db.pragma('page_count', { simple: true }) as number) *
-    (db.pragma('page_size', { simple: true }) as number);
+  const dbBytes = indexBytes(db);
   return {
     indexedFiles: files.n,
     events: events.n,
@@ -2617,14 +2616,17 @@ export function pruneMissingSessions(db: Database.Database): { pruned: number } 
   return { pruned: gone.length };
 }
 
-/** Repack the index file after deletions. Returns the bytes freed (never negative). */
+/**
+ * Repack the index file after deletions, then truncate the WAL. VACUUM
+ * rewrites every page through the log, so without the checkpoint the space it
+ * frees is still sitting on disk — page math alone reported a win the
+ * filesystem never saw. Returns the bytes freed (never negative).
+ */
 export function vacuumIndex(db: Database.Database): { freedBytes: number; dbBytes: number } {
-  const size = () =>
-    (db.pragma('page_count', { simple: true }) as number) *
-    (db.pragma('page_size', { simple: true }) as number);
-  const before = size();
+  const before = indexBytes(db);
   db.exec('VACUUM');
-  const after = size();
+  checkpointWal(db);
+  const after = indexBytes(db);
   return { freedBytes: Math.max(0, before - after), dbBytes: after };
 }
 

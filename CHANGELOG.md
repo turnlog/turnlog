@@ -6,6 +6,19 @@ All notable changes to Turnlog are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **The index was quietly twice the size it reported.** SQLite keeps a
+  write-ahead log beside the database, and Turnlog counted only the database
+  — so an index card reading 780 MB could be 1.5 GB on disk. Worse, nothing
+  ever truncated that log: automatic checkpoints never shrink the file and
+  give up whenever a search is mid-query, so on a long-running server it only
+  grew. The log is now truncated after every indexing pass, after a prune, and
+  after building or dropping deep search, and every place that reports the
+  index size — the home card, `turnlog doctor`, the bytes freed by a repack —
+  counts the whole footprint. Nothing is lost in a checkpoint; the space just
+  comes back. Existing indexes shrink on their next scan.
+
 ## [0.12.1] — 2026-08-10
 
 ### Added

@@ -26,7 +26,7 @@ import {
   importAnnotations,
   resolveSessionId,
 } from '../server/api.js';
-import { openDb } from '../indexer/db.js';
+import { checkpointWal, openDb } from '../indexer/db.js';
 import { runDoctor } from './doctor.js';
 import { Indexer } from '../indexer/indexer.js';
 import { WorkerDriver } from '../indexer/workerDriver.js';
@@ -438,6 +438,9 @@ async function runIndex(dirs: SourceDirs, rebuild: boolean): Promise<void> {
   for (const err of summary.errors) {
     console.error(`  skipped ${err.file}: ${err.message}`);
   }
+  // A one-shot process would otherwise exit leaving the whole pass in the
+  // log — a rebuild's WAL can rival the database it was built from.
+  checkpointWal(db);
   db.close();
 }
 

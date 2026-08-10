@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import { dataDir, loadSettings, packageRoot } from '../config.js';
+import { indexBytes } from '../indexer/db.js';
 import { sessionFileOnDisk } from '../server/api.js';
 import { findUpdateLeftovers } from './updateCleanup.js';
 import {
@@ -114,7 +115,9 @@ export function runDoctor(dirs: {
 
   const db = new Database(indexPath, { readonly: true });
   try {
-    out('index', `${indexPath} (${fmtBytes(fs.statSync(indexPath).size)})`);
+    // indexBytes, not the main file alone: a stale WAL can double the
+    // footprint, and hiding it is exactly what a support report must not do.
+    out('index', `${indexPath} (${fmtBytes(indexBytes(db))})`);
     const sqlite = db.prepare('SELECT sqlite_version() v').get() as { v: string };
     out('sqlite', sqlite.v);
     out('schema', `v${db.pragma('user_version', { simple: true })}`);
