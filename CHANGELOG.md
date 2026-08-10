@@ -8,6 +8,11 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Added
 
+- **A demo reel in the README** — searching every indexed session for one word,
+  then landing inside the matching session at the moment it was said. Recorded
+  against `turnlog demo`, so it shows the shipped UI rather than a hand-made
+  capture that drifts a release behind.
+
 - **`turnlog skill` — your agent stops waiting to be asked.** Registering the
   MCP server hands an agent six tools, but nothing tells it *when* they matter,
   so in practice it consults your history only when you say "check Turnlog".

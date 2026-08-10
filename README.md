@@ -12,6 +12,8 @@ npx turnlog
 
 [turnlog.dev](https://turnlog.dev) · [npm](https://www.npmjs.com/package/turnlog) · MIT
 
+<img src="https://turnlog.dev/media/turnlog-demo.gif" alt="Searching every indexed session for &quot;reconnect&quot;, then landing inside the matching session at the moment it was said" width="1000">
+
 </div>
 
 Turnlog indexes your Claude Code, OpenAI Codex, and Cursor history into
