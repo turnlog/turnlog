@@ -120,6 +120,27 @@ describe('Indexer', () => {
     expect(searchMessages(db, { query: 'useWebSocket' }).totalHits).toBeGreaterThan(0);
   });
 
+  it('reports the WAL in the index size, and truncates it after a scan', async () => {
+    const { checkpointWal, indexBytes } = await import('../src/indexer/db.js');
+    const wal = `${db.name}-wal`;
+    await indexer.scanAll();
+
+    // The scan's writes are on disk in the log, so the footprint must count
+    // them: page math alone can report a fraction of the real bytes.
+    const walBytes = fs.statSync(wal).size;
+    expect(indexBytes(db)).toBeGreaterThanOrEqual(walBytes);
+    const pageBytes =
+      (db.pragma('page_count', { simple: true }) as number) *
+      (db.pragma('page_size', { simple: true }) as number);
+    expect(indexBytes(db)).toBeGreaterThanOrEqual(pageBytes);
+
+    // And a checkpoint must actually shrink it — without one it only grows.
+    db.prepare('DELETE FROM messages WHERE idx = -1').run();
+    checkpointWal(db);
+    expect(fs.statSync(wal).size).toBeLessThanOrEqual(walBytes);
+    expect(searchMessages(db, { query: 'useWebSocket' }).totalHits).toBeGreaterThan(0);
+  });
+
   it('prefers per-message costUSD recorded by older CC versions', async () => {
     await indexer.scanAll();
     expect(sessionRow(SESSION_B).cost_usd).toBeCloseTo(0.0345);

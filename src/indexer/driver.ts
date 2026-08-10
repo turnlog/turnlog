@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { checkpointWal } from './db.js';
 import { Indexer, type ScanSummary, type IndexProgress, type IndexerOptions } from './indexer.js';
 
 export interface IndexStatus {
@@ -36,7 +37,10 @@ export class InProcessDriver implements IndexDriver {
   private queue: Promise<unknown> = Promise.resolve();
   private lastSummary: ScanSummary | null = null;
 
-  constructor(db: Database.Database, opts: IndexerOptions) {
+  constructor(
+    private readonly db: Database.Database,
+    opts: IndexerOptions,
+  ) {
     this.indexer = new Indexer(db, opts);
   }
 
@@ -73,8 +77,10 @@ export class InProcessDriver implements IndexDriver {
     }
   }
 
+  /** Truncate the log a full pass just grew — the worker driver does the same. */
   private remember(summary: ScanSummary): ScanSummary {
     this.lastSummary = summary;
+    checkpointWal(this.db);
     return summary;
   }
 

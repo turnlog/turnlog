@@ -18,6 +18,20 @@ export interface ReleaseNotes {
 
 export const RELEASES: ReleaseNotes[] = [
   {
+    version: '0.12.2',
+    date: '2026-08-10',
+    notes: [
+      {
+        kind: 'fixed',
+        text: 'The index was quietly taking about twice the disk it reported. SQLite keeps a log of recent writes beside the database, and Turnlog counted only the database — so a card reading 780 MB could be 1.5 GB on your drive. Nothing trimmed that log either, so on a machine that leaves Turnlog running it only ever grew. It is now trimmed after every indexing pass, and the size you see is the whole thing. Your index shrinks on its next scan; on a large one that can be hundreds of megabytes back.',
+      },
+      {
+        kind: 'improved',
+        text: 'Repack now reports the space it actually returned to your drive rather than the space it rearranged inside the file, and turnlog doctor reports the same honest number.',
+      },
+    ],
+  },
+  {
     version: '0.12.1',
     date: '2026-08-10',
     notes: [

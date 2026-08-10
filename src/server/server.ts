@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import type Database from 'better-sqlite3';
 import type { IndexDriver } from '../indexer/driver.js';
+import { checkpointWal } from '../indexer/db.js';
 import { buildDeepIndex, dropDeepIndex } from '../indexer/deepSearch.js';
 import {
   createSavedSearch,
@@ -546,6 +547,9 @@ async function handleApiWrite(
     const action = (body as Record<string, unknown>).action;
     if (action === 'prune') {
       const { pruned } = pruneMissingSessions(db);
+      // Deletes land in the WAL like any other write; truncate before the
+      // reply, or the reported size grows after a prune that freed rows.
+      checkpointWal(db);
       return sendJson(res, 200, { action, pruned, ...getIndexHealth(db) });
     }
     if (action === 'vacuum') {
@@ -556,10 +560,12 @@ async function handleApiWrite(
     // it is the one maintenance action that takes real time on a big index.
     if (action === 'deep-build') {
       buildDeepIndex(db);
+      checkpointWal(db);
       return sendJson(res, 200, { action, ...getIndexHealth(db) });
     }
     if (action === 'deep-drop') {
       dropDeepIndex(db);
+      checkpointWal(db);
       return sendJson(res, 200, { action, ...getIndexHealth(db) });
     }
     throw new HttpError(

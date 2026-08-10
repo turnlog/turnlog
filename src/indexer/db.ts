@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import Database from 'better-sqlite3';
 
 export const SCHEMA_VERSION = 14;
@@ -8,6 +9,44 @@ export function openDb(path: string): Database.Database {
   db.pragma('synchronous = NORMAL');
   migrate(db);
   return db;
+}
+
+/**
+ * Truncate the write-ahead log. SQLite's automatic checkpoints are passive:
+ * they never shrink the file, and they give up whenever a reader is mid-query
+ * — so under a long-lived server the WAL grows without bound (seen in the
+ * wild: a 782MB WAL beside a 780MB database). Never throws; a checkpoint that
+ * loses the race with a reader is a no-op the next scan retries.
+ */
+export function checkpointWal(db: Database.Database): void {
+  try {
+    db.pragma('wal_checkpoint(TRUNCATE)');
+  } catch {
+    // Busy: readers hold the WAL open. Nothing is wrong, and nothing is lost.
+  }
+}
+
+/**
+ * The index's real footprint — the database plus its `-wal` and `-shm`
+ * sidecars. Page math (`page_count × page_size`) measures the main file only,
+ * which can be half the bytes actually on disk. Falls back to it for
+ * in-memory databases, which have no files to stat.
+ */
+export function indexBytes(db: Database.Database): number {
+  const pageBytes = () =>
+    (db.pragma('page_count', { simple: true }) as number) *
+    (db.pragma('page_size', { simple: true }) as number);
+  const main = db.name;
+  if (!main || main === ':memory:') return pageBytes();
+  let total = 0;
+  for (const p of [main, `${main}-wal`, `${main}-shm`]) {
+    try {
+      total += fs.statSync(p).size;
+    } catch {
+      // The sidecars exist only while a WAL connection is open.
+    }
+  }
+  return total > 0 ? total : pageBytes();
 }
 
 function migrate(db: Database.Database): void {

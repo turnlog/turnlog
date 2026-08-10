@@ -1,5 +1,5 @@
 import { parentPort, workerData } from 'node:worker_threads';
-import { openDb } from './db.js';
+import { checkpointWal, openDb } from './db.js';
 import { Indexer, type IndexProgress } from './indexer.js';
 
 interface WorkerInit {
@@ -52,6 +52,10 @@ port.on('message', (msg: Command) => {
           result = await indexer.indexFile(msg.filePath ?? '');
           break;
       }
+      // A full pass writes far more than SQLite's passive auto-checkpoint
+      // reclaims, and this thread owns the only writer — so the log gets
+      // truncated here, where the wait costs the API nothing.
+      if (msg.cmd !== 'file') checkpointWal(db);
       port.postMessage({ type: 'done', id: msg.id, result });
     } catch (err) {
       port.postMessage({
