@@ -6,6 +6,8 @@ All notable changes to Turnlog are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.12.2] — 2026-08-10
+
 ### Fixed
 
 - **The index was quietly twice the size it reported.** SQLite keeps a

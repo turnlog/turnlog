@@ -52,6 +52,17 @@ If the index looks stale, `turnlog index` runs an incremental pass; `turnlog ind
 rebuild** — pins, names, notes, tags, bookmarks and saved searches live in tables the
 rebuild does not touch.
 
+## The index takes more disk than you expected
+
+The size on the health card counts the whole footprint — the database plus SQLite's
+write-ahead log beside it, which is where recent writes sit before they are folded in.
+Turnlog truncates that log after every indexing pass, so the number comes down on its
+own; **repack** on the same card reclaims what a prune left behind.
+
+The other reason is [deep search](/docs/product/tour/search#deep-search), which builds a
+second index for substring matching and costs a few times the first one. Dropping it from
+the health card gives that space straight back.
+
 ## After an update, something looks odd
 
 Some releases bump an adapter version, which forces a full re-index of that agent's files
