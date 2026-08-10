@@ -4,7 +4,7 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.12.2] — 2026-08-10
+## [Unreleased]
 
 ### Added
 
@@ -26,6 +26,8 @@ All notable changes to Turnlog are documented here. The format follows
   mkdir -p ~/.claude/skills/turnlog
   npx turnlog skill > ~/.claude/skills/turnlog/SKILL.md
   ```
+
+## [0.12.2] — 2026-08-10
 
 ### Fixed
 
