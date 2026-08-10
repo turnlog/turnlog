@@ -4,9 +4,28 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
 ## [0.12.2] — 2026-08-10
+
+### Added
+
+- **`turnlog skill` — your agent stops waiting to be asked.** Registering the
+  MCP server hands an agent six tools, but nothing tells it *when* they matter,
+  so in practice it consults your history only when you say "check Turnlog".
+  The new command prints a skill file that supplies the missing half: the
+  triggers (you referred to earlier work, an error looks like one you have seen,
+  an unfamiliar file is about to change, a decision looks arbitrary), the full
+  query grammar, and the rule to cite the session id so any claim it makes is
+  one click from being checked. It also tells the agent what *not* to search —
+  the current code and git log answer for themselves.
+
+  It prints to stdout rather than installing itself, deliberately. Turnlog does
+  not write into `~/.claude`, and every agent keeps its instructions in a
+  different place, so the one honest target is the one you redirect yourself:
+
+  ```sh
+  mkdir -p ~/.claude/skills/turnlog
+  npx turnlog skill > ~/.claude/skills/turnlog/SKILL.md
+  ```
 
 ### Fixed
 

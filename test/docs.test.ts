@@ -51,6 +51,15 @@ describe('docs ↔ code drift', () => {
     expect(docs).toEqual(code);
   });
 
+  it('teaches the agent skill every operator the parser accepts', () => {
+    const src = /const FILTER_OPS = new Set\(\[([\s\S]*?)\]\);/.exec(read('src/server/api.ts'))![1]!;
+    const code = [...src.matchAll(/'([a-z]+)'/g)].map((m) => m[1]!);
+    // An operator the skill does not name is one the agent never uses — the
+    // grammar block is the only place it learns them.
+    const skill = read('src/mcp/skill.ts');
+    expect(code.filter((op) => !skill.includes(`${op}:`))).toEqual([]);
+  });
+
   it('documents exactly the CLI commands and flags', () => {
     const cli = read('src/cli/index.ts');
     const doc = read('docs/reference/cli.md');

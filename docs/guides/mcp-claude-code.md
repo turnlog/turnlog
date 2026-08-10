@@ -48,6 +48,24 @@ This is deliberate: "it cannot write anything" is a guarantee a stranger can ver
 the tool list, and that stops being true the moment an opt-in exists. The annotation
 tables are a human curation surface — `is:pinned` has to keep meaning *"I flagged this."*
 
+## Teach it when to look
+
+Registering the server gives Claude the tools. It does not give it the habit — tools are
+consulted when something makes them seem relevant, so in practice the agent waits until
+you ask. `turnlog skill` prints a skill file that closes the gap: the triggers (you
+referred to past work, an error looks familiar, an unfamiliar file is about to change),
+the query grammar, and the rule to cite the session id so you can check any claim.
+
+```bash
+mkdir -p ~/.claude/skills/turnlog
+npx turnlog skill > ~/.claude/skills/turnlog/SKILL.md
+```
+
+It prints instead of installing itself. Turnlog does not write into `~/.claude` — the
+read-only guarantee is worth more than saving you a redirect — and other agents keep
+their instructions elsewhere, so stdout is the one target that serves all of them. See
+[the CLI reference](/docs/reference/cli) for the same command.
+
 ## Worth telling your agent
 
 `get_context` reports how full a past session's context window was and where it was

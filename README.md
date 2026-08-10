@@ -176,6 +176,21 @@ but never write to it. It reads the same index the app builds, so run
 `turnlog` or `turnlog index` once first; on each start it does a quick
 incremental catch-up so recent sessions are included.
 
+Registering the server hands the agent the tools, but not the habit — it will
+still wait to be asked. `turnlog skill` prints a skill file that supplies the
+missing half: when to look (you referenced past work, an error looks familiar,
+an unfamiliar file is about to change), the query grammar, and the rule to cite
+the session id so you can check it.
+
+```sh
+mkdir -p ~/.claude/skills/turnlog
+npx turnlog skill > ~/.claude/skills/turnlog/SKILL.md
+```
+
+It prints rather than installs, on purpose: Turnlog does not write into your
+agent's directory, and every agent keeps its instructions somewhere different —
+send it wherever yours reads them.
+
 ## Privacy
 
 Turnlog binds to `127.0.0.1` only, with `Host`-header validation (DNS-rebinding

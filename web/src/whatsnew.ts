@@ -22,6 +22,10 @@ export const RELEASES: ReleaseNotes[] = [
     date: '2026-08-10',
     notes: [
       {
+        kind: 'added',
+        text: 'turnlog skill — your agent stops waiting to be asked. Connecting Turnlog over MCP gives your agent the tools, but nothing tells it when they matter, so it tends to look only when you say so. Run `turnlog skill` and save what it prints where your agent reads skills: it learns to check your history when you mention earlier work, when an error looks familiar, or before changing a file it has not seen — and to cite the session id, so anything it claims is one click from the replay. It prints rather than installs, because Turnlog does not write into your agent’s folder.',
+      },
+      {
         kind: 'fixed',
         text: 'The index was quietly taking about twice the disk it reported. SQLite keeps a log of recent writes beside the database, and Turnlog counted only the database — so a card reading 780 MB could be 1.5 GB on your drive. Nothing trimmed that log either, so on a machine that leaves Turnlog running it only ever grew. It is now trimmed after every indexing pass, and the size you see is the whole thing. Your index shrinks on its next scan; on a large one that can be hundreds of megabytes back.',
       },

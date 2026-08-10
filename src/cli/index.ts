@@ -34,6 +34,7 @@ import { watchCursorIde, watchProjects } from '../indexer/watcher.js';
 import { SseHub, startServer } from '../server/server.js';
 import { openBrowser } from './open.js';
 import { checkForUpdate, updateCheckEnabled } from './updateCheck.js';
+import { SKILL_MD } from '../mcp/skill.js';
 import { APP_VERSION } from '../version.js';
 
 const HELP = `turnlog ${APP_VERSION} — search and replay your Claude Code sessions, locally.
@@ -64,6 +65,11 @@ Usage:
                               index — your own history is never read
   turnlog mcp                 Serve the index as a read-only MCP server (stdio)
                               Register: claude mcp add turnlog -- npx turnlog mcp
+  turnlog skill               Print a skill file that teaches your agent when
+                              to search your history, so it stops waiting to
+                              be asked. Save it where your agent reads skills:
+                              mkdir -p ~/.claude/skills/turnlog &&
+                              npx turnlog skill > ~/.claude/skills/turnlog/SKILL.md
 
 Options:
   --port <n>       Fixed port instead of a random one
@@ -167,6 +173,11 @@ async function main(): Promise<void> {
       });
     case 'mcp':
       return runMcp(dirs);
+    // Printed, not installed: Turnlog does not write into an agent's own
+    // directory, and stdout suits every agent's convention rather than one.
+    case 'skill':
+      process.stdout.write(SKILL_MD);
+      return;
     default:
       fail(`Unknown command "${command}". Run turnlog --help.`);
   }
