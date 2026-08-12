@@ -50,8 +50,9 @@ docs/
 Edit these when the thing they describe changes — they are the source of truth, not a
 summary of one:
 
-- **`reference/search-operators.md`** — the query grammar. Verified against
-  `FILTER_OPS` in `src/server/api.ts` when written; all 13 operators are documented.
+- **`reference/search-operators.md`** — the query grammar. Kept in lockstep with
+  `FILTER_OPS` in `src/server/api.ts` by `test/docs.test.ts` — a count here would
+  only drift; the test is the number.
 - **`reference/settings.md`** — the `settings.json` shape.
 - **`reference/cli.md`** — commands and flags.
 

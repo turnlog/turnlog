@@ -234,8 +234,9 @@ turnlog export <id>         Print a session as markdown (id or unique prefix);
                             and home paths, --from/--to for a message range
 turnlog search <query>      Search from the terminal (--limit n, --json);
                             same operators as the UI: tool: kind: is:error
-                            is:pinned has:note tag: agent: project: model:
-                            path: branch: like:<session-id> before: after:
+                            is:pinned has:note has:bookmark tag: agent:
+                            project: model: path: branch: cmd: server:
+                            like:<session-id> before: after:
 turnlog annotations export  Print pins, names, notes, bookmarks and saved
                             searches as one JSON document
 turnlog annotations import <file>
@@ -246,6 +247,9 @@ turnlog doctor              Print a diagnostic report for a bug thread:
 turnlog demo                Run against bundled sample sessions in a scratch
                             index — your own history is never read
 turnlog mcp                 Serve the index to your agent over MCP (stdio, read-only)
+turnlog skill               Print a skill file that teaches your agent when to
+                            search its history — save it where your agent reads
+                            skills (see the MCP section)
 ```
 
 Turnlog reads `~/.claude/projects`, `~/.codex/sessions`, `~/.cursor/projects`,

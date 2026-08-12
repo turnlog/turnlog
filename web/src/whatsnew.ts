@@ -18,6 +18,32 @@ export interface ReleaseNotes {
 
 export const RELEASES: ReleaseNotes[] = [
   {
+    version: '0.13.0',
+    date: '2026-08-12',
+    notes: [
+      {
+        kind: 'added',
+        text: 'A Commands screen. Running commands is 40% of everything your agents do, and until now "what was that ffmpeg invocation I finally got working in March" meant scrolling a session you first had to remember. Commands (next to Files) groups every command any agent ever ran — paths, ids and numbers normalized away so reruns fold together — with run counts, failure counts, and every verbatim run one click from its place in the replay. cmd: joins the search grammar everywhere: cmd:"ffmpeg -i" after:2026-03 is now a query.',
+      },
+      {
+        kind: 'added',
+        text: 'A "notable" sort in the sidebar. It ranks sessions by what the index already knows — length, cost, errors hit, and how much of the work happened in files your other sessions keep touching. Your important sessions, without the homework of pinning them (pins still win when you do).',
+      },
+      {
+        kind: 'added',
+        text: 'MCP calls now read as "server · tool" instead of their mangled wire names, in the replay, in search hits, and on refine chips. tool:preview_eval matches without typing the mcp__ prefix, and a new server: operator narrows to everything one MCP server did.',
+      },
+      {
+        kind: 'fixed',
+        text: 'tool:Bash is:error — the query the docs themselves suggest — matched nothing, because the error lives on a tool’s result and the name on its call. Scoped to a tool, is:error now finds the failing runs, one hit per failure.',
+      },
+      {
+        kind: 'fixed',
+        text: 'The index’s write-ahead log is now trimmed while live sessions index, not only at startup — a machine that leaves Turnlog running no longer regrows it between launches.',
+      },
+    ],
+  },
+  {
     version: '0.12.2',
     date: '2026-08-10',
     notes: [
