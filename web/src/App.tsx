@@ -3,6 +3,7 @@ import { hasToken, shutdownServer, useLiveEvents, useStatus } from './api';
 import {
   BookmarkIcon,
   CloseIcon,
+  CmdLensIcon,
   FolderIcon,
   MagniferIcon,
   MoonIcon,
@@ -19,6 +20,7 @@ import DesignSystem from './screens/DesignSystem';
 import Home from './screens/Home';
 import Replay from './screens/Replay';
 import FileHistory from './screens/FileHistory';
+import Commands from './screens/Commands';
 import Bookmarks from './screens/Bookmarks';
 import Project from './screens/Project';
 import Projects from './screens/Projects';
@@ -344,6 +346,13 @@ export default function App() {
             <Primary href="#/files" active={route.name === 'files'} icon={<FolderIcon />}>
               Files
             </Primary>
+            <Primary
+              href="#/commands"
+              active={route.name === 'commands'}
+              icon={<CmdLensIcon />}
+            >
+              Commands
+            </Primary>
             <Primary href="#/spend" active={route.name === 'spend'} icon={<WalletIcon />}>
               Spend
             </Primary>
@@ -381,6 +390,7 @@ export default function App() {
           {route.name === 'files' && (
             <FileHistory query={route.query} path={route.path} find={route.find} />
           )}
+          {route.name === 'commands' && <Commands query={route.query} sig={route.sig} />}
           {route.name === 'project' && (
             <Project key={route.projectKey} projectKey={route.projectKey} />
           )}

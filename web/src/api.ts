@@ -11,6 +11,8 @@ import type {
   BookmarkEntry,
   BookmarksListResponse,
   BookmarksResponse,
+  CommandHistoryResponse,
+  CommandsResponse,
   DiskUsageResponse,
   ErrorSignaturesResponse,
   FileHistoryResponse,
@@ -132,7 +134,7 @@ export function revealSession(id: string): void {
 }
 
 export interface SessionsQuery {
-  sort?: 'started_at' | 'ended_at' | 'cost_usd' | 'event_count' | 'tokens';
+  sort?: 'started_at' | 'ended_at' | 'cost_usd' | 'event_count' | 'tokens' | 'notable';
   dir?: 'asc' | 'desc';
   project?: string;
   /** Drop sessions with nothing in them (0 turns or 0 tokens, no cost). */
@@ -690,6 +692,30 @@ export function useFileHistory(path: string | null) {
     queryFn: () =>
       apiFetch<FileHistoryResponse>(`/api/files/history?path=${encodeURIComponent(path!)}`),
     enabled: path !== null,
+    staleTime: 30_000,
+  });
+}
+
+/* ── cross-session command history ──────────────────────────────────── */
+
+export function useCommands(filter: string) {
+  return useQuery({
+    queryKey: ['commands', filter],
+    queryFn: () =>
+      apiFetch<CommandsResponse>(
+        `/api/commands?limit=200${filter ? `&filter=${encodeURIComponent(filter)}` : ''}`,
+      ),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+}
+
+export function useCommandHistory(sig: string | null) {
+  return useQuery({
+    queryKey: ['command-history', sig],
+    queryFn: () =>
+      apiFetch<CommandHistoryResponse>(`/api/commands/history?sig=${encodeURIComponent(sig!)}`),
+    enabled: sig !== null,
     staleTime: 30_000,
   });
 }

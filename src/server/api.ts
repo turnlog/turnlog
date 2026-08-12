@@ -9,6 +9,9 @@ import { sessionToMarkdown, type ExportOptions } from '../export/markdown.js';
 import type {
   ChildSessionSummary,
   DiskUsageResponse,
+  CommandHistoryResponse,
+  CommandRun,
+  CommandsResponse,
   FileHistoryResponse,
   FileSummary,
   MessageListResponse,
@@ -120,6 +123,80 @@ export interface ListSessionsQuery {
   collapseChains?: boolean;
 }
 
+/**
+ * Notability, derived — counted on the real index, the entire manual
+ * curation layer holds nine rows after four releases of pins, notes, tags
+ * and bookmarks, while the spine's derived summary is the most-used thing
+ * in the app. Manual curation does not happen; mechanical signals do. So
+ * "my important sessions" is computed from what the index already knows:
+ *
+ *  - length (event_count) — effort spent
+ *  - cost — model time spent
+ *  - error count — the debugging slogs are the sessions you go back to
+ *  - reach — how many OTHER sessions touched the same files: work in the
+ *    part of the codebase you keep returning to
+ *
+ * Each signal contributes its percentile rank across root sessions (0..1),
+ * and the score is their sum — no units to weigh against each other, no
+ * tuned constants, no model. A session is notable when it is unusual on
+ * several axes at once, which a rule this simple can honestly claim.
+ */
+export function notabilityScores(db: Database.Database): Map<string, number> {
+  const roots = db
+    .prepare(
+      `SELECT id, event_count AS events, COALESCE(cost_usd, 0) AS cost
+         FROM sessions WHERE parent_session_id IS NULL`,
+    )
+    .all() as { id: string; events: number; cost: number }[];
+
+  const errors = new Map<string, number>(
+    (
+      db
+        .prepare(
+          `SELECT COALESCE(s.parent_session_id, s.id) AS root, COUNT(*) AS n
+             FROM messages m JOIN sessions s ON s.id = m.session_id
+            WHERE m.is_error = 1 GROUP BY root`,
+        )
+        .all() as { root: string; n: number }[]
+    ).map((r) => [r.root, r.n]),
+  );
+  const reach = new Map<string, number>(
+    (
+      db
+        .prepare(
+          `SELECT ra AS root, COUNT(DISTINCT rb) AS n FROM (
+             SELECT COALESCE(sa.parent_session_id, sa.id) AS ra,
+                    COALESCE(sb.parent_session_id, sb.id) AS rb
+               FROM files_touched fa
+               JOIN sessions sa ON sa.id = fa.session_id
+               JOIN files_touched fb ON fb.path = fa.path
+               JOIN sessions sb ON sb.id = fb.session_id
+              WHERE COALESCE(sa.parent_session_id, sa.id) <> COALESCE(sb.parent_session_id, sb.id)
+           ) GROUP BY ra`,
+        )
+        .all() as { root: string; n: number }[]
+    ).map((r) => [r.root, r.n]),
+  );
+
+  // Percentile rank per signal: ties share the rank of their first
+  // occurrence, so identical values contribute identically.
+  const scores = new Map<string, number>();
+  const addRanks = (value: (r: (typeof roots)[number]) => number) => {
+    const sorted = [...roots].sort((a, b) => value(a) - value(b));
+    const denom = Math.max(1, sorted.length - 1);
+    let rank = 0;
+    for (let i = 0; i < sorted.length; i++) {
+      if (i > 0 && value(sorted[i]!) !== value(sorted[i - 1]!)) rank = i;
+      scores.set(sorted[i]!.id, (scores.get(sorted[i]!.id) ?? 0) + rank / denom);
+    }
+  };
+  addRanks((r) => r.events);
+  addRanks((r) => r.cost);
+  addRanks((r) => errors.get(r.id) ?? 0);
+  addRanks((r) => reach.get(r.id) ?? 0);
+  return scores;
+}
+
 export function listSessions(db: Database.Database, q: ListSessionsQuery): SessionListResponse {
   const sort = SORTABLE[q.sort ?? ''] ?? 'started_at';
   const dir = q.dir === 'asc' ? 'ASC' : 'DESC';
@@ -183,6 +260,25 @@ export function listSessions(db: Database.Database, q: ListSessionsQuery): Sessi
     );
   }
   const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
+
+  // Notability is a derived rank, not a column — fetch the filtered set,
+  // order it in JS, and page there. Pins still outrank everything: a pin is
+  // the one notability signal the user stated outright.
+  if (q.sort === 'notable') {
+    const all = db
+      .prepare(`SELECT ${SESSION_COLUMNS} FROM ${SESSIONS_JOINED} ${where}`)
+      .all(...params)
+      .map(rowToSession);
+    const score = notabilityScores(db);
+    const flip = dir === 'ASC' ? -1 : 1;
+    all.sort(
+      (a, b) =>
+        (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) ||
+        flip * ((score.get(b.id) ?? 0) - (score.get(a.id) ?? 0)) ||
+        (b.endedAt ?? b.startedAt ?? '').localeCompare(a.endedAt ?? a.startedAt ?? ''),
+    );
+    return { sessions: all.slice(offset, offset + limit), total: all.length };
+  }
 
   const rows = db
     .prepare(
@@ -715,10 +811,12 @@ const LENS_SQL: Record<Lens, string> = {
     OR (kind = 'tool_result' AND tool_use_id IN (
       SELECT tool_use_id FROM messages
       WHERE session_id = @sid AND tool_name IN ${DIFF_TOOLS_SQL} AND tool_use_id IS NOT NULL)))`,
-  commands: `AND (tool_name = 'Bash'
+  // command IS NOT NULL, not tool_name = 'Bash': every agent runs commands,
+  // and the Bash spelling was silently a Claude-Code-only lens.
+  commands: `AND (command IS NOT NULL
     OR (kind = 'tool_result' AND tool_use_id IN (
       SELECT tool_use_id FROM messages
-      WHERE session_id = @sid AND tool_name = 'Bash' AND tool_use_id IS NOT NULL)))`,
+      WHERE session_id = @sid AND command IS NOT NULL AND tool_use_id IS NOT NULL)))`,
   errors: `AND ((kind = 'tool_result' AND is_error = 1)
     OR tool_use_id IN (
       SELECT tool_use_id FROM messages
@@ -879,7 +977,7 @@ export function listTurns(db: Database.Database, sessionId: string): TurnsRespon
   // is how current CC marks a planning turn.
   const rows = db
     .prepare(
-      `SELECT uuid, parent_uuid, message_id, idx, kind, tool_name, ts,
+      `SELECT uuid, parent_uuid, message_id, idx, kind, tool_name, command, ts,
               is_sidechain, is_error, tokens_out, text,
               CASE WHEN kind = 'mode'
                      OR (kind = 'attachment' AND raw_json LIKE '%plan_mode_exit%')
@@ -893,6 +991,7 @@ export function listTurns(db: Database.Database, sessionId: string): TurnsRespon
     idx: number;
     kind: string;
     tool_name: string | null;
+    command: string | null;
     ts: string | null;
     is_sidechain: number;
     is_error: number;
@@ -969,8 +1068,10 @@ export function listTurns(db: Database.Database, sessionId: string): TurnsRespon
     current.tokensOut += r.tokens_out;
     if (r.kind === 'tool_use' && r.tool_name !== null) {
       if (READ_TOOLS.has(r.tool_name)) current.reads++;
+      // The command column, not the Bash spelling — every agent's shell
+      // calls count, not just Claude Code's.
       else if (EDIT_TOOLS.has(r.tool_name)) current.edits++;
-      else if (r.tool_name === 'Bash') current.commands++;
+      else if (r.command !== null) current.commands++;
       else if (r.tool_name === 'Task') current.tasks++;
       else current.otherTools++;
     }
@@ -1089,6 +1190,10 @@ export interface SearchFilters {
   agent?: string;
   /** branch: — the git branch a message was written on. */
   branch?: string;
+  /** cmd: — substring over the shell commands tool calls ran. */
+  cmd?: string;
+  /** server: — fragment over the MCP server segment of mcp__…__… tools. */
+  server?: string;
   /** like: — "have I solved this before": session id or unique prefix. */
   like?: string;
   /**
@@ -1116,6 +1221,8 @@ const FILTER_OPS = new Set([
   'tag',
   'agent',
   'branch',
+  'cmd',
+  'server',
   'like',
   'before',
   'after',
@@ -1191,6 +1298,12 @@ export function parseSearchQuery(input: string): ParsedQuery {
       case 'branch':
         filters.branch = value;
         break;
+      case 'cmd':
+        filters.cmd = value;
+        break;
+      case 'server':
+        filters.server = value;
+        break;
       case 'like':
         filters.like = value;
         break;
@@ -1229,22 +1342,68 @@ export function parseSearchQuery(input: string): ParsedQuery {
   return { terms: terms.join(' '), filters, hasFilters: Object.keys(filters).length > 0 };
 }
 
+/**
+ * MCP tool names arrive mangled — `mcp__<server>__<tool>` — and the server
+ * half is welded onto the tool half everywhere it surfaces. This splits the
+ * shape; null for everything that is not an MCP call. Mirrored client-side
+ * in `web/src/format.ts` (`mcpName`) — keep the two in step.
+ */
+export function mcpParts(toolName: string): { server: string; tool: string } | null {
+  const m = /^mcp__(.+?)__(.+)$/.exec(toolName);
+  return m ? { server: m[1]!, tool: m[2]! } : null;
+}
+
+/** The SQL twin of mcpParts' server half: NULL unless the name is mcp__…__…. */
+const MCP_SERVER_SQL = `CASE WHEN m.tool_name LIKE 'mcp\\_\\_%\\_\\_%' ESCAPE '\\'
+  THEN substr(m.tool_name, 6, instr(substr(m.tool_name, 6), '__') - 1) END`;
+
 /** WHERE fragments for the parsed filters; `m` = messages, sessionAlias = sessions. */
 function filterSql(f: SearchFilters, sessionAlias: string): { sql: string; params: unknown[] } {
   const clauses: string[] = [];
   const params: unknown[] = [];
   if (f.tool !== undefined) {
-    clauses.push('m.tool_name = ? COLLATE NOCASE');
-    params.push(f.tool);
+    // The bare tool half of an MCP name matches too — `tool:preview_eval`
+    // must not require typing the whole mangled string. The raw string still
+    // matches exactly, so nothing that worked before breaks.
+    clauses.push(
+      `(m.tool_name = ? COLLATE NOCASE
+        OR (m.tool_name LIKE 'mcp\\_\\_%\\_\\_%' ESCAPE '\\'
+            AND substr(m.tool_name, -(length(?) + 2)) = '__' || ? COLLATE NOCASE))`,
+    );
+    params.push(f.tool, f.tool, f.tool);
+  }
+  if (f.server !== undefined) {
+    clauses.push(`${MCP_SERVER_SQL} LIKE ?`);
+    params.push(`%${f.server}%`);
   }
   if (f.kind !== undefined) {
     clauses.push('m.kind = ? COLLATE NOCASE');
     params.push(f.kind);
   }
-  if (f.isError) clauses.push('m.is_error = 1');
+  if (f.isError) {
+    if (f.tool !== undefined || f.server !== undefined || f.cmd !== undefined) {
+      // Scoped to a tool, is:error means "a failing RUN of it". The error
+      // flag lands on the paired tool_result, which carries no tool_name —
+      // requiring both on one row meant `tool:Bash is:error` matched
+      // nothing, ever, on any index. The hit is the tool_use anchor: one
+      // per failed run, not two.
+      clauses.push(`(m.is_error = 1 OR (m.kind = 'tool_use' AND EXISTS (
+        SELECT 1 FROM messages e
+         WHERE e.session_id = m.session_id AND e.tool_use_id = m.tool_use_id
+           AND e.kind = 'tool_result' AND e.is_error = 1)))`);
+    } else {
+      clauses.push('m.is_error = 1');
+    }
+  }
   if (f.branch !== undefined) {
     clauses.push('m.git_branch = ? COLLATE NOCASE');
     params.push(f.branch);
+  }
+  // Substring, not exact: nobody retypes a whole command line, and `project:`
+  // set the precedent for fragment operators.
+  if (f.cmd !== undefined) {
+    clauses.push('m.command LIKE ?');
+    params.push(`%${f.cmd}%`);
   }
   // `like:` — the source conversation is not "related" to itself, and a
   // resumed session shares its whole history, so the family goes with it.
@@ -1420,7 +1579,14 @@ function searchFacets(
   // one value, which then drops instead of re-offering the chip just used.
   const choice = (list: SearchFacet[]): SearchFacet[] => (list.length > 1 ? list : []);
   return {
-    tools: choice(facet('m.tool_name', 'tool', false)),
+    // MCP names read as "server · tool" on the chip; the operator keeps the
+    // raw string so the count the chip promises is the count you get.
+    tools: choice(
+      facet('m.tool_name', 'tool', false, (name) => {
+        const mcp = mcpParts(name);
+        return mcp ? `${mcp.server.replace(/_/g, ' ')} · ${mcp.tool}` : name;
+      }),
+    ),
     kinds: choice(facet('m.kind', 'kind', false)),
     // Keys are path-derived; the chip shows the folder, the operator keeps
     // the exact key so the count it promises is the count you get.
@@ -1434,6 +1600,9 @@ function searchFacets(
     // Counted per message, like tools and kinds: a session that crossed
     // branches belongs to each of them, not to whichever it ended on.
     branches: choice(facet('m.git_branch', 'branch', false)),
+    servers: choice(
+      facet(MCP_SERVER_SQL, 'server', false, (s) => s.replace(/_/g, ' ')),
+    ),
   };
 }
 
@@ -2018,6 +2187,188 @@ export function isTouchedFile(db: Database.Database, filePath: string): boolean 
   return (
     db.prepare(`SELECT 1 FROM files_touched WHERE path = ? LIMIT 1`).get(filePath) !== undefined
   );
+}
+
+/**
+ * Reduce one shell command to a signature — what makes two runs "the same
+ * command". The same posture as errorSignature: only unmistakably-variable
+ * things are replaced (paths, urls, ids, numbers, quoted payloads, heredoc
+ * bodies), because over-merging is the failure mode — `npm test` and
+ * `npm install` must never fold.
+ */
+export function commandSignature(cmd: string): string {
+  return (
+    cmd
+      .replace(/\\\n/g, ' ')
+      // A heredoc body is the run's payload (commit messages), not the command.
+      .replace(/<<\s*['"]?(\w+)['"]?[\s\S]*?\n\1/g, '<<…')
+      .replace(/"[^"]{8,}"/g, '"…"')
+      .replace(/'[^']{8,}'/g, "'…'")
+      // No space in the path class, unlike errorSignature's: command lines
+      // quote spacey paths, and an unquoted space separates arguments.
+      .replace(/(?:[A-Za-z]:)?[/\\][\w.\-/\\]{3,}/g, '<path>')
+      .replace(/\bhttps?:\/\/\S+/g, '<url>')
+      .replace(/\b[0-9a-f]{8}-[0-9a-f-]{20,}\b/gi, '<id>')
+      .replace(/\b[0-9a-f]{7,}\b/gi, '<id>')
+      // Ports, pids, line ranges — but never the digits of `2>&1`, whose
+      // replacement would mangle every signature that redirects stderr.
+      .replace(/(?<![>&\d])\d+(?:\.\d+)*(?![<>&\d])/g, '<n>')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 200)
+  );
+}
+
+/**
+ * Commands across sessions — the cross-session home for the most-called tool
+ * there is (40% of all tool calls, and the one dimension without a screen).
+ * Groups by commandSignature; exit status comes from the paired tool_result.
+ * Agent-agnostic by construction: it reads messages.command, which each
+ * adapter extracts from its own payload shape.
+ */
+export function getCommands(
+  db: Database.Database,
+  q: { filter?: string; limit?: number },
+): CommandsResponse {
+  const limit = Math.min(Math.max(q.limit ?? 100, 1), 500);
+  const filterSqlPart = q.filter ? `AND m.command LIKE ?` : '';
+  const params: unknown[] = q.filter ? [`%${q.filter}%`] : [];
+  const rows = db
+    .prepare(
+      `SELECT m.command AS command, m.idx AS idx, m.ts AS ts,
+              COALESCE(s.parent_session_id, s.id) AS root, s.project_key AS pk,
+              (SELECT MAX(r.is_error) FROM messages r
+                WHERE r.session_id = m.session_id AND r.tool_use_id = m.tool_use_id
+                  AND r.kind = 'tool_result') AS failed
+         FROM messages m
+         JOIN sessions s ON s.id = m.session_id
+        WHERE m.command IS NOT NULL ${filterSqlPart}
+        LIMIT 40000`,
+    )
+    .all(...params) as {
+    command: string;
+    idx: number;
+    ts: string | null;
+    root: string;
+    pk: string | null;
+    failed: number | null;
+  }[];
+
+  interface Group {
+    signature: string;
+    sample: string;
+    sampleAt: string | null;
+    runs: number;
+    fails: number;
+    sessions: Set<string>;
+    projects: Set<string>;
+    lastAt: string | null;
+    where: { sessionId: string; idx: number }[];
+  }
+  const groups = new Map<string, Group>();
+  for (const r of rows) {
+    const signature = commandSignature(r.command);
+    if (signature === '') continue;
+    let g = groups.get(signature);
+    if (!g) {
+      g = {
+        signature,
+        sample: r.command,
+        sampleAt: r.ts,
+        runs: 0,
+        fails: 0,
+        sessions: new Set(),
+        projects: new Set(),
+        lastAt: null,
+        where: [],
+      };
+      groups.set(signature, g);
+    }
+    g.runs += 1;
+    if (r.failed === 1) g.fails += 1;
+    g.sessions.add(r.root);
+    if (r.pk !== null) g.projects.add(r.pk);
+    if (r.ts !== null && (g.lastAt === null || r.ts > g.lastAt)) g.lastAt = r.ts;
+    // The freshest run is the sample: "the ffmpeg invocation I finally got
+    // working" is the last one, not the first attempt.
+    if (r.ts !== null && (g.sampleAt === null || r.ts > g.sampleAt)) {
+      g.sample = r.command;
+      g.sampleAt = r.ts;
+    }
+    if (g.where.length < 8 && !g.where.some((w) => w.sessionId === r.root)) {
+      g.where.push({ sessionId: r.root, idx: r.idx });
+    }
+  }
+
+  const out = [...groups.values()]
+    .sort((a, b) => b.runs - a.runs || b.sessions.size - a.sessions.size)
+    .slice(0, limit)
+    .map((g) => ({
+      signature: g.signature,
+      sample: g.sample,
+      runs: g.runs,
+      fails: g.fails,
+      sessions: g.sessions.size,
+      projects: g.projects.size,
+      lastAt: g.lastAt,
+      where: g.where,
+    }));
+  return { commands: out, totalRuns: rows.length, distinct: groups.size };
+}
+
+/**
+ * Every run of one command signature, grouped per root session newest-first —
+ * the right-hand pane behind a Commands-screen row. The signature is derived,
+ * so it is recomputed here rather than round-tripped as an id.
+ */
+export function getCommandHistory(
+  db: Database.Database,
+  signature: string,
+): CommandHistoryResponse {
+  const rows = db
+    .prepare(
+      `SELECT m.command AS command, m.idx AS idx, m.ts AS ts,
+              COALESCE(s.parent_session_id, s.id) AS root,
+              (SELECT MAX(r.is_error) FROM messages r
+                WHERE r.session_id = m.session_id AND r.tool_use_id = m.tool_use_id
+                  AND r.kind = 'tool_result') AS failed
+         FROM messages m
+         JOIN sessions s ON s.id = m.session_id
+        WHERE m.command IS NOT NULL
+        LIMIT 40000`,
+    )
+    .all() as {
+    command: string;
+    idx: number;
+    ts: string | null;
+    root: string;
+    failed: number | null;
+  }[];
+
+  const bySession = new Map<string, CommandRun[]>();
+  for (const r of rows) {
+    if (commandSignature(r.command) !== signature) continue;
+    const runs = bySession.get(r.root) ?? [];
+    if (runs.length < 50) {
+      runs.push({ command: r.command, idx: r.idx, ts: r.ts, failed: r.failed === 1 });
+    }
+    bySession.set(r.root, runs);
+  }
+  if (bySession.size === 0) return { signature, sessions: [] };
+
+  const ids = [...bySession.keys()].slice(0, 200);
+  const sessions = db
+    .prepare(
+      `SELECT ${SESSION_COLUMNS} FROM ${SESSIONS_JOINED}
+       WHERE sessions.id IN (${ids.map(() => '?').join(',')})
+       ORDER BY started_at DESC`,
+    )
+    .all(...ids)
+    .map(rowToSession);
+  return {
+    signature,
+    sessions: sessions.map((s) => ({ session: s, runs: bySession.get(s.id) ?? [] })),
+  };
 }
 
 /** Every session that touched a path (subagent hits resolve to their root). */

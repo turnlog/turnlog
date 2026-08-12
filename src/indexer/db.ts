@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import Database from 'better-sqlite3';
 
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 15;
 
 export function openDb(path: string): Database.Database {
   const db = new Database(path);
@@ -24,6 +24,24 @@ export function checkpointWal(db: Database.Database): void {
   } catch {
     // Busy: readers hold the WAL open. Nothing is wrong, and nothing is lost.
   }
+}
+
+const WAL_TRUNCATE_EVERY_MS = 60_000;
+const lastTruncate = new WeakMap<Database.Database, number>();
+
+/**
+ * checkpointWal, at most once a minute per connection. Live file events are
+ * the one write path with no full pass behind it — without this, a server
+ * left running with active sessions regrows the WAL until the next restart,
+ * which is the disease the unconditional checkpoints cure for scans. The
+ * stamp advances even when the checkpoint loses to a reader, so a busy index
+ * gets one cheap attempt a minute instead of one per append.
+ */
+export function checkpointWalThrottled(db: Database.Database): void {
+  const now = Date.now();
+  if (now - (lastTruncate.get(db) ?? 0) < WAL_TRUNCATE_EVERY_MS) return;
+  lastTruncate.set(db, now);
+  checkpointWal(db);
 }
 
 /**
@@ -281,6 +299,20 @@ function migrate(db: Database.Database): void {
       ALTER TABLE messages ADD COLUMN git_branch TEXT;
       ALTER TABLE sessions ADD COLUMN branch TEXT;
       CREATE INDEX idx_messages_branch ON messages(git_branch) WHERE git_branch IS NOT NULL;
+    `);
+  }
+
+  if (version < 15) {
+    // The shell command a tool_use ran — 40% of all tool calls, previously
+    // findable only as free text inside the input JSON. The partial index
+    // carries the Commands screen's aggregation; the pairing index carries
+    // exit-status lookups (tool_result by (session, tool_use_id)), which the
+    // lenses were doing by scan. Backfilled by the adapter bumps alongside.
+    db.exec(`
+      ALTER TABLE messages ADD COLUMN command TEXT;
+      CREATE INDEX idx_messages_command ON messages(command) WHERE command IS NOT NULL;
+      CREATE INDEX idx_messages_pairing ON messages(session_id, tool_use_id)
+        WHERE tool_use_id IS NOT NULL;
     `);
   }
 

@@ -578,9 +578,9 @@ describe('API', () => {
   it('lists sessions (subagent transcripts excluded)', async () => {
     const res = await request(withToken('/api/sessions'));
     const data = res.json();
-    // 5 root sessions; the subagent transcript rolls into its parent.
-    expect(data.total).toBe(5);
-    expect(data.sessions).toHaveLength(5);
+    // 6 root sessions; the subagent transcript rolls into its parent.
+    expect(data.total).toBe(6);
+    expect(data.sessions).toHaveLength(6);
   });
 
   it('filters sessions by project', async () => {
@@ -633,7 +633,7 @@ describe('API', () => {
     expect(status.updateAvailable).toBeNull();
 
     const stats = (await request(withToken('/api/stats'))).json();
-    expect(stats.sessions).toBe(5);
+    expect(stats.sessions).toBe(6);
     expect(stats.projects.length).toBe(3);
   });
 

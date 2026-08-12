@@ -1,5 +1,5 @@
 import { parentPort, workerData } from 'node:worker_threads';
-import { checkpointWal, openDb } from './db.js';
+import { checkpointWal, checkpointWalThrottled, openDb } from './db.js';
 import { Indexer, type IndexProgress } from './indexer.js';
 
 interface WorkerInit {
@@ -54,8 +54,11 @@ port.on('message', (msg: Command) => {
       }
       // A full pass writes far more than SQLite's passive auto-checkpoint
       // reclaims, and this thread owns the only writer — so the log gets
-      // truncated here, where the wait costs the API nothing.
-      if (msg.cmd !== 'file') checkpointWal(db);
+      // truncated here, where the wait costs the API nothing. Live file
+      // events truncate too, but throttled: they are the only write path in
+      // a long-lived server, and unthrottled they'd checkpoint per append.
+      if (msg.cmd === 'file') checkpointWalThrottled(db);
+      else checkpointWal(db);
       port.postMessage({ type: 'done', id: msg.id, result });
     } catch (err) {
       port.postMessage({

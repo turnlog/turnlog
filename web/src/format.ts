@@ -26,6 +26,17 @@ export function projectName(s: Pick<SessionMeta, 'projectPath' | 'projectKey'>):
   return segs.length > 0 ? segs[segs.length - 1]! : '(unknown)';
 }
 
+/**
+ * MCP tool names arrive mangled — `mcp__<server>__<tool>` — welded into one
+ * badge string. Display them as "server · tool" (server underscores read as
+ * spaces); everything else passes through. Mirrors `mcpParts` in
+ * `src/server/api.ts` — keep the two in step.
+ */
+export function mcpName(toolName: string): string {
+  const m = /^mcp__(.+?)__(.+)$/.exec(toolName);
+  return m ? `${m[1]!.replace(/_/g, ' ')} · ${m[2]!}` : toolName;
+}
+
 export function fmtCost(v: number | null | undefined): string {
   if (v === null || v === undefined) return '—';
   if (v === 0) return '$0';

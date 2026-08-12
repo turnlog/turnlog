@@ -4,7 +4,85 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.13.0] — 2026-08-12
+
+### Added
+
+- **A Commands screen, and a `cmd:` operator.** Commands are 40% of everything
+  your agents do — the most-called tool by a wide margin — and they were the
+  one major dimension without a cross-session home: "what was that ffmpeg
+  invocation I finally got working in March" meant scrolling a session you
+  first had to remember. **Commands** (next to Files in the header) groups
+  every command every agent ever ran — paths, ids and numbers normalized away
+  so reruns fold together — with run counts, failure counts, the sessions that
+  ran each one, and the verbatim runs one click from their place in the
+  replay. `cmd:` joins the query language everywhere it is spoken (UI, CLI,
+  MCP, saved searches): `cmd:"ffmpeg -i" after:2026-03` is now a query. Works
+  for every agent — Claude Code's `Bash`, Codex's shell and exec calls,
+  Cursor's `run_terminal_cmd` — because the command is extracted per adapter
+  into the normalized layer. The commands lens and the spine's command counts
+  read the same field now, so Codex and Cursor shell runs finally show up in
+  both (they were silently Claude-only). Indexes rebuild themselves on first
+  launch after updating.
+
+- **A demo reel in the README** — searching every indexed session for one word,
+  then landing inside the matching session at the moment it was said. Recorded
+  against `turnlog demo`, so it shows the shipped UI rather than a hand-made
+  capture that drifts a release behind.
+
+- **`turnlog skill` — your agent stops waiting to be asked.** Registering the
+  MCP server hands an agent six tools, but nothing tells it *when* they matter,
+  so in practice it consults your history only when you say "check Turnlog".
+  The new command prints a skill file that supplies the missing half: the
+  triggers (you referred to earlier work, an error looks like one you have seen,
+  an unfamiliar file is about to change, a decision looks arbitrary), the full
+  query grammar, and the rule to cite the session id so any claim it makes is
+  one click from being checked. It also tells the agent what *not* to search —
+  the current code and git log answer for themselves.
+
+  It prints to stdout rather than installing itself, deliberately. Turnlog does
+  not write into `~/.claude`, and every agent keeps its instructions in a
+  different place, so the one honest target is the one you redirect yourself:
+
+  ```sh
+  mkdir -p ~/.claude/skills/turnlog
+  npx turnlog skill > ~/.claude/skills/turnlog/SKILL.md
+  ```
+
+- **A "notable" sort — your important sessions, derived.** Pins, notes, tags
+  and bookmarks all exist, and if you are like most people (including the
+  person who built them) you have used them nine times in eighteen months.
+  Mechanical signals do what manual curation does not, so the sidebar gains a
+  sort that ranks sessions by what the index already knows: length, cost,
+  error count, and how many other sessions touched the same files — each as a
+  percentile, summed. No model, no setup, nothing leaves your machine. Pins
+  still outrank everything: a pin is the one notability signal you stated
+  outright.
+
+- **MCP calls stop being second-class citizens.** Agents get more MCP-driven
+  every release, and every one of those calls displayed as its wire name —
+  `mcp__Claude_Preview__preview_eval` — with the server welded onto the tool.
+  They now read as "Claude Preview · preview_eval" in the replay, in search
+  hits, and on refine chips; `tool:preview_eval` matches without typing the
+  mangled string (which still matches too, so nothing breaks); a new
+  `server:` operator and refine dimension narrow to everything one MCP
+  server did. Display and query only — no reindex, no new data.
+
+### Fixed
+
+- **`tool:X is:error` matched nothing, ever.** The error flag lives on the
+  result row and the tool name on the call row, so requiring both on one
+  message came back empty on every index — including for the examples the
+  docs and the agent skill teach. Scoped to a tool (`tool:`, `server:`, or
+  `cmd:`), `is:error` now means what it says: the failing runs of that tool,
+  one hit per failure. Alone, it still matches failing results only.
+
+- **The write-ahead log is truncated as live sessions index, not only at
+  scans.** 0.12.2 truncated it after full indexing passes — but a server left
+  running sees a full pass only at launch, so hours of live session activity
+  regrew the log until the next restart. Live updates now truncate it too, at
+  most once a minute, which keeps a long-running server's footprint flat
+  instead of sawtoothing between launches.
 
 ## [0.12.2] — 2026-08-10
 

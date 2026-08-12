@@ -107,6 +107,8 @@ const TOOLS: McpTool[] = [
       'project:<name>, model:<name>, path:<touched-file fragment>, ' +
       'agent:<claude|codex> (which agent wrote it), tag:<user label>, ' +
       'branch:<git branch> (the branch the work was done on, exact), ' +
+      'cmd:<fragment of a shell command a tool call ran>, ' +
+      'server:<fragment of an MCP server name — narrows to mcp__server__tool calls>, ' +
       'before:/after:<ISO date prefix, or 7d / today / yesterday>, ' +
       'is:pinned (user-pinned sessions), has:note (sessions the user annotated), ' +
       'has:bookmark (moments the user bookmarked), ' +

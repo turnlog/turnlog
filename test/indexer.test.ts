@@ -38,11 +38,11 @@ beforeEach(() => {
 describe('Indexer', () => {
   it('indexes the whole corpus with correct aggregates', async () => {
     const summary = await indexer.scanAll();
-    expect(summary.filesSeen).toBe(6);
+    expect(summary.filesSeen).toBe(7);
     expect(summary.errors).toEqual([]);
 
     const count = db.prepare('SELECT COUNT(*) AS n FROM sessions').get() as { n: number };
-    expect(count.n).toBe(6);
+    expect(count.n).toBe(7);
 
     const a = sessionRow(SESSION_A);
     expect(a.event_count).toBe(26);
@@ -141,6 +141,29 @@ describe('Indexer', () => {
     expect(searchMessages(db, { query: 'useWebSocket' }).totalHits).toBeGreaterThan(0);
   });
 
+  it('truncates the WAL on live file events too, throttled per connection', async () => {
+    const { checkpointWalThrottled } = await import('../src/indexer/db.js');
+    const wal = `${db.name}-wal`;
+    await indexer.scanAll();
+    expect(fs.statSync(wal).size).toBeGreaterThan(0); // the scan lives in the log
+
+    // First call on a fresh connection runs immediately — a server left
+    // running with only live sessions must not wait for a scan that never
+    // comes (the log regrowing between restarts is the bug this closes).
+    checkpointWalThrottled(db);
+    const truncated = fs.statSync(wal).size;
+
+    db.exec('CREATE TABLE _throttle_probe (x); INSERT INTO _throttle_probe VALUES (1)');
+    const grown = fs.statSync(wal).size;
+    expect(grown).toBeGreaterThan(truncated);
+
+    // Inside the window the second call must hold: one cheap attempt a
+    // minute, not one truncation per appended line.
+    checkpointWalThrottled(db);
+    expect(fs.statSync(wal).size).toBe(grown);
+    expect(searchMessages(db, { query: 'useWebSocket' }).totalHits).toBeGreaterThan(0);
+  });
+
   it('prefers per-message costUSD recorded by older CC versions', async () => {
     await indexer.scanAll();
     expect(sessionRow(SESSION_B).cost_usd).toBeCloseTo(0.0345);
@@ -233,7 +256,7 @@ describe('Indexer', () => {
     await indexer.scanAll();
     const before = db.prepare('SELECT COUNT(*) AS n FROM messages').get() as { n: number };
     const summary = await indexer.rebuild();
-    expect(summary.filesSeen).toBe(6);
+    expect(summary.filesSeen).toBe(7);
     const after = db.prepare('SELECT COUNT(*) AS n FROM messages').get() as { n: number };
     expect(after.n).toBe(before.n);
   });

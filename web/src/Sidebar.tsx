@@ -51,6 +51,9 @@ const SORTS: { value: NonNullable<SessionsQuery['sort']>; label: string }[] = [
   { value: 'cost_usd', label: 'cost' },
   { value: 'event_count', label: 'events' },
   { value: 'tokens', label: 'tokens' },
+  // Derived, not asked for: length, cost, errors and file-reach percentile
+  // ranks summed server-side — "my important sessions" without homework.
+  { value: 'notable', label: 'notable' },
 ];
 
 /** Tags shown on a sidebar row before the rest collapse into a +N chip. */

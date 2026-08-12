@@ -64,6 +64,14 @@ export interface NormalizedRecord {
    * did on feature/auth" a question the index can answer.
    */
   gitBranch: string | null;
+  /**
+   * The shell command a tool_use ran, verbatim — extracted per agent (CC's
+   * `Bash`, Cursor's `run_terminal_cmd`, Codex's shell/exec calls). 40% of
+   * all tool calls are commands, and they had no cross-session dimension:
+   * this is what `cmd:` and the Commands screen read. Null on everything
+   * that is not a command.
+   */
+  command: string | null;
   filesTouched: FileTouch[];
   /** The original line, verbatim. Never dropped — the cardinal rule. */
   raw: string;

@@ -12,6 +12,8 @@ npx turnlog
 
 [turnlog.dev](https://turnlog.dev) · [npm](https://www.npmjs.com/package/turnlog) · MIT
 
+<img src="https://turnlog.dev/media/turnlog-demo.gif" alt="Searching every indexed session for &quot;reconnect&quot;, then landing inside the matching session at the moment it was said" width="1000">
+
 </div>
 
 Turnlog indexes your Claude Code, OpenAI Codex, and Cursor history into
@@ -85,11 +87,13 @@ time it starts, once nothing is holding the old file.
   Subagent transcripts (the separate files newer Claude Code versions write per
   Task run) are indexed too, as is everything the run actually saw — including
   files you attached with `@` and edits you made by hand while it was running.
-  Filter by file (`path:api.ts`), by date in plain
-  words (`after:7d`), by agent (`agent:codex`), by git branch
-  (`branch:feature/auth`), by your own tags
-  (`tag:billing`), by tool, model, project or error — or click a **refine
-  chip** to narrow by what the results actually contain. Flip to a
+  Filter by file (`path:api.ts`), by command (`cmd:"npm test"`), by date in
+  plain words (`after:7d`), by agent (`agent:codex`), by git branch
+  (`branch:feature/auth`), by MCP server (`server:playwright`), by your own
+  tags (`tag:billing`), by tool, model, project or error — or click a
+  **refine chip** to narrow by what the results actually contain. MCP calls
+  read as "server · tool" everywhere, not their mangled wire names, and
+  `tool:` matches the bare tool half without you typing the `mcp__` prefix. Flip to a
   **timeline** to see when a topic kept coming up, or build the opt-in **deep
   search** index to match inside words — `eWebSock` finds `useWebSocket`.
   Also from the terminal: `turnlog search <query>` prints hits with deep
@@ -112,8 +116,19 @@ time it starts, once nothing is holding the old file.
 - **Lenses & files** — collapse a session to just its diffs, commands, or
   errors; or pivot to a file and read every change it made, in order. Diffs
   read **unified or side-by-side**, your choice, everywhere they appear.
+- **Commands** — 40% of everything your agents do is run commands, so they get
+  their own screen: every command any agent ever ran, grouped across sessions
+  (paths, ids and numbers normalized away, so reruns fold together), with run
+  and failure counts and every verbatim run one click from its place in the
+  replay. "What was that ffmpeg invocation I finally got working in March" is
+  now `cmd:ffmpeg` — an operator like any other, composable with the whole
+  grammar, in the UI, the CLI and over MCP.
 - **Bookmarks** — mark any moment in a replay, give it a caption in your own
   words, and find every marked moment later on one page.
+- **Notable sessions, derived** — a sidebar sort that ranks your history by
+  what the index already knows: length, cost, errors hit, and how many other
+  sessions touched the same files. "My important sessions" without the
+  homework of pinning them — and pins still outrank it when you do.
 - **Screenshots** — images you pasted to an agent, and screenshots tools
   handed back, render inline in the replay. They were always in your logs;
   now you can see them.
@@ -176,6 +191,21 @@ but never write to it. It reads the same index the app builds, so run
 `turnlog` or `turnlog index` once first; on each start it does a quick
 incremental catch-up so recent sessions are included.
 
+Registering the server hands the agent the tools, but not the habit — it will
+still wait to be asked. `turnlog skill` prints a skill file that supplies the
+missing half: when to look (you referenced past work, an error looks familiar,
+an unfamiliar file is about to change), the query grammar, and the rule to cite
+the session id so you can check it.
+
+```sh
+mkdir -p ~/.claude/skills/turnlog
+npx turnlog skill > ~/.claude/skills/turnlog/SKILL.md
+```
+
+It prints rather than installs, on purpose: Turnlog does not write into your
+agent's directory, and every agent keeps its instructions somewhere different —
+send it wherever yours reads them.
+
 ## Privacy
 
 Turnlog binds to `127.0.0.1` only, with `Host`-header validation (DNS-rebinding
@@ -204,8 +234,9 @@ turnlog export <id>         Print a session as markdown (id or unique prefix);
                             and home paths, --from/--to for a message range
 turnlog search <query>      Search from the terminal (--limit n, --json);
                             same operators as the UI: tool: kind: is:error
-                            is:pinned has:note tag: agent: project: model:
-                            path: branch: like:<session-id> before: after:
+                            is:pinned has:note has:bookmark tag: agent:
+                            project: model: path: branch: cmd: server:
+                            like:<session-id> before: after:
 turnlog annotations export  Print pins, names, notes, bookmarks and saved
                             searches as one JSON document
 turnlog annotations import <file>
@@ -216,6 +247,9 @@ turnlog doctor              Print a diagnostic report for a bug thread:
 turnlog demo                Run against bundled sample sessions in a scratch
                             index — your own history is never read
 turnlog mcp                 Serve the index to your agent over MCP (stdio, read-only)
+turnlog skill               Print a skill file that teaches your agent when to
+                            search its history — save it where your agent reads
+                            skills (see the MCP section)
 ```
 
 Turnlog reads `~/.claude/projects`, `~/.codex/sessions`, `~/.cursor/projects`,

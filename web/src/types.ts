@@ -4,6 +4,10 @@
  */
 export type {
   BookmarkEntry,
+  CommandGroup,
+  CommandHistoryResponse,
+  CommandRun,
+  CommandsResponse,
   BookmarksListResponse,
   BookmarksResponse,
   ChildSessionSummary,

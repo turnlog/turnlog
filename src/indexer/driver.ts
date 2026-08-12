@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import { checkpointWal } from './db.js';
+import { checkpointWal, checkpointWalThrottled } from './db.js';
 import { Indexer, type ScanSummary, type IndexProgress, type IndexerOptions } from './indexer.js';
 
 export interface IndexStatus {
@@ -94,6 +94,9 @@ export class InProcessDriver implements IndexDriver {
     return this.enqueue(() =>
       this.run(async () => {
         await this.indexer.indexFile(filePath);
+        // Same throttled truncation as the worker driver — live events are
+        // the only writes a long-lived server sees after its boot scan.
+        checkpointWalThrottled(this.db);
       }),
     );
   }

@@ -78,6 +78,7 @@ export function normalizeV1(obj: any, raw: string, fallbackId: string): Normaliz
     costUsd: typeof obj?.costUSD === 'number' ? obj.costUSD : null,
     cwd: str(obj?.cwd),
     gitBranch: str(obj?.gitBranch),
+    command: null,
     filesTouched: [],
     raw,
   };
@@ -134,6 +135,9 @@ export function normalizeV1(obj: any, raw: string, fallbackId: string): Normaliz
             rec.kind = 'tool_use';
             rec.toolName = str(block.name);
             rec.toolUseId = str(block.id);
+          }
+          if (str(block.name) === 'Bash' && rec.command === null) {
+            rec.command = str(block.input?.command);
           }
           const changeKind = EDIT_TOOLS[str(block.name) ?? ''];
           const filePath = str(block.input?.file_path) ?? str(block.input?.notebook_path);
