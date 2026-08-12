@@ -49,7 +49,23 @@ All notable changes to Turnlog are documented here. The format follows
   npx turnlog skill > ~/.claude/skills/turnlog/SKILL.md
   ```
 
+- **MCP calls stop being second-class citizens.** Agents get more MCP-driven
+  every release, and every one of those calls displayed as its wire name —
+  `mcp__Claude_Preview__preview_eval` — with the server welded onto the tool.
+  They now read as "Claude Preview · preview_eval" in the replay, in search
+  hits, and on refine chips; `tool:preview_eval` matches without typing the
+  mangled string (which still matches too, so nothing breaks); a new
+  `server:` operator and refine dimension narrow to everything one MCP
+  server did. Display and query only — no reindex, no new data.
+
 ### Fixed
+
+- **`tool:X is:error` matched nothing, ever.** The error flag lives on the
+  result row and the tool name on the call row, so requiring both on one
+  message came back empty on every index — including for the examples the
+  docs and the agent skill teach. Scoped to a tool (`tool:`, `server:`, or
+  `cmd:`), `is:error` now means what it says: the failing runs of that tool,
+  one hit per failure. Alone, it still matches failing results only.
 
 - **The write-ahead log is truncated as live sessions index, not only at
   scans.** 0.12.2 truncated it after full indexing passes — but a server left

@@ -1099,6 +1099,8 @@ export interface SearchFilters {
   branch?: string;
   /** cmd: — substring over the shell commands tool calls ran. */
   cmd?: string;
+  /** server: — fragment over the MCP server segment of mcp__…__… tools. */
+  server?: string;
   /** like: — "have I solved this before": session id or unique prefix. */
   like?: string;
   /**
@@ -1127,6 +1129,7 @@ const FILTER_OPS = new Set([
   'agent',
   'branch',
   'cmd',
+  'server',
   'like',
   'before',
   'after',
@@ -1205,6 +1208,9 @@ export function parseSearchQuery(input: string): ParsedQuery {
       case 'cmd':
         filters.cmd = value;
         break;
+      case 'server':
+        filters.server = value;
+        break;
       case 'like':
         filters.like = value;
         break;
@@ -1243,19 +1249,59 @@ export function parseSearchQuery(input: string): ParsedQuery {
   return { terms: terms.join(' '), filters, hasFilters: Object.keys(filters).length > 0 };
 }
 
+/**
+ * MCP tool names arrive mangled — `mcp__<server>__<tool>` — and the server
+ * half is welded onto the tool half everywhere it surfaces. This splits the
+ * shape; null for everything that is not an MCP call. Mirrored client-side
+ * in `web/src/format.ts` (`mcpName`) — keep the two in step.
+ */
+export function mcpParts(toolName: string): { server: string; tool: string } | null {
+  const m = /^mcp__(.+?)__(.+)$/.exec(toolName);
+  return m ? { server: m[1]!, tool: m[2]! } : null;
+}
+
+/** The SQL twin of mcpParts' server half: NULL unless the name is mcp__…__…. */
+const MCP_SERVER_SQL = `CASE WHEN m.tool_name LIKE 'mcp\\_\\_%\\_\\_%' ESCAPE '\\'
+  THEN substr(m.tool_name, 6, instr(substr(m.tool_name, 6), '__') - 1) END`;
+
 /** WHERE fragments for the parsed filters; `m` = messages, sessionAlias = sessions. */
 function filterSql(f: SearchFilters, sessionAlias: string): { sql: string; params: unknown[] } {
   const clauses: string[] = [];
   const params: unknown[] = [];
   if (f.tool !== undefined) {
-    clauses.push('m.tool_name = ? COLLATE NOCASE');
-    params.push(f.tool);
+    // The bare tool half of an MCP name matches too — `tool:preview_eval`
+    // must not require typing the whole mangled string. The raw string still
+    // matches exactly, so nothing that worked before breaks.
+    clauses.push(
+      `(m.tool_name = ? COLLATE NOCASE
+        OR (m.tool_name LIKE 'mcp\\_\\_%\\_\\_%' ESCAPE '\\'
+            AND substr(m.tool_name, -(length(?) + 2)) = '__' || ? COLLATE NOCASE))`,
+    );
+    params.push(f.tool, f.tool, f.tool);
+  }
+  if (f.server !== undefined) {
+    clauses.push(`${MCP_SERVER_SQL} LIKE ?`);
+    params.push(`%${f.server}%`);
   }
   if (f.kind !== undefined) {
     clauses.push('m.kind = ? COLLATE NOCASE');
     params.push(f.kind);
   }
-  if (f.isError) clauses.push('m.is_error = 1');
+  if (f.isError) {
+    if (f.tool !== undefined || f.server !== undefined || f.cmd !== undefined) {
+      // Scoped to a tool, is:error means "a failing RUN of it". The error
+      // flag lands on the paired tool_result, which carries no tool_name —
+      // requiring both on one row meant `tool:Bash is:error` matched
+      // nothing, ever, on any index. The hit is the tool_use anchor: one
+      // per failed run, not two.
+      clauses.push(`(m.is_error = 1 OR (m.kind = 'tool_use' AND EXISTS (
+        SELECT 1 FROM messages e
+         WHERE e.session_id = m.session_id AND e.tool_use_id = m.tool_use_id
+           AND e.kind = 'tool_result' AND e.is_error = 1)))`);
+    } else {
+      clauses.push('m.is_error = 1');
+    }
+  }
   if (f.branch !== undefined) {
     clauses.push('m.git_branch = ? COLLATE NOCASE');
     params.push(f.branch);
@@ -1440,7 +1486,14 @@ function searchFacets(
   // one value, which then drops instead of re-offering the chip just used.
   const choice = (list: SearchFacet[]): SearchFacet[] => (list.length > 1 ? list : []);
   return {
-    tools: choice(facet('m.tool_name', 'tool', false)),
+    // MCP names read as "server · tool" on the chip; the operator keeps the
+    // raw string so the count the chip promises is the count you get.
+    tools: choice(
+      facet('m.tool_name', 'tool', false, (name) => {
+        const mcp = mcpParts(name);
+        return mcp ? `${mcp.server.replace(/_/g, ' ')} · ${mcp.tool}` : name;
+      }),
+    ),
     kinds: choice(facet('m.kind', 'kind', false)),
     // Keys are path-derived; the chip shows the folder, the operator keeps
     // the exact key so the count it promises is the count you get.
@@ -1454,6 +1507,9 @@ function searchFacets(
     // Counted per message, like tools and kinds: a session that crossed
     // branches belongs to each of them, not to whichever it ended on.
     branches: choice(facet('m.git_branch', 'branch', false)),
+    servers: choice(
+      facet(MCP_SERVER_SQL, 'server', false, (s) => s.replace(/_/g, ' ')),
+    ),
   };
 }
 

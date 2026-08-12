@@ -24,6 +24,7 @@ and `https://…` never break a query.
 | `project:` | **fragment** | `project:turnlog` |
 | `path:` | **fragment**, over files the session touched | `path:api.ts` |
 | `cmd:` | **fragment**, over the commands tool calls ran | `cmd:"ffmpeg -i"` |
+| `server:` | **fragment**, over the MCP server of `mcp__…` calls | `server:playwright` |
 | `like:` | session id or unique prefix | `like:d987e733` |
 | `is:` | `error`, `pinned` | `is:error` |
 | `has:` | `note`, `bookmark` | `has:note` |

@@ -6,7 +6,7 @@ import { langFromPath } from '../code/highlighter';
 import Badge from '../components/Badge';
 import { SkeletonLines } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
-import { fmtCount, fmtTime } from '../format';
+import { fmtCount, fmtTime, mcpName } from '../format';
 import { BookmarkFilledIcon, BookmarkIcon, CheckIcon, CopyIcon } from '../icons';
 import Markdown from '../md/Markdown';
 import type { ChildSessionSummary, MessageRow } from '../types';
@@ -526,7 +526,7 @@ const ToolBlockView = memo(function ToolBlockView({
       <button className="tool-head" onClick={() => setOpen(!isOpen)}>
         <Caret open={isOpen} />
         <span className={`tool-dot ${category} ${failed ? 'failed' : ''}`} />
-        <span className="tool-name">{use.name}</span>
+        <span className="tool-name">{mcpName(use.name)}</span>
         {summary && <span className="tool-summary">{summary}</span>}
         {!block.result && <span className="tool-pending">no result</span>}
         <Ts iso={block.use.ts} />

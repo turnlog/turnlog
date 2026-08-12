@@ -410,3 +410,54 @@ describe('branch: — git branch as a search dimension', () => {
     expect(getSession(db, SESSION_A)?.branch).toBe('main');
   });
 });
+
+describe('MCP calls — parsed, not mangled', () => {
+  it('tool: matches the bare tool half of an mcp__server__tool name', () => {
+    const res = searchMessages(db, { query: 'tool:browser_navigate' });
+    expect(res.totalHits).toBeGreaterThan(0);
+    // The raw mangled string still matches exactly — nothing breaks.
+    const raw = searchMessages(db, { query: 'tool:mcp__Playwright__browser_navigate' });
+    expect(raw.totalHits).toBe(res.totalHits);
+    // And a non-MCP tool is untouched by the widened clause.
+    expect(searchMessages(db, { query: 'tool:Bash' }).totalHits).toBeGreaterThan(0);
+  });
+
+  it("tool: + is:error finds the failing runs of a tool — the grammar's own example", () => {
+    // Pre-existing hole: the error flag lives on the result row, the tool
+    // name on the use row — requiring both on one row matched nothing, ever.
+    expect(searchMessages(db, { query: 'tool:Bash is:error' }).totalHits).toBeGreaterThan(0);
+    expect(
+      searchMessages(db, { query: 'is:error tool:Bash project:api' }).totalHits,
+    ).toBeGreaterThan(0);
+    // Alone, is:error still counts failing RESULTS only — one per failure.
+    const alone = searchMessages(db, { query: 'is:error' }).totalHits;
+    expect(alone).toBeGreaterThan(0);
+  });
+
+  it('server: narrows to one MCP server, by fragment', () => {
+    const hits = searchMessages(db, { query: 'server:playwright' });
+    expect(hits.totalHits).toBeGreaterThan(0);
+    expect(searchMessages(db, { query: 'server:context7' }).totalHits).toBeGreaterThan(0);
+    expect(searchMessages(db, { query: 'server:nosuchserver' }).totalHits).toBe(0);
+    // Composes with the rest of the grammar.
+    expect(
+      searchMessages(db, { query: 'server:context7 is:error' }).totalHits,
+    ).toBeGreaterThan(0);
+  });
+
+  it('offers MCP servers as a refine dimension with readable tool labels', () => {
+    // The servers dimension only ever holds MCP rows, so both appear no
+    // matter how many plain tools share the match set.
+    const facets = searchMessages(db, { query: 'kind:tool_use' }).facets;
+    const servers = (facets?.servers ?? []).map((f) => f.value).sort();
+    expect(servers).toEqual(['Context7', 'Playwright']);
+    // The tools dimension is capped at 6; the Context7 call is the MCP name
+    // that makes the cut (BINARY tie order), and one is all a label needs.
+    const mcpTool = (facets?.tools ?? []).find(
+      (f) => f.value === 'mcp__Context7__resolve_library_id',
+    );
+    expect(mcpTool?.label).toBe('Context7 · resolve_library_id');
+    // The operator keeps the raw string, so the chip's count is exact.
+    expect(mcpTool?.operator).toBe('tool:mcp__Context7__resolve_library_id');
+  });
+});

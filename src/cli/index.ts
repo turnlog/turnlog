@@ -50,7 +50,7 @@ Usage:
                               --from <n> / --to <n> to export a message range
   turnlog search <query>      Search from the terminal (same operators as the UI:
                               tool: kind: is:error is:pinned has:note has:bookmark
-                              project: model: path: branch: cmd: like:<session-id>
+                              project: model: path: branch: cmd: server: like:<session-id>
                               before: after: — dates take ISO prefixes or
                               7d / today / yesterday)
   turnlog annotations export  Print pins, names, notes, bookmarks, and saved
@@ -553,7 +553,7 @@ async function runSearch(
   if (!query) {
     fail(
       'Usage: turnlog search <query>\n' +
-        'Operators: tool: kind: is:error is:pinned has:note has:bookmark project: model: path: branch: cmd: like:<session-id> before: after: ' +
+        'Operators: tool: kind: is:error is:pinned has:note has:bookmark project: model: path: branch: cmd: server: like:<session-id> before: after: ' +
         '(combinable with text; dates take ISO prefixes or 7d/today/yesterday)',
     );
   }

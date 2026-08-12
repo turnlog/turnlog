@@ -89,9 +89,11 @@ time it starts, once nothing is holding the old file.
   files you attached with `@` and edits you made by hand while it was running.
   Filter by file (`path:api.ts`), by command (`cmd:"npm test"`), by date in
   plain words (`after:7d`), by agent (`agent:codex`), by git branch
-  (`branch:feature/auth`), by your own tags
-  (`tag:billing`), by tool, model, project or error — or click a **refine
-  chip** to narrow by what the results actually contain. Flip to a
+  (`branch:feature/auth`), by MCP server (`server:playwright`), by your own
+  tags (`tag:billing`), by tool, model, project or error — or click a
+  **refine chip** to narrow by what the results actually contain. MCP calls
+  read as "server · tool" everywhere, not their mangled wire names, and
+  `tool:` matches the bare tool half without you typing the `mcp__` prefix. Flip to a
   **timeline** to see when a topic kept coming up, or build the opt-in **deep
   search** index to match inside words — `eWebSock` finds `useWebSocket`.
   Also from the terminal: `turnlog search <query>` prints hits with deep

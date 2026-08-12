@@ -23,6 +23,7 @@ import {
   fmtCount,
   fmtDate,
   fmtTime,
+  mcpName,
   projectName,
   sessionName,
   startOfDay,
@@ -66,7 +67,7 @@ function Snippet({ text }: { text: string }) {
 
 function kindLabel(hit: SearchHit, tool: string): string {
   if (hit.kind === 'tool_use' || hit.kind === 'tool_result') {
-    return hit.toolName ?? hit.kind.replace('_', ' ');
+    return hit.toolName ? mcpName(hit.toolName) : hit.kind.replace('_', ' ');
   }
   if (hit.kind === 'prompt') return 'you';
   if (hit.kind === 'assistant') return agentInfo(tool).label;
@@ -330,6 +331,7 @@ export default function Search({
     ? [
         ...search.data.facets.agents,
         ...search.data.facets.branches,
+        ...search.data.facets.servers,
         ...search.data.facets.tools,
         ...search.data.facets.kinds,
         ...search.data.facets.projects,

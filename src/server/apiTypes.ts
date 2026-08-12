@@ -169,6 +169,8 @@ export interface SearchFacets {
   agents: SearchFacet[];
   /** Which git branches the matching work happened on. */
   branches: SearchFacet[];
+  /** Which MCP servers the matching calls went to (parsed from mcp__…). */
+  servers: SearchFacet[];
 }
 
 export interface SearchAggregates {

@@ -38,11 +38,11 @@ beforeEach(() => {
 describe('Indexer', () => {
   it('indexes the whole corpus with correct aggregates', async () => {
     const summary = await indexer.scanAll();
-    expect(summary.filesSeen).toBe(6);
+    expect(summary.filesSeen).toBe(7);
     expect(summary.errors).toEqual([]);
 
     const count = db.prepare('SELECT COUNT(*) AS n FROM sessions').get() as { n: number };
-    expect(count.n).toBe(6);
+    expect(count.n).toBe(7);
 
     const a = sessionRow(SESSION_A);
     expect(a.event_count).toBe(26);
@@ -256,7 +256,7 @@ describe('Indexer', () => {
     await indexer.scanAll();
     const before = db.prepare('SELECT COUNT(*) AS n FROM messages').get() as { n: number };
     const summary = await indexer.rebuild();
-    expect(summary.filesSeen).toBe(6);
+    expect(summary.filesSeen).toBe(7);
     const after = db.prepare('SELECT COUNT(*) AS n FROM messages').get() as { n: number };
     expect(after.n).toBe(before.n);
   });
