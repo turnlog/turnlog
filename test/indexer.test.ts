@@ -141,6 +141,29 @@ describe('Indexer', () => {
     expect(searchMessages(db, { query: 'useWebSocket' }).totalHits).toBeGreaterThan(0);
   });
 
+  it('truncates the WAL on live file events too, throttled per connection', async () => {
+    const { checkpointWalThrottled } = await import('../src/indexer/db.js');
+    const wal = `${db.name}-wal`;
+    await indexer.scanAll();
+    expect(fs.statSync(wal).size).toBeGreaterThan(0); // the scan lives in the log
+
+    // First call on a fresh connection runs immediately — a server left
+    // running with only live sessions must not wait for a scan that never
+    // comes (the log regrowing between restarts is the bug this closes).
+    checkpointWalThrottled(db);
+    const truncated = fs.statSync(wal).size;
+
+    db.exec('CREATE TABLE _throttle_probe (x); INSERT INTO _throttle_probe VALUES (1)');
+    const grown = fs.statSync(wal).size;
+    expect(grown).toBeGreaterThan(truncated);
+
+    // Inside the window the second call must hold: one cheap attempt a
+    // minute, not one truncation per appended line.
+    checkpointWalThrottled(db);
+    expect(fs.statSync(wal).size).toBe(grown);
+    expect(searchMessages(db, { query: 'useWebSocket' }).totalHits).toBeGreaterThan(0);
+  });
+
   it('prefers per-message costUSD recorded by older CC versions', async () => {
     await indexer.scanAll();
     expect(sessionRow(SESSION_B).cost_usd).toBeCloseTo(0.0345);

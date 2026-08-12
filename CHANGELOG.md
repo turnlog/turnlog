@@ -32,6 +32,15 @@ All notable changes to Turnlog are documented here. The format follows
   npx turnlog skill > ~/.claude/skills/turnlog/SKILL.md
   ```
 
+### Fixed
+
+- **The write-ahead log is truncated as live sessions index, not only at
+  scans.** 0.12.2 truncated it after full indexing passes — but a server left
+  running sees a full pass only at launch, so hours of live session activity
+  regrew the log until the next restart. Live updates now truncate it too, at
+  most once a minute, which keeps a long-running server's footprint flat
+  instead of sawtoothing between launches.
+
 ## [0.12.2] — 2026-08-10
 
 ### Fixed

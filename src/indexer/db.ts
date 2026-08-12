@@ -26,6 +26,24 @@ export function checkpointWal(db: Database.Database): void {
   }
 }
 
+const WAL_TRUNCATE_EVERY_MS = 60_000;
+const lastTruncate = new WeakMap<Database.Database, number>();
+
+/**
+ * checkpointWal, at most once a minute per connection. Live file events are
+ * the one write path with no full pass behind it — without this, a server
+ * left running with active sessions regrows the WAL until the next restart,
+ * which is the disease the unconditional checkpoints cure for scans. The
+ * stamp advances even when the checkpoint loses to a reader, so a busy index
+ * gets one cheap attempt a minute instead of one per append.
+ */
+export function checkpointWalThrottled(db: Database.Database): void {
+  const now = Date.now();
+  if (now - (lastTruncate.get(db) ?? 0) < WAL_TRUNCATE_EVERY_MS) return;
+  lastTruncate.set(db, now);
+  checkpointWal(db);
+}
+
 /**
  * The index's real footprint — the database plus its `-wal` and `-shm`
  * sidecars. Page math (`page_count × page_size`) measures the main file only,
