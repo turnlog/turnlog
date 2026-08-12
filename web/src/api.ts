@@ -134,7 +134,7 @@ export function revealSession(id: string): void {
 }
 
 export interface SessionsQuery {
-  sort?: 'started_at' | 'ended_at' | 'cost_usd' | 'event_count' | 'tokens';
+  sort?: 'started_at' | 'ended_at' | 'cost_usd' | 'event_count' | 'tokens' | 'notable';
   dir?: 'asc' | 'desc';
   project?: string;
   /** Drop sessions with nothing in them (0 turns or 0 tokens, no cost). */

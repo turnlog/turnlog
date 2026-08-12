@@ -49,6 +49,16 @@ All notable changes to Turnlog are documented here. The format follows
   npx turnlog skill > ~/.claude/skills/turnlog/SKILL.md
   ```
 
+- **A "notable" sort — your important sessions, derived.** Pins, notes, tags
+  and bookmarks all exist, and if you are like most people (including the
+  person who built them) you have used them nine times in eighteen months.
+  Mechanical signals do what manual curation does not, so the sidebar gains a
+  sort that ranks sessions by what the index already knows: length, cost,
+  error count, and how many other sessions touched the same files — each as a
+  percentile, summed. No model, no setup, nothing leaves your machine. Pins
+  still outrank everything: a pin is the one notability signal you stated
+  outright.
+
 - **MCP calls stop being second-class citizens.** Agents get more MCP-driven
   every release, and every one of those calls displayed as its wire name —
   `mcp__Claude_Preview__preview_eval` — with the server welded onto the tool.

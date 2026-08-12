@@ -123,6 +123,80 @@ export interface ListSessionsQuery {
   collapseChains?: boolean;
 }
 
+/**
+ * Notability, derived — counted on the real index, the entire manual
+ * curation layer holds nine rows after four releases of pins, notes, tags
+ * and bookmarks, while the spine's derived summary is the most-used thing
+ * in the app. Manual curation does not happen; mechanical signals do. So
+ * "my important sessions" is computed from what the index already knows:
+ *
+ *  - length (event_count) — effort spent
+ *  - cost — model time spent
+ *  - error count — the debugging slogs are the sessions you go back to
+ *  - reach — how many OTHER sessions touched the same files: work in the
+ *    part of the codebase you keep returning to
+ *
+ * Each signal contributes its percentile rank across root sessions (0..1),
+ * and the score is their sum — no units to weigh against each other, no
+ * tuned constants, no model. A session is notable when it is unusual on
+ * several axes at once, which a rule this simple can honestly claim.
+ */
+export function notabilityScores(db: Database.Database): Map<string, number> {
+  const roots = db
+    .prepare(
+      `SELECT id, event_count AS events, COALESCE(cost_usd, 0) AS cost
+         FROM sessions WHERE parent_session_id IS NULL`,
+    )
+    .all() as { id: string; events: number; cost: number }[];
+
+  const errors = new Map<string, number>(
+    (
+      db
+        .prepare(
+          `SELECT COALESCE(s.parent_session_id, s.id) AS root, COUNT(*) AS n
+             FROM messages m JOIN sessions s ON s.id = m.session_id
+            WHERE m.is_error = 1 GROUP BY root`,
+        )
+        .all() as { root: string; n: number }[]
+    ).map((r) => [r.root, r.n]),
+  );
+  const reach = new Map<string, number>(
+    (
+      db
+        .prepare(
+          `SELECT ra AS root, COUNT(DISTINCT rb) AS n FROM (
+             SELECT COALESCE(sa.parent_session_id, sa.id) AS ra,
+                    COALESCE(sb.parent_session_id, sb.id) AS rb
+               FROM files_touched fa
+               JOIN sessions sa ON sa.id = fa.session_id
+               JOIN files_touched fb ON fb.path = fa.path
+               JOIN sessions sb ON sb.id = fb.session_id
+              WHERE COALESCE(sa.parent_session_id, sa.id) <> COALESCE(sb.parent_session_id, sb.id)
+           ) GROUP BY ra`,
+        )
+        .all() as { root: string; n: number }[]
+    ).map((r) => [r.root, r.n]),
+  );
+
+  // Percentile rank per signal: ties share the rank of their first
+  // occurrence, so identical values contribute identically.
+  const scores = new Map<string, number>();
+  const addRanks = (value: (r: (typeof roots)[number]) => number) => {
+    const sorted = [...roots].sort((a, b) => value(a) - value(b));
+    const denom = Math.max(1, sorted.length - 1);
+    let rank = 0;
+    for (let i = 0; i < sorted.length; i++) {
+      if (i > 0 && value(sorted[i]!) !== value(sorted[i - 1]!)) rank = i;
+      scores.set(sorted[i]!.id, (scores.get(sorted[i]!.id) ?? 0) + rank / denom);
+    }
+  };
+  addRanks((r) => r.events);
+  addRanks((r) => r.cost);
+  addRanks((r) => errors.get(r.id) ?? 0);
+  addRanks((r) => reach.get(r.id) ?? 0);
+  return scores;
+}
+
 export function listSessions(db: Database.Database, q: ListSessionsQuery): SessionListResponse {
   const sort = SORTABLE[q.sort ?? ''] ?? 'started_at';
   const dir = q.dir === 'asc' ? 'ASC' : 'DESC';
@@ -186,6 +260,25 @@ export function listSessions(db: Database.Database, q: ListSessionsQuery): Sessi
     );
   }
   const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
+
+  // Notability is a derived rank, not a column — fetch the filtered set,
+  // order it in JS, and page there. Pins still outrank everything: a pin is
+  // the one notability signal the user stated outright.
+  if (q.sort === 'notable') {
+    const all = db
+      .prepare(`SELECT ${SESSION_COLUMNS} FROM ${SESSIONS_JOINED} ${where}`)
+      .all(...params)
+      .map(rowToSession);
+    const score = notabilityScores(db);
+    const flip = dir === 'ASC' ? -1 : 1;
+    all.sort(
+      (a, b) =>
+        (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) ||
+        flip * ((score.get(b.id) ?? 0) - (score.get(a.id) ?? 0)) ||
+        (b.endedAt ?? b.startedAt ?? '').localeCompare(a.endedAt ?? a.startedAt ?? ''),
+    );
+    return { sessions: all.slice(offset, offset + limit), total: all.length };
+  }
 
   const rows = db
     .prepare(

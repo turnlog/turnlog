@@ -125,6 +125,10 @@ time it starts, once nothing is holding the old file.
   grammar, in the UI, the CLI and over MCP.
 - **Bookmarks** — mark any moment in a replay, give it a caption in your own
   words, and find every marked moment later on one page.
+- **Notable sessions, derived** — a sidebar sort that ranks your history by
+  what the index already knows: length, cost, errors hit, and how many other
+  sessions touched the same files. "My important sessions" without the
+  homework of pinning them — and pins still outrank it when you do.
 - **Screenshots** — images you pasted to an agent, and screenshots tools
   handed back, render inline in the replay. They were always in your logs;
   now you can see them.

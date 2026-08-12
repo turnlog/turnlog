@@ -17,6 +17,12 @@ Filter by name in the always-visible field. Project, tag, sort, direction and
 "hide empty" live behind the tuning button, with a dot on it when a hidden filter is
 narrowing the list — a filtered sidebar is never a silent mystery.
 
+One sort is not a column: **notable**. It ranks sessions by what the index already
+knows — length, cost, error count, and how many other sessions touched the same files —
+each as a percentile, summed. No model, nothing to fill in; it is "my important
+sessions" for the history you never got around to pinning. Pins still outrank it: a pin
+is the one notability signal you stated outright.
+
 Collapse it and it becomes a rail of session tiles, in the same order, with the same
 filters applied. A pinned session keeps its mark; the one you are reading keeps its bar;
 anything touched in the last five minutes keeps its live dot.
