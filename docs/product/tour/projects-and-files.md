@@ -1,9 +1,9 @@
 ---
-title: "Projects & files"
-description: "One page per repo across every agent, and the history of a single file across every session that touched it."
+title: "Projects, files & commands"
+description: "One page per repo across every agent, the history of a single file across every session that touched it, and every command any agent ever ran."
 ---
 
-# Projects & files
+# Projects, files & commands
 
 ## Projects
 
@@ -38,3 +38,16 @@ file-history screen is one click from any diff via **history across sessions**.
 
 If you set [`editorCommand`](/docs/reference/settings), a button opens the real file in
 your editor. It can only open paths that appear in that session's own file list.
+
+## Commands
+
+Commands are 40% of everything agents do, so they get the same treatment as files: the
+Commands screen groups every command any agent ever ran — Claude Code's `Bash`, Codex's
+shell calls, Cursor's terminal tool — across all sessions. Paths, ids and numbers are
+normalized away so reruns of the same command fold together, each group carries run and
+failure counts, and expanding a session shows the verbatim runs with a jump to each
+one's place in the replay.
+
+`cmd:"npm test"` narrows any search the same way — it composes with the whole
+[operator grammar](/docs/reference/search-operators), in the UI, `turnlog search`, and
+the MCP `search` tool.

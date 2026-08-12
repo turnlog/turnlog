@@ -32,6 +32,7 @@ export type Route =
   | { name: 'whatsnew' }
   | { name: 'design' }
   | { name: 'files'; query: string; path: string | null; find: string }
+  | { name: 'commands'; query: string; sig: string | null }
   | { name: 'project'; projectKey: string }
   | { name: 'bookmarks' }
   | { name: 'projects' };
@@ -93,6 +94,13 @@ export function parseRoute(hash: string): Route {
       find: params.get('find') ?? '',
     };
   }
+  if (path === '/commands') {
+    return {
+      name: 'commands',
+      query: params.get('q') ?? '',
+      sig: params.get('sig'),
+    };
+  }
   return { name: 'library' };
 }
 
@@ -137,4 +145,12 @@ export function filesHash(opts: { q?: string; path?: string; find?: string } = {
   if (opts.find) params.set('find', opts.find);
   const qs = params.toString();
   return `#/files${qs ? `?${qs}` : ''}`;
+}
+
+export function commandsHash(opts: { q?: string; sig?: string } = {}): string {
+  const params = new URLSearchParams();
+  if (opts.q) params.set('q', opts.q);
+  if (opts.sig) params.set('sig', opts.sig);
+  const qs = params.toString();
+  return `#/commands${qs ? `?${qs}` : ''}`;
 }

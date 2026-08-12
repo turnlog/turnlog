@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import Database from 'better-sqlite3';
 
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 15;
 
 export function openDb(path: string): Database.Database {
   const db = new Database(path);
@@ -299,6 +299,20 @@ function migrate(db: Database.Database): void {
       ALTER TABLE messages ADD COLUMN git_branch TEXT;
       ALTER TABLE sessions ADD COLUMN branch TEXT;
       CREATE INDEX idx_messages_branch ON messages(git_branch) WHERE git_branch IS NOT NULL;
+    `);
+  }
+
+  if (version < 15) {
+    // The shell command a tool_use ran — 40% of all tool calls, previously
+    // findable only as free text inside the input JSON. The partial index
+    // carries the Commands screen's aggregation; the pairing index carries
+    // exit-status lookups (tool_result by (session, tool_use_id)), which the
+    // lenses were doing by scan. Backfilled by the adapter bumps alongside.
+    db.exec(`
+      ALTER TABLE messages ADD COLUMN command TEXT;
+      CREATE INDEX idx_messages_command ON messages(command) WHERE command IS NOT NULL;
+      CREATE INDEX idx_messages_pairing ON messages(session_id, tool_use_id)
+        WHERE tool_use_id IS NOT NULL;
     `);
   }
 

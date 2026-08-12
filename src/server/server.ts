@@ -11,6 +11,8 @@ import {
   createSavedSearch,
   deleteSavedSearch,
   getDiskUsage,
+  getCommandHistory,
+  getCommands,
   getFileHistory,
   getIndexHealth,
   getPrefs,
@@ -691,6 +693,21 @@ function handleApi(ctx: ServerContext, url: URL, res: http.ServerResponse): void
   }
   if (p === '/api/live') {
     return sendJson(res, 200, getLiveSessions(db, { limit: numParam(q, 'limit') }));
+  }
+  if (p === '/api/commands') {
+    return sendJson(
+      res,
+      200,
+      getCommands(db, {
+        filter: q.get('filter') ?? undefined,
+        limit: numParam(q, 'limit'),
+      }),
+    );
+  }
+  if (p === '/api/commands/history') {
+    const sig = q.get('sig');
+    if (sig === null || sig === '') return sendJson(res, 400, { error: 'sig required' });
+    return sendJson(res, 200, getCommandHistory(db, sig));
   }
   if (p === '/api/files/history') {
     const filePath = q.get('path');

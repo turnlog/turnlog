@@ -77,6 +77,7 @@ export function normalizeCursorCli(obj: any, raw: string, fallbackId: string): N
     costUsd: null,
     cwd: null,
     gitBranch: null,
+    command: null,
     filesTouched: [],
     raw,
   };
@@ -116,6 +117,12 @@ export function normalizeCursorCli(obj: any, raw: string, fallbackId: string): N
         // whichever path-ish input field is present.
         const name = str(block.name) ?? '';
         const input = block.input;
+        // Terminal runs: run_terminal_cmd today, but the name churns like the
+        // edit tools' do — any *_cmd/*terminal* tool carrying a string
+        // `command` is one.
+        if (rec.command === null && /terminal|_cmd$|^bash$/i.test(name)) {
+          rec.command = str(input?.command);
+        }
         const filePath =
           str(input?.file_path) ?? str(input?.path) ?? str(input?.target_file);
         if (filePath && EDIT_TOOL_RE.test(name)) {

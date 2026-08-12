@@ -116,8 +116,8 @@ export class Indexer {
       `INSERT OR IGNORE INTO messages
          (uuid, session_id, parent_uuid, idx, role, kind, tool_name, tool_use_id, ts,
           is_sidechain, is_error, tokens_in, tokens_out, cache_read_tokens, cache_write_tokens,
-          cost_usd, model, message_id, git_branch, text, raw_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          cost_usd, model, message_id, git_branch, command, text, raw_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     this.insFts = db.prepare(`INSERT INTO messages_fts (rowid, text) VALUES (?, ?)`);
     this.insFileTouched = db.prepare(
@@ -217,6 +217,7 @@ export class Indexer {
             rec.model,
             rec.messageId,
             rec.gitBranch,
+            rec.command,
             rec.text,
             rec.raw,
           );

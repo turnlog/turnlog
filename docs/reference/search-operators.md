@@ -23,6 +23,7 @@ and `https://…` never break a query.
 | `model:` | **fragment** | `model:opus` |
 | `project:` | **fragment** | `project:turnlog` |
 | `path:` | **fragment**, over files the session touched | `path:api.ts` |
+| `cmd:` | **fragment**, over the commands tool calls ran | `cmd:"ffmpeg -i"` |
 | `like:` | session id or unique prefix | `like:d987e733` |
 | `is:` | `error`, `pinned` | `is:error` |
 | `has:` | `note`, `bookmark` | `has:note` |

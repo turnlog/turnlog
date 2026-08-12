@@ -9,6 +9,7 @@ import { DiffModeToggle } from '../replay/DiffView';
 import { dirName, EditBody, fileName, groupByFile } from '../replay/Files';
 import { filesHash, navigate, sessionHash } from '../router';
 import type { SessionMeta } from '../types';
+import './files.css';
 
 /**
  * Cross-session file history — "git blame for agent edits". Left: every

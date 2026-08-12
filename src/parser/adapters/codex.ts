@@ -49,6 +49,47 @@ function asRecord(v: unknown): Record<string, unknown> | null {
     : null;
 }
 
+/**
+ * The shell command inside a Codex tool call, or null. Three shapes on real
+ * rollouts: `local_shell_call` carries `action.command` (an argv array —
+ * unwrap the `bash -lc <script>` wrapper, the script is the command); shell
+ * `function_call`s carry the same array (or a plain string) as JSON in
+ * `arguments`; and `exec` calls carry free-form JavaScript whose only
+ * mechanical handle is the `exec_command({...})` argument object. Anything
+ * unrecognized is null, never a guess.
+ */
+function commandFromCall(inputText: string, action: Record<string, unknown> | null): string | null {
+  const fromValue = (v: unknown): string | null => {
+    if (typeof v === 'string') return v === '' ? null : v;
+    if (!Array.isArray(v) || v.length === 0) return null;
+    const parts = v.filter((p): p is string => typeof p === 'string');
+    if (parts.length !== v.length) return null;
+    if (parts.length === 3 && /^(?:bash|sh|zsh)$/.test(parts[0]!) && /^-l?c$/.test(parts[1]!)) {
+      return parts[2]!;
+    }
+    return parts.join(' ');
+  };
+  const direct = fromValue(action?.command);
+  if (direct !== null) return direct;
+  try {
+    const args = JSON.parse(inputText) as unknown;
+    const rec = asRecord(args);
+    const parsed = fromValue(rec?.command) ?? fromValue(rec?.cmd);
+    if (parsed !== null) return parsed;
+  } catch {
+    // Not JSON — likely exec's JavaScript body; try the one known handle.
+  }
+  const exec = /exec_command\((\{.*?\})\)/s.exec(inputText);
+  if (exec) {
+    try {
+      return fromValue(asRecord(JSON.parse(exec[1]!) as unknown)?.cmd);
+    } catch {
+      /* malformed embedded JSON — no command, record intact */
+    }
+  }
+  return null;
+}
+
 /** response_item message content: [{type: 'input_text'|'output_text', text}]. */
 function contentText(content: unknown): string {
   if (typeof content === 'string') return content;
@@ -90,6 +131,7 @@ export function normalizeCodex(
     costUsd: null,
     cwd: state.cwd,
     gitBranch: state.gitBranch,
+    command: null,
     filesTouched: [],
     raw,
   };
@@ -185,6 +227,7 @@ export function normalizeCodex(
           rec.toolName = str(payload?.name) ?? t;
           rec.toolUseId = str(payload?.call_id) ?? str(payload?.id);
           rec.text = str(payload?.input) ?? str(payload?.arguments) ?? '';
+          rec.command = commandFromCall(rec.text, asRecord(payload?.action));
           return rec;
         }
         case 'custom_tool_call_output':

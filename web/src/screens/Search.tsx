@@ -472,7 +472,8 @@ export default function Search({
           narrow with <code>tool:Bash</code> <code>kind:prompt</code> <code>is:error</code>{' '}
           <code>is:pinned</code> <code>has:note</code> <code>has:bookmark</code>{' '}
           <code>project:name</code> <code>model:opus</code> <code>path:api.ts</code>{' '}
-          <code>before:2026-07</code> <code>after:7d</code> <code>after:yesterday</code>
+          <code>cmd:"npm test"</code> <code>before:2026-07</code> <code>after:7d</code>{' '}
+          <code>after:yesterday</code>
           {query !== '' && deepBuilt && (
             <Segmented
               fill="card"

@@ -66,7 +66,7 @@ so \`file.ts:12\` is safe to search.
 \`\`\`
 tool:Bash  kind:prompt  is:error  is:pinned  has:note  has:bookmark
 project:api  model:opus  agent:codex  tag:billing  path:api.ts
-branch:main  like:<session-id>  before:2026-07  after:7d
+branch:main  cmd:"npm test"  like:<session-id>  before:2026-07  after:7d
 \`\`\`
 
 Values with spaces take quotes: \`tag:"needs review"\`. Dates accept \`7d\`,

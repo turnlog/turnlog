@@ -128,6 +128,7 @@ function unknownRecord(raw: string, fallbackId: string): NormalizedRecord {
     costUsd: null,
     cwd: null,
     gitBranch: null,
+    command: null,
     filesTouched: [],
     raw,
   };

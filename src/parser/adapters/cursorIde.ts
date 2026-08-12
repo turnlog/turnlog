@@ -95,6 +95,7 @@ export function normalizeCursorIde(
     costUsd: null,
     cwd: env.cwd ?? null,
     gitBranch: null,
+    command: null,
     filesTouched: [],
     raw,
   };
@@ -144,6 +145,15 @@ export function normalizeCursorIde(
           rec.toolName = str(tf.name) ?? (tf.tool != null ? `tool:${tf.tool}` : null);
           rec.toolUseId = str(tf.toolCallId) ?? rec.uuid;
           rec.text = str(tf.rawArgs) ?? str(tf.params) ?? '';
+          // Terminal runs — same churn-tolerant name rule as the CLI adapter.
+          if (/terminal|_cmd$|^bash$/i.test(str(tf.name) ?? '')) {
+            try {
+              const params = JSON.parse(str(tf.params) ?? str(tf.rawArgs) ?? '{}');
+              rec.command = str(params?.command);
+            } catch {
+              /* params unreadable — the command is lost, the record is not */
+            }
+          }
           const changeKind = EDIT_TOOLS[str(tf.name) ?? ''];
           if (changeKind) {
             try {

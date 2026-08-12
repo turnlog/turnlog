@@ -345,6 +345,48 @@ export interface FileHistoryResponse {
   sessions: SessionMeta[];
 }
 
+/**
+ * One command across all sessions — the Commands screen's list. Grouped by
+ * commandSignature (paths, ids, numbers and quoted payloads normalized away);
+ * `sample` is the freshest verbatim run of the group.
+ */
+export interface CommandGroup {
+  signature: string;
+  sample: string;
+  runs: number;
+  /** Runs whose paired tool_result reported failure. */
+  fails: number;
+  /** Distinct root sessions that ran it. */
+  sessions: number;
+  projects: number;
+  lastAt: string | null;
+  /** Up to 8 jump targets, one per session. */
+  where: { sessionId: string; idx: number }[];
+}
+
+/** `GET /api/commands?filter=` — grouped command runs across the index. */
+export interface CommandsResponse {
+  commands: CommandGroup[];
+  /** Command runs scanned — the denominator for the grouping. */
+  totalRuns: number;
+  /** Distinct signatures before the limit. */
+  distinct: number;
+}
+
+/** One verbatim run inside a session. */
+export interface CommandRun {
+  command: string;
+  idx: number;
+  ts: string | null;
+  failed: boolean;
+}
+
+/** `GET /api/commands/history?sig=` — every run of one signature, per session. */
+export interface CommandHistoryResponse {
+  signature: string;
+  sessions: { session: SessionMeta; runs: CommandRun[] }[];
+}
+
 /** Bookmarked message idxs for one session (`GET/POST …/bookmarks`). */
 export interface BookmarksResponse {
   sessionId: string;

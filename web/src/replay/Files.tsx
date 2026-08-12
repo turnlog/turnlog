@@ -10,6 +10,7 @@ import type { MessageRow } from '../types';
 import { DiffModeToggle, EditDiff, WriteDiff } from './DiffView';
 import { parseRaw } from './raw';
 import { buildBlocks, type Block } from './thread';
+import '../screens/files.css';
 
 /**
  * The per-file pivot: not the conversation — what the

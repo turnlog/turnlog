@@ -21,6 +21,7 @@
     "costUsd": null,
     "cwd": null,
     "gitBranch": null,
+    "command": null,
     "filesTouched": [],
     "raw": "{\"role\":\"user\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"<user_query>The websocket reconnect backoff resets on every heartbeat — cap it at 30s and keep the counter across heartbeats.</user_query>\"}]}}"
   },
@@ -46,6 +47,7 @@
     "costUsd": null,
     "cwd": null,
     "gitBranch": null,
+    "command": null,
     "filesTouched": [],
     "raw": "{\"role\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"I'll look at the reconnect logic first.\"}]}}"
   },
@@ -71,6 +73,7 @@
     "costUsd": null,
     "cwd": null,
     "gitBranch": null,
+    "command": null,
     "filesTouched": [],
     "raw": "{\"role\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\",\"id\":\"cur_tool_01\",\"name\":\"read_file\",\"input\":{\"path\":\"src/hooks/useWebSocket.ts\"}}]}}"
   },
@@ -96,6 +99,7 @@
     "costUsd": null,
     "cwd": null,
     "gitBranch": null,
+    "command": null,
     "filesTouched": [],
     "raw": "{\"role\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"cur_tool_01\",\"content\":\"const backoff = INITIAL_BACKOFF; // resets here on heartbeat\"}]}}"
   },
@@ -121,6 +125,7 @@
     "costUsd": null,
     "cwd": null,
     "gitBranch": null,
+    "command": null,
     "filesTouched": [],
     "raw": "{\"role\":\"assistant\",\"message\":{\"content\":[{\"type\":\"thinking\",\"thinking\":\"The heartbeat handler recreates the backoff state. Moving it to a ref keeps it across renders.\"},{\"type\":\"text\",\"text\":\"Found it — the heartbeat handler resets the backoff. Moving the counter to a ref and capping the delay.\"}]}}"
   },
@@ -146,6 +151,7 @@
     "costUsd": null,
     "cwd": null,
     "gitBranch": null,
+    "command": null,
     "filesTouched": [
       {
         "path": "src/hooks/useWebSocket.ts",
@@ -176,6 +182,7 @@
     "costUsd": null,
     "cwd": null,
     "gitBranch": null,
+    "command": null,
     "filesTouched": [],
     "raw": "{\"role\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"cur_tool_02\",\"content\":\"edited\",\"is_error\":false}]}}"
   },
@@ -201,6 +208,7 @@
     "costUsd": null,
     "cwd": null,
     "gitBranch": null,
+    "command": null,
     "filesTouched": [],
     "raw": "{\"role\":\"assistant\",\"message\":{\"content\":\"Done. Backoff now caps at 30s and the attempt counter survives heartbeats.\"}}"
   },
@@ -226,6 +234,7 @@
     "costUsd": null,
     "cwd": null,
     "gitBranch": null,
+    "command": null,
     "filesTouched": [],
     "raw": "{\"role\":\"user\",\"message\":{\"content\":\"run the socket tests too please\"}}"
   },
@@ -251,6 +260,7 @@
     "costUsd": null,
     "cwd": null,
     "gitBranch": null,
+    "command": "npm test -- socket",
     "filesTouched": [],
     "raw": "{\"role\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\",\"id\":\"cur_tool_03\",\"name\":\"run_terminal_cmd\",\"input\":{\"command\":\"npm test -- socket\"}}]}}"
   },
@@ -276,6 +286,7 @@
     "costUsd": null,
     "cwd": null,
     "gitBranch": null,
+    "command": null,
     "filesTouched": [],
     "raw": "{\"role\":\"user\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"cur_tool_03\",\"content\":\"12 passed, 0 failed\",\"is_error\":false}]}}"
   },
@@ -301,6 +312,7 @@
     "costUsd": null,
     "cwd": null,
     "gitBranch": null,
+    "command": null,
     "filesTouched": [],
     "raw": "{\"role\":\"assistant\",\"message\":{\"content\":\"All 12 socket tests pass.\"}}"
   },
@@ -326,6 +338,7 @@
     "costUsd": null,
     "cwd": null,
     "gitBranch": null,
+    "command": null,
     "filesTouched": [],
     "raw": "{\"type\":\"session_settings\",\"settings\":{\"model\":\"auto\"}}"
   },
@@ -351,6 +364,7 @@
     "costUsd": null,
     "cwd": null,
     "gitBranch": null,
+    "command": null,
     "filesTouched": [],
     "raw": "{\"role\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"broken json line"
   }

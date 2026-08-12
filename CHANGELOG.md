@@ -8,6 +8,23 @@ All notable changes to Turnlog are documented here. The format follows
 
 ### Added
 
+- **A Commands screen, and a `cmd:` operator.** Commands are 40% of everything
+  your agents do — the most-called tool by a wide margin — and they were the
+  one major dimension without a cross-session home: "what was that ffmpeg
+  invocation I finally got working in March" meant scrolling a session you
+  first had to remember. **Commands** (next to Files in the header) groups
+  every command every agent ever ran — paths, ids and numbers normalized away
+  so reruns fold together — with run counts, failure counts, the sessions that
+  ran each one, and the verbatim runs one click from their place in the
+  replay. `cmd:` joins the query language everywhere it is spoken (UI, CLI,
+  MCP, saved searches): `cmd:"ffmpeg -i" after:2026-03` is now a query. Works
+  for every agent — Claude Code's `Bash`, Codex's shell and exec calls,
+  Cursor's `run_terminal_cmd` — because the command is extracted per adapter
+  into the normalized layer. The commands lens and the spine's command counts
+  read the same field now, so Codex and Cursor shell runs finally show up in
+  both (they were silently Claude-only). Indexes rebuild themselves on first
+  launch after updating.
+
 - **A demo reel in the README** — searching every indexed session for one word,
   then landing inside the matching session at the moment it was said. Recorded
   against `turnlog demo`, so it shows the shipped UI rather than a hand-made

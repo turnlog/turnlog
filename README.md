@@ -87,8 +87,8 @@ time it starts, once nothing is holding the old file.
   Subagent transcripts (the separate files newer Claude Code versions write per
   Task run) are indexed too, as is everything the run actually saw — including
   files you attached with `@` and edits you made by hand while it was running.
-  Filter by file (`path:api.ts`), by date in plain
-  words (`after:7d`), by agent (`agent:codex`), by git branch
+  Filter by file (`path:api.ts`), by command (`cmd:"npm test"`), by date in
+  plain words (`after:7d`), by agent (`agent:codex`), by git branch
   (`branch:feature/auth`), by your own tags
   (`tag:billing`), by tool, model, project or error — or click a **refine
   chip** to narrow by what the results actually contain. Flip to a
@@ -114,6 +114,13 @@ time it starts, once nothing is holding the old file.
 - **Lenses & files** — collapse a session to just its diffs, commands, or
   errors; or pivot to a file and read every change it made, in order. Diffs
   read **unified or side-by-side**, your choice, everywhere they appear.
+- **Commands** — 40% of everything your agents do is run commands, so they get
+  their own screen: every command any agent ever ran, grouped across sessions
+  (paths, ids and numbers normalized away, so reruns fold together), with run
+  and failure counts and every verbatim run one click from its place in the
+  replay. "What was that ffmpeg invocation I finally got working in March" is
+  now `cmd:ffmpeg` — an operator like any other, composable with the whole
+  grammar, in the UI, the CLI and over MCP.
 - **Bookmarks** — mark any moment in a replay, give it a caption in your own
   words, and find every marked moment later on one page.
 - **Screenshots** — images you pasted to an agent, and screenshots tools
