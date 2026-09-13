@@ -44,8 +44,9 @@ Two invariants worth knowing, both learned from real data:
 
 ## Server
 
-Bare `node:http` — chosen over a framework to keep runtime dependencies at
-better-sqlite3 and chokidar. Binds loopback only, on a random port, with a per-launch
+Bare `node:http` — chosen over a framework to keep chokidar the only runtime
+dependency; the index lives in Node's built-in SQLite (`node:sqlite`), so
+installing Turnlog compiles, downloads and approves nothing. Binds loopback only, on a random port, with a per-launch
 token required on every request and `Host`/`Origin` validated against localhost.
 
 Everything is `GET` except a short allowlist for your own annotations. The typed API

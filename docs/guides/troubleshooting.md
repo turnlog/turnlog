@@ -71,10 +71,12 @@ sessions that were indexed before it existed.
 
 ## Windows: a leftover `.turnlog-<random>` directory
 
-npm cannot delete the native module while a running Turnlog — or an agent's MCP process —
-has it loaded, so an update can leave the old install behind and warn `EPERM`. The update
-itself succeeded. Turnlog sweeps the leftovers on its next start, when nothing holds them,
-and `doctor` reports any it finds without deleting them.
+Versions up to 0.13.0 carried a native SQLite module, and npm cannot delete it while a
+running Turnlog — or an agent's MCP process — has it loaded, so updating away from one of
+them can leave the old install behind and warn `EPERM`. The update itself succeeded.
+Turnlog sweeps the leftovers on its next start, when nothing holds them, and `doctor`
+reports any it finds without deleting them. Newer versions have no native module, so it
+does not happen again.
 
 ## Nothing works and you want a clean slate
 

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import http from 'node:http';
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import { Indexer } from '../src/indexer/indexer.js';
 import type { IndexDriver } from '../src/indexer/driver.js';
 import { SseHub, startServer } from '../src/server/server.js';
@@ -9,7 +9,7 @@ import { SESSION_A, SESSION_C, SESSION_D, SUBAGENT_D, copyCorpus, testDb, tmpDir
 
 const TOKEN = 'test-token-1234567890abcdef';
 
-let db: Database.Database;
+let db: DatabaseSync;
 let server: http.Server;
 let port: number;
 

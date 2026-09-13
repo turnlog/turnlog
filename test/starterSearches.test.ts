@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import {
   createSavedSearch,
   deleteSavedSearch,
@@ -9,7 +9,7 @@ import {
 } from '../src/server/api.js';
 import { testDb, tmpDir } from './helpers.js';
 
-let db: Database.Database;
+let db: DatabaseSync;
 
 beforeEach(() => {
   db = testDb(tmpDir('turnlog-starter-'));

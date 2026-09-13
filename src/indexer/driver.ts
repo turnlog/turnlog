@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import { checkpointWal, checkpointWalThrottled } from './db.js';
 import { Indexer, type ScanSummary, type IndexProgress, type IndexerOptions } from './indexer.js';
 
@@ -38,7 +38,7 @@ export class InProcessDriver implements IndexDriver {
   private lastSummary: ScanSummary | null = null;
 
   constructor(
-    private readonly db: Database.Database,
+    private readonly db: DatabaseSync,
     opts: IndexerOptions,
   ) {
     this.indexer = new Indexer(db, opts);

@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import {
   getFileHistory,
   getSessionContext,
@@ -23,8 +23,8 @@ import { APP_VERSION } from '../version.js';
  * The protocol layer is hand-rolled on purpose (same reasoning as bare
  * node:http over Fastify): a tools-only MCP server is a small, stable
  * JSON-RPC 2.0 surface — initialize, tools/list, tools/call, ping — and
- * taking the SDK would add the first new runtime dependency chain since
- * better-sqlite3. Newline-delimited JSON on stdin/stdout; nothing here ever
+ * taking the SDK would add a runtime dependency chain to a package that has
+ * exactly one runtime dependency (chokidar). Newline-delimited JSON on stdin/stdout; nothing here ever
  * touches the network.
  */
 
@@ -91,7 +91,7 @@ interface McpTool {
   name: string;
   description: string;
   inputSchema: object;
-  run(db: Database.Database, args: Record<string, unknown>): unknown;
+  run(db: DatabaseSync, args: Record<string, unknown>): unknown;
 }
 
 const MAX_TURNS = 300;
@@ -349,7 +349,7 @@ export const PARSE_ERROR = rpcError(null, -32700, 'parse error');
  * or null when none is due (notifications). Never throws — tool failures
  * become isError tool results, protocol failures become JSON-RPC errors.
  */
-export function handleMcpMessage(db: Database.Database, msg: unknown): object | null {
+export function handleMcpMessage(db: DatabaseSync, msg: unknown): object | null {
   if (typeof msg !== 'object' || msg === null || Array.isArray(msg)) {
     return rpcError(null, -32600, 'invalid request');
   }

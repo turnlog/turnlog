@@ -32,7 +32,7 @@ copy the whole `UI:` line if the browser does not open by itself. Both are delib
 see [Privacy](/docs/product/privacy).
 </Note>
 
-Prefer a global install? `npm i -g turnlog`, then `turnlog`. Node 22 or newer.
+Prefer a global install? `npm i -g turnlog`, then `turnlog`. Node 22.13 or newer.
 
 ## The first run
 

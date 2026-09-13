@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import { Indexer } from '../src/indexer/indexer.js';
 import { getSession, listSessions, searchMessages } from '../src/server/api.js';
 import {
@@ -12,7 +12,7 @@ import {
   tmpDir,
 } from './helpers.js';
 
-let db: Database.Database;
+let db: DatabaseSync;
 let cursorCliDir: string;
 
 beforeAll(async () => {

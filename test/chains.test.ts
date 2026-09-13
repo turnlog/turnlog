@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import { Indexer } from '../src/indexer/indexer.js';
 import { getSessionChain, getSpend, listSessions, setSessionMeta } from '../src/server/api.js';
 import { testDb, tmpDir } from './helpers.js';
@@ -61,7 +61,7 @@ function sharedHistory(sid: string): string {
   );
 }
 
-let db: Database.Database;
+let db: DatabaseSync;
 let projectsDir: string;
 let indexer: Indexer;
 

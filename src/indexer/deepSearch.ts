@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 
 /**
  * Deep search — the opt-in trigram index.
@@ -24,14 +24,14 @@ import type Database from 'better-sqlite3';
 /** Trigram matching needs three characters; shorter queries can't be served. */
 export const DEEP_MIN_CHARS = 3;
 
-export function hasDeepIndex(db: Database.Database): boolean {
+export function hasDeepIndex(db: DatabaseSync): boolean {
   const row = db
     .prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'messages_trigram'`)
     .get();
   return row !== undefined;
 }
 
-function createTriggers(db: Database.Database): void {
+function createTriggers(db: DatabaseSync): void {
   db.exec(`
     CREATE TRIGGER messages_trigram_ai AFTER INSERT ON messages BEGIN
       INSERT INTO messages_trigram (rowid, text) VALUES (new.rowid, new.text);
@@ -43,7 +43,7 @@ function createTriggers(db: Database.Database): void {
   `);
 }
 
-function dropTriggers(db: Database.Database): void {
+function dropTriggers(db: DatabaseSync): void {
   db.exec(`
     DROP TRIGGER IF EXISTS messages_trigram_ai;
     DROP TRIGGER IF EXISTS messages_trigram_ad;
@@ -54,7 +54,7 @@ function dropTriggers(db: Database.Database): void {
  * Build the trigram index from the messages already indexed, then keep it in
  * step via triggers. Safe to call when it already exists — it rebuilds.
  */
-export function buildDeepIndex(db: Database.Database): void {
+export function buildDeepIndex(db: DatabaseSync): void {
   db.exec(`
     CREATE VIRTUAL TABLE IF NOT EXISTS messages_trigram USING fts5(
       text,
@@ -70,7 +70,7 @@ export function buildDeepIndex(db: Database.Database): void {
   createTriggers(db);
 }
 
-export function dropDeepIndex(db: Database.Database): void {
+export function dropDeepIndex(db: DatabaseSync): void {
   dropTriggers(db);
   db.exec(`DROP TABLE IF EXISTS messages_trigram;`);
 }
@@ -86,7 +86,7 @@ export function dropDeepIndex(db: Database.Database): void {
  *
  * Returns whether deep search was on, to hand back to `resumeDeepIndex`.
  */
-export function suspendDeepIndex(db: Database.Database): boolean {
+export function suspendDeepIndex(db: DatabaseSync): boolean {
   if (!hasDeepIndex(db)) return false;
   dropTriggers(db);
   db.exec(`INSERT INTO messages_trigram (messages_trigram) VALUES ('delete-all');`);
@@ -94,6 +94,6 @@ export function suspendDeepIndex(db: Database.Database): boolean {
 }
 
 /** Reinstate the triggers after a bulk wipe; the re-scan then repopulates. */
-export function resumeDeepIndex(db: Database.Database, wasActive: boolean): void {
+export function resumeDeepIndex(db: DatabaseSync, wasActive: boolean): void {
   if (wasActive) createTriggers(db);
 }

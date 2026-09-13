@@ -2,13 +2,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 /**
- * npm's failed-cleanup droppings. On Windows, `npm i -g turnlog` cannot
- * delete the OLD install while its native addon is loaded (a running server,
- * or the MCP process an agent keeps alive), so npm renames it to
- * `node_modules/.turnlog-<random>`, fails the unlink, and warns. By the next
- * launch that old process is gone and the dir is deletable — so the app
- * sweeps its own install's siblings on start. Deliberately NOT done at
- * install time: no postinstall scripts, ever.
+ * npm's failed-cleanup droppings. Versions up to 0.13 shipped a native
+ * SQLite addon, and on Windows `npm i -g turnlog` cannot delete an OLD
+ * install while a running server (or the MCP process an agent keeps alive)
+ * has that addon loaded, so npm renames it to `node_modules/.turnlog-<random>`,
+ * fails the unlink, and warns. By the next launch that old process is gone
+ * and the dir is deletable — so the app sweeps its own install's siblings on
+ * start. Kept for the upgrade away from those versions; deliberately NOT
+ * done at install time: no install scripts, ever.
  */
 
 /** Leftover update dirs beside this install; [] when not npm-installed

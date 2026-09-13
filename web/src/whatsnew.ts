@@ -18,6 +18,24 @@ export interface ReleaseNotes {
 
 export const RELEASES: ReleaseNotes[] = [
   {
+    version: '0.13.1',
+    date: '2026-09-13',
+    notes: [
+      {
+        kind: 'fixed',
+        text: 'Installing with npm 12 produced a Turnlog that died on its first command with "Could not locate the bindings file". npm 12 no longer runs install scripts by default, and the SQLite module Turnlog used needed one to fetch its native binary. Turnlog now uses the SQLite built into Node itself: nothing to compile, download or approve, on any npm version.',
+      },
+      {
+        kind: 'improved',
+        text: 'No native module means updating on Windows can no longer trip the EPERM cleanup warning — there is no loaded library for npm to fight over. Updating from 0.13.0 or older may show it one last time; the update still succeeds.',
+      },
+      {
+        kind: 'improved',
+        text: 'Your index is untouched by the switch: the same file opens as before, and search, replay and spend read exactly what they did. Node.js 22.13 or newer is now required.',
+      },
+    ],
+  },
+  {
     version: '0.13.0',
     date: '2026-08-12',
     notes: [

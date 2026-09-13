@@ -1,3 +1,4 @@
+import './sqliteWarning.js';
 import { parentPort, workerData } from 'node:worker_threads';
 import { checkpointWal, checkpointWalThrottled, openDb } from './db.js';
 import { Indexer, type IndexProgress } from './indexer.js';

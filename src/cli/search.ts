@@ -1,5 +1,5 @@
 import path from 'node:path';
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import { searchMessages } from '../server/api.js';
 import { SNIPPET_CLOSE, SNIPPET_OPEN } from '../server/apiTypes.js';
 import type { SessionMeta } from '../server/apiTypes.js';
@@ -34,7 +34,7 @@ function sessionLabel(s: SessionMeta): string {
 }
 
 export function renderSearch(
-  db: Database.Database,
+  db: DatabaseSync,
   query: string,
   opts: SearchCliOptions = {},
 ): string {

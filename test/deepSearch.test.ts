@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import { Indexer } from '../src/indexer/indexer.js';
 import {
   buildDeepIndex,
@@ -22,7 +22,7 @@ import { copyCodexCorpus, copyCorpus, testDb, tmpDir } from './helpers.js';
  * failing loudly, so drift has to be asserted, not assumed.
  */
 
-function trigramCount(db: Database.Database, needle: string): number {
+function trigramCount(db: DatabaseSync, needle: string): number {
   const row = db
     .prepare(`SELECT count(*) c FROM messages_trigram WHERE messages_trigram MATCH ?`)
     .get(needle) as { c: number };
@@ -30,7 +30,7 @@ function trigramCount(db: Database.Database, needle: string): number {
 }
 
 /** Rows the twin holds vs rows it should hold. */
-function integrity(db: Database.Database): { indexed: number; messages: number } {
+function integrity(db: DatabaseSync): { indexed: number; messages: number } {
   const indexed = (
     db.prepare(`SELECT count(*) c FROM messages_trigram`).get() as { c: number }
   ).c;
@@ -38,7 +38,7 @@ function integrity(db: Database.Database): { indexed: number; messages: number }
   return { indexed, messages };
 }
 
-let db: Database.Database;
+let db: DatabaseSync;
 let projectsDir: string;
 let codexDir: string;
 

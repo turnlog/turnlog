@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import { Indexer } from '../src/indexer/indexer.js';
+import { databasePath, pragma } from '../src/indexer/sqlite.js';
 import { listSessions, searchMessages } from '../src/server/api.js';
 import { ADAPTER_VERSION } from '../src/version.js';
 import {
@@ -18,7 +19,7 @@ import {
 } from './helpers.js';
 
 let projectsDir: string;
-let db: Database.Database;
+let db: DatabaseSync;
 let indexer: Indexer;
 
 function sessionRow(id: string): any {
@@ -122,7 +123,7 @@ describe('Indexer', () => {
 
   it('reports the WAL in the index size, and truncates it after a scan', async () => {
     const { checkpointWal, indexBytes } = await import('../src/indexer/db.js');
-    const wal = `${db.name}-wal`;
+    const wal = `${databasePath(db)}-wal`;
     await indexer.scanAll();
 
     // The scan's writes are on disk in the log, so the footprint must count
@@ -130,8 +131,8 @@ describe('Indexer', () => {
     const walBytes = fs.statSync(wal).size;
     expect(indexBytes(db)).toBeGreaterThanOrEqual(walBytes);
     const pageBytes =
-      (db.pragma('page_count', { simple: true }) as number) *
-      (db.pragma('page_size', { simple: true }) as number);
+      (pragma(db, 'page_count') as number) *
+      (pragma(db, 'page_size') as number);
     expect(indexBytes(db)).toBeGreaterThanOrEqual(pageBytes);
 
     // And a checkpoint must actually shrink it — without one it only grows.
@@ -143,7 +144,7 @@ describe('Indexer', () => {
 
   it('truncates the WAL on live file events too, throttled per connection', async () => {
     const { checkpointWalThrottled } = await import('../src/indexer/db.js');
-    const wal = `${db.name}-wal`;
+    const wal = `${databasePath(db)}-wal`;
     await indexer.scanAll();
     expect(fs.statSync(wal).size).toBeGreaterThan(0); // the scan lives in the log
 

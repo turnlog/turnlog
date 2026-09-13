@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import Database from 'better-sqlite3';
+import { columnText, openSqlite, type DatabaseSync } from './sqlite.js';
 import type { CursorIdeEnvelope } from '../parser/adapters/cursorIde.js';
 
 /**
@@ -124,7 +124,7 @@ function folderUriToPath(uri: unknown): string | null {
 }
 
 /** Copy a DB (+ sidecar -wal) to the scratch dir and open readonly. */
-function openCopy(dbPath: string, scratch: string, tag: string): Database.Database | null {
+function openCopy(dbPath: string, scratch: string, tag: string): DatabaseSync | null {
   try {
     const copy = path.join(scratch, `${tag}.vscdb`);
     fs.copyFileSync(dbPath, copy);
@@ -135,7 +135,7 @@ function openCopy(dbPath: string, scratch: string, tag: string): Database.Databa
         /* no sidecar — checkpointed DB */
       }
     }
-    return new Database(copy, { readonly: true, fileMustExist: true });
+    return openSqlite(copy, { readOnly: true });
   } catch {
     return null;
   }
@@ -163,8 +163,8 @@ function readWorkspaceMap(userDir: string, scratch: string): Map<string, string>
     try {
       const row = db
         .prepare(`SELECT value FROM ItemTable WHERE key = 'composer.composerData'`)
-        .get() as { value: string | Buffer } | undefined;
-      const data = parseJson(row?.value?.toString());
+        .get() as { value: unknown } | undefined;
+      const data = parseJson(columnText(row?.value));
       const all = Array.isArray(data?.allComposers) ? (data.allComposers as unknown[]) : [];
       for (const c of all) {
         const id = (c as Record<string, unknown>)?.composerId;
@@ -213,12 +213,12 @@ export function extractCursorIdeComposers(userDir: string): CursorIdeComposer[] 
           `SELECT key, value FROM cursorDiskKV
            WHERE key LIKE 'composerData:%' OR key LIKE 'bubbleId:%'`,
         )
-        .all() as Array<{ key: string; value: string | Buffer | null }>;
+        .all() as Array<{ key: string; value: unknown }>;
 
       const composers = new Map<string, Record<string, unknown>>();
       const bubbles = new Map<string, Map<string, Record<string, unknown>>>();
       for (const row of rows) {
-        const data = parseJson(row.value?.toString());
+        const data = parseJson(columnText(row.value));
         if (!data) continue;
         if (row.key.startsWith('composerData:')) {
           composers.set(row.key.slice('composerData:'.length), data);

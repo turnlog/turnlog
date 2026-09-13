@@ -31,8 +31,10 @@ npx turnlog          # try it now — indexes everything, opens the UI
 npm i -g turnlog     # or install globally
 ```
 
-Requires **Node.js 22+** (the runtime your agent CLI already runs on).
-macOS, Linux, Windows. No build step, no installer, no postinstall scripts.
+Requires **Node.js 22.13+** (the runtime your agent CLI already runs on).
+macOS, Linux, Windows. No build step, no installer, no install scripts, no
+native modules: the index lives in the SQLite that ships inside Node, so
+there is nothing to compile, download, or approve.
 
 ### Opening the UI
 
@@ -64,14 +66,15 @@ URL, not just `127.0.0.1:<port>`.
   port-forwarding from a remote machine: `ssh -L 52431:127.0.0.1:52431 …`).
 - `Ctrl-C` stops the server.
 
-### Updating on Windows
+### Updating from 0.13.0 or older on Windows
 
-If `npm i -g turnlog@latest` prints an `EPERM … better_sqlite3.node` cleanup
-warning, the update still succeeded: a running Turnlog (or the MCP process
-your agent keeps alive) had the old native module loaded, and Windows won't
-delete a loaded library. npm leaves the old copy behind as a
-`.turnlog-<random>` directory — Turnlog removes it automatically the next
-time it starts, once nothing is holding the old file.
+Those versions carried a native SQLite module, and Windows won't delete a
+loaded library: if a Turnlog (or the MCP process your agent keeps alive) was
+running, `npm i -g turnlog@latest` prints an `EPERM … better_sqlite3.node`
+cleanup warning. The update still succeeded. npm leaves the old copy behind
+as a `.turnlog-<random>` directory, and Turnlog removes it automatically the
+next time it starts. Newer versions have no native module, so that was the
+last time.
 
 ## What it does
 
