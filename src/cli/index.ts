@@ -584,8 +584,6 @@ async function runSearch(
  */
 async function runMcp(dirs: SourceDirs): Promise<void> {
   const db = openDb(dbPath());
-  // The main app may be running and writing; wait out its locks briefly.
-  db.pragma('busy_timeout = 5000');
 
   const known = (db.prepare(`SELECT COUNT(*) AS n FROM sessions`).get() as { n: number }).n;
   if (known === 0) {

@@ -4,6 +4,27 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.1] — 2026-09-13
+
+### Changed
+
+- **The index now lives in Node's built-in SQLite — no native module, no
+  install script.** Turnlog used better-sqlite3, a compiled addon that npm
+  fetched at install time through an install script. npm 12 blocks dependency
+  install scripts by default, so on it `npx turnlog` installed cleanly and then
+  died on first use with *Could not locate the bindings file* (reported on
+  GitHub, Windows 11 + Node 22 + npm 12). The addon's newer releases need no
+  script but cannot install on Windows under npm 10 or 11 without a C++
+  toolchain, so no version of it worked on both sides of that line.
+  `node:sqlite` ships inside Node: nothing to compile, download, or approve,
+  on any npm. The index file, schema, FTS5 search and WAL mode are unchanged —
+  an existing index opens as it is. Node 22.13 is the new floor (where
+  `node:sqlite` left its experimental flag behind); the one experimental
+  notice Node 22 still prints is silenced, and Node 24 prints none. On
+  Windows, updates can no longer trip the `EPERM` cleanup warning, since there
+  is no loaded library for npm to fight — updating *from* 0.13 or older may
+  show it one last time.
+
 ## [0.13.0] — 2026-08-12
 
 ### Added

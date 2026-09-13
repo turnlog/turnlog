@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import { Indexer } from '../src/indexer/indexer.js';
 import {
   listAllTags,
@@ -20,7 +20,7 @@ import {
   tmpDir,
 } from './helpers.js';
 
-let db: Database.Database;
+let db: DatabaseSync;
 let projectsDir: string;
 let codexDir: string;
 

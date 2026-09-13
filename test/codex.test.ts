@@ -1,12 +1,12 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import { Indexer, mungeCwd } from '../src/indexer/indexer.js';
 import { getSession, getSessionContext, listProjects, listTurns, searchMessages } from '../src/server/api.js';
 import { CODEX_SESSION, SESSION_A, copyCodexCorpus, copyCorpus, testDb, tmpDir } from './helpers.js';
 
-let db: Database.Database;
+let db: DatabaseSync;
 let codexDir: string;
 
 beforeAll(async () => {

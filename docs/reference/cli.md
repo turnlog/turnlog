@@ -9,7 +9,7 @@ description: "Every command and flag. Canonical — if the CLI's surface changes
 npx turnlog [command] [options]
 ```
 
-No command starts the server and opens the UI. Node 22 or newer.
+No command starts the server and opens the UI. Node 22.13 or newer.
 
 ## Commands
 

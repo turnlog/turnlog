@@ -1,11 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import { Indexer } from '../src/indexer/indexer.js';
 import { handleMcpMessage, PARSE_ERROR } from '../src/mcp/mcp.js';
 import { searchFiles } from '../src/server/api.js';
 import { CODEX_SESSION, SESSION_A, copyCodexCorpus, copyCorpus, testDb, tmpDir } from './helpers.js';
 
-let db: Database.Database;
+let db: DatabaseSync;
 
 beforeAll(async () => {
   db = testDb(tmpDir('turnlog-mcp-'));

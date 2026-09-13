@@ -1,7 +1,8 @@
 import fs from 'node:fs';
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import { checkpointWal, indexBytes } from '../indexer/db.js';
 import { DEEP_MIN_CHARS, hasDeepIndex } from '../indexer/deepSearch.js';
+import { transaction, type SqlValue } from '../indexer/sqlite.js';
 import { pricingForModel, type ModelPricing } from '../cost/pricing.js';
 import { sessionToHtml } from '../export/html.js';
 import { sessionToJson } from '../export/json.js';
@@ -141,7 +142,7 @@ export interface ListSessionsQuery {
  * tuned constants, no model. A session is notable when it is unusual on
  * several axes at once, which a rule this simple can honestly claim.
  */
-export function notabilityScores(db: Database.Database): Map<string, number> {
+export function notabilityScores(db: DatabaseSync): Map<string, number> {
   const roots = db
     .prepare(
       `SELECT id, event_count AS events, COALESCE(cost_usd, 0) AS cost
@@ -197,14 +198,14 @@ export function notabilityScores(db: Database.Database): Map<string, number> {
   return scores;
 }
 
-export function listSessions(db: Database.Database, q: ListSessionsQuery): SessionListResponse {
+export function listSessions(db: DatabaseSync, q: ListSessionsQuery): SessionListResponse {
   const sort = SORTABLE[q.sort ?? ''] ?? 'started_at';
   const dir = q.dir === 'asc' ? 'ASC' : 'DESC';
   const limit = Math.min(Math.max(q.limit ?? 100, 1), 1000);
   const offset = Math.max(q.offset ?? 0, 0);
   // Subagent transcripts are rolled into their parent, never listed standalone.
   const clauses: string[] = ['parent_session_id IS NULL'];
-  const params: unknown[] = [];
+  const params: SqlValue[] = [];
   if (q.project) {
     clauses.push('project_key = ?');
     params.push(q.project);
@@ -293,7 +294,7 @@ export function listSessions(db: Database.Database, q: ListSessionsQuery): Sessi
   return { sessions: rows.map(rowToSession), total: total.n };
 }
 
-export function getSession(db: Database.Database, id: string): SessionMeta | null {
+export function getSession(db: DatabaseSync, id: string): SessionMeta | null {
   const row = db
     .prepare(`SELECT ${SESSION_COLUMNS} FROM ${SESSIONS_JOINED} WHERE sessions.id = ?`)
     .get(id);
@@ -306,7 +307,7 @@ export function getSession(db: Database.Database, id: string): SessionMeta | nul
  * activity puts the live continuation at the end. Null = unknown session; a
  * standalone session is a chain of one.
  */
-export function getSessionChain(db: Database.Database, id: string): SessionMeta[] | null {
+export function getSessionChain(db: DatabaseSync, id: string): SessionMeta[] | null {
   const row = db.prepare(`SELECT root_uuid, project_key FROM sessions WHERE id = ?`).get(id) as
     | { root_uuid: string | null; project_key: string | null }
     | undefined;
@@ -336,7 +337,7 @@ const FIRST_PROMPT_MAX = 400;
  * nest the transcript under the call that spawned it. Null = unknown session.
  */
 export function listSessionChildren(
-  db: Database.Database,
+  db: DatabaseSync,
   id: string,
 ): ChildSessionSummary[] | null {
   const exists = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(id);
@@ -368,7 +369,7 @@ const NOTE_MAX = 4000;
  * for an unknown id. An all-default row is deleted rather than kept around.
  */
 export function setSessionMeta(
-  db: Database.Database,
+  db: DatabaseSync,
   id: string,
   patch: SessionMetaPatch,
 ): SessionMeta | null {
@@ -413,7 +414,7 @@ export const LIVE_WITHIN_MINUTES = 5;
  * report window fill.
  */
 export function getLiveSessions(
-  db: Database.Database,
+  db: DatabaseSync,
   opts: { withinMinutes?: number; limit?: number } = {},
 ): LiveResponse {
   const withinMinutes = opts.withinMinutes ?? LIVE_WITHIN_MINUTES;
@@ -500,7 +501,7 @@ export function normalizeTag(raw: string): string | null {
 }
 
 /** A session's tags, alphabetical. Null = unknown session. */
-export function listSessionTags(db: Database.Database, sessionId: string): string[] | null {
+export function listSessionTags(db: DatabaseSync, sessionId: string): string[] | null {
   const exists = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(sessionId);
   if (!exists) return null;
   const rows = db
@@ -515,7 +516,7 @@ export function listSessionTags(db: Database.Database, sessionId: string): strin
  * Returns the stored set, or null for an unknown session.
  */
 export function setSessionTags(
-  db: Database.Database,
+  db: DatabaseSync,
   sessionId: string,
   tags: string[],
 ): string[] | null {
@@ -533,7 +534,7 @@ export function setSessionTags(
   const ins = db.prepare(
     `INSERT OR IGNORE INTO session_tags (session_id, tag, created_at) VALUES (?, ?, ?)`,
   );
-  db.transaction(() => {
+  transaction(db, () => {
     del.run(sessionId);
     for (const tag of seen) ins.run(sessionId, tag, now);
   })();
@@ -545,7 +546,7 @@ export function setSessionTags(
  * list and the replay editor's suggestions. Ordered by use so the labels that
  * organise the most work come first.
  */
-export function listAllTags(db: Database.Database): { tag: string; count: number }[] {
+export function listAllTags(db: DatabaseSync): { tag: string; count: number }[] {
   return db
     .prepare(
       `SELECT tag, COUNT(*) AS count FROM session_tags
@@ -557,7 +558,7 @@ export function listAllTags(db: Database.Database): { tag: string; count: number
 /* ── message bookmarks ("mark this moment") ─────────────────────────── */
 
 /** Bookmarked message idxs for a session, ascending. Null = unknown session. */
-export function listBookmarks(db: Database.Database, sessionId: string): number[] | null {
+export function listBookmarks(db: DatabaseSync, sessionId: string): number[] | null {
   const exists = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(sessionId);
   if (!exists) return null;
   return (
@@ -569,7 +570,7 @@ export function listBookmarks(db: Database.Database, sessionId: string): number[
 
 /** Captions for one session's bookmarks, keyed by idx — only the ones set. */
 export function listBookmarkCaptions(
-  db: Database.Database,
+  db: DatabaseSync,
   sessionId: string,
 ): Record<number, string> {
   const rows = db
@@ -588,7 +589,7 @@ export function listBookmarkCaptions(
 const CAPTION_MAX = 300;
 
 export function setBookmark(
-  db: Database.Database,
+  db: DatabaseSync,
   sessionId: string,
   idx: number,
   on: boolean,
@@ -606,10 +607,8 @@ export function setBookmark(
       `INSERT INTO message_bookmarks (session_id, idx, created_at, caption)
        VALUES (?, ?, ?, ?)
        ON CONFLICT (session_id, idx) DO UPDATE SET
-         caption = CASE WHEN @keep THEN message_bookmarks.caption ELSE excluded.caption END`,
-    ).run(sessionId, idx, new Date().toISOString(), text, {
-      keep: caption === undefined ? 1 : 0,
-    });
+         caption = CASE WHEN ? THEN message_bookmarks.caption ELSE excluded.caption END`,
+    ).run(sessionId, idx, new Date().toISOString(), text, caption === undefined ? 1 : 0);
   } else {
     db.prepare(`DELETE FROM message_bookmarks WHERE session_id = ? AND idx = ?`).run(
       sessionId,
@@ -625,7 +624,7 @@ export function setBookmark(
  * is one, the message's own text if not, and where it lives.
  */
 export function listAllBookmarks(
-  db: Database.Database,
+  db: DatabaseSync,
   opts: { limit?: number } = {},
 ): BookmarksListResponse {
   const limit = Math.min(Math.max(opts.limit ?? 200, 1), 1000);
@@ -685,7 +684,7 @@ const PREF_PATCH_MAX = 32;
 const PREF_COUNT_MAX = 200;
 
 /** All stored UI prefs as one object; corrupt values are skipped, not fatal. */
-export function getPrefs(db: Database.Database): Record<string, unknown> {
+export function getPrefs(db: DatabaseSync): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   const rows = db.prepare(`SELECT key, value FROM ui_prefs`).all() as {
     key: string;
@@ -707,7 +706,7 @@ export function getPrefs(db: Database.Database): Record<string, unknown> {
  * the full prefs after the write, or null if the patch is unacceptable.
  */
 export function setPrefs(
-  db: Database.Database,
+  db: DatabaseSync,
   patch: Record<string, unknown>,
 ): Record<string, unknown> | null {
   const entries = Object.entries(patch);
@@ -732,7 +731,7 @@ export function setPrefs(
   if (count.n + writes.length > PREF_COUNT_MAX) return null;
 
   const now = new Date().toISOString();
-  const tx = db.transaction(() => {
+  const tx = transaction(db, () => {
     for (const w of writes) {
       if (w.value === null) {
         db.prepare(`DELETE FROM ui_prefs WHERE key = ?`).run(w.key);
@@ -754,7 +753,7 @@ export function setPrefs(
  * their parent. Read-only by design: Turnlog never deletes another tool's
  * files — the UI pairs this with reveal-in-file-manager instead.
  */
-export function getDiskUsage(db: Database.Database, limit = 200): DiskUsageResponse {
+export function getDiskUsage(db: DatabaseSync, limit = 200): DiskUsageResponse {
   const totals = db
     .prepare(`SELECT COALESCE(SUM(file_size), 0) AS bytes, COUNT(*) AS files FROM sessions`)
     .get() as { bytes: number; files: number };
@@ -791,7 +790,7 @@ export function sessionFileOnDisk(filePath: string): string {
 }
 
 /** The on-disk file behind a session — for the reveal-in-file-manager action. */
-export function getSessionFilePath(db: Database.Database, id: string): string | null {
+export function getSessionFilePath(db: DatabaseSync, id: string): string | null {
   const row = db.prepare(`SELECT file_path FROM sessions WHERE id = ?`).get(id) as
     | { file_path: string }
     | undefined;
@@ -829,7 +828,7 @@ export function isLens(v: string | undefined): v is Lens {
 }
 
 export function listMessages(
-  db: Database.Database,
+  db: DatabaseSync,
   sessionId: string,
   q: { afterIdx?: number; limit?: number; lens?: Lens },
 ): MessageListResponse | null {
@@ -881,7 +880,7 @@ function rowToMessage(r: any): MessageRow {
 }
 
 /** Resolve an exact session id or a unique prefix (CLI convenience). */
-export function resolveSessionId(db: Database.Database, idOrPrefix: string): string | null {
+export function resolveSessionId(db: DatabaseSync, idOrPrefix: string): string | null {
   const exact = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(idOrPrefix) as
     | { id: string }
     | undefined;
@@ -899,9 +898,9 @@ export interface ExportRange {
   toIdx?: number;
 }
 
-function exportRows(db: Database.Database, id: string, range?: ExportRange): MessageRow[] {
+function exportRows(db: DatabaseSync, id: string, range?: ExportRange): MessageRow[] {
   const clauses = ['session_id = ?'];
-  const params: unknown[] = [id];
+  const params: SqlValue[] = [id];
   if (range?.fromIdx !== undefined) {
     clauses.push('idx >= ?');
     params.push(range.fromIdx);
@@ -922,7 +921,7 @@ function withExcerpt(opts: ExportOptions, range?: ExportRange): ExportOptions {
 }
 
 export function getSessionExport(
-  db: Database.Database,
+  db: DatabaseSync,
   id: string,
   opts: ExportOptions = {},
   range?: ExportRange,
@@ -934,7 +933,7 @@ export function getSessionExport(
 
 /** Full session as a self-contained styled HTML page — the shareable export. */
 export function getSessionHtmlExport(
-  db: Database.Database,
+  db: DatabaseSync,
   id: string,
   opts: ExportOptions = {},
   range?: ExportRange,
@@ -946,7 +945,7 @@ export function getSessionHtmlExport(
 
 /** The normalized message stream as JSON — for jq and scripts, not humans. */
 export function getSessionJsonExport(
-  db: Database.Database,
+  db: DatabaseSync,
   id: string,
   opts: ExportOptions = {},
   range?: ExportRange,
@@ -966,7 +965,7 @@ const TURN_TEXT_MAX = 240;
  * aggregated into mechanical counts. One cheap columns-only scan per call —
  * no raw JSON is touched.
  */
-export function listTurns(db: Database.Database, sessionId: string): TurnsResponse | null {
+export function listTurns(db: DatabaseSync, sessionId: string): TurnsResponse | null {
   const session = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(sessionId);
   if (!session) return null;
 
@@ -1358,9 +1357,9 @@ const MCP_SERVER_SQL = `CASE WHEN m.tool_name LIKE 'mcp\\_\\_%\\_\\_%' ESCAPE '\
   THEN substr(m.tool_name, 6, instr(substr(m.tool_name, 6), '__') - 1) END`;
 
 /** WHERE fragments for the parsed filters; `m` = messages, sessionAlias = sessions. */
-function filterSql(f: SearchFilters, sessionAlias: string): { sql: string; params: unknown[] } {
+function filterSql(f: SearchFilters, sessionAlias: string): { sql: string; params: SqlValue[] } {
   const clauses: string[] = [];
-  const params: unknown[] = [];
+  const params: SqlValue[] = [];
   if (f.tool !== undefined) {
     // The bare tool half of an MCP name matches too — `tool:preview_eval`
     // must not require typing the whole mangled string. The raw string still
@@ -1529,7 +1528,7 @@ const FACET_LIMIT = 6;
  * is one project, and saying "300" there would read as 300 projects.
  */
 function searchFacets(
-  db: Database.Database,
+  db: DatabaseSync,
   match: string | null,
   filters: SearchFilters,
   fts: FtsTable,
@@ -1607,7 +1606,7 @@ function searchFacets(
 }
 
 function searchAggregates(
-  db: Database.Database,
+  db: DatabaseSync,
   match: string | null,
   filters: SearchFilters,
   fts: FtsTable,
@@ -1690,7 +1689,7 @@ const LIKE_MAX_DOC_SHARE = 0.1;
  * most distinctive words there are, and they can only match the session we
  * are about to exclude.
  */
-export function distinctiveTerms(db: Database.Database, sessionId: string): string[] {
+export function distinctiveTerms(db: DatabaseSync, sessionId: string): string[] {
   const prompts = db
     .prepare(
       `SELECT text FROM messages
@@ -1733,7 +1732,7 @@ export function distinctiveTerms(db: Database.Database, sessionId: string): stri
  * Returns null when the session is unknown or has nothing distinctive to say.
  */
 function resolveLike(
-  db: Database.Database,
+  db: DatabaseSync,
   idOrPrefix: string,
 ): { match: string; excludeRoot: string } | null {
   const id = resolveSessionId(db, idOrPrefix);
@@ -1753,7 +1752,7 @@ function resolveLike(
 
 function parseForSearch(
   query: string,
-  db?: Database.Database,
+  db?: DatabaseSync,
   deep?: boolean,
 ): {
   parsed: ParsedQuery;
@@ -1789,7 +1788,7 @@ function parseForSearch(
 }
 
 export function searchMessages(
-  db: Database.Database,
+  db: DatabaseSync,
   q: { query: string; limit?: number; sessionId?: string; deep?: boolean },
 ): SearchResponse {
   const { parsed, match, empty: nothing, fts } = parseForSearch(q.query, db, q.deep);
@@ -1812,7 +1811,7 @@ export function searchMessages(
   try {
     if (match !== null) {
       const order = q.sessionId !== undefined ? 'm.idx' : `bm25(${fts})`;
-      const params: unknown[] = [SNIPPET_OPEN, SNIPPET_CLOSE, match];
+      const params: SqlValue[] = [SNIPPET_OPEN, SNIPPET_CLOSE, match];
       if (q.sessionId !== undefined) params.push(q.sessionId);
       params.push(...f.params, limit);
       rows = db
@@ -1832,7 +1831,7 @@ export function searchMessages(
       // Operator-only query — no FTS involved; plain column filters, newest
       // sessions first. The snippet is a raw excerpt (no match to mark).
       const order = q.sessionId !== undefined ? 'm.idx' : 's.started_at DESC, m.idx';
-      const params: unknown[] = [];
+      const params: SqlValue[] = [];
       if (q.sessionId !== undefined) params.push(q.sessionId);
       params.push(...f.params, limit);
       rows = db
@@ -1887,7 +1886,7 @@ export function searchMessages(
  * is why the MCP `search` tool got related sessions without a tool of its own.
  */
 export function relatedSessions(
-  db: Database.Database,
+  db: DatabaseSync,
   id: string,
   limit = 5,
 ): RelatedResponse {
@@ -1932,7 +1931,7 @@ const TIMELINE_MAX_SESSIONS = 1000;
  * up?". Each session carries its first in-root hit idx as the jump target.
  */
 export function searchTimeline(
-  db: Database.Database,
+  db: DatabaseSync,
   q: { query: string; deep?: boolean },
 ): SearchTimelineResponse {
   const { parsed, match, empty: nothing, fts } = parseForSearch(q.query, db, q.deep);
@@ -1952,7 +1951,7 @@ export function searchTimeline(
       : `FROM messages m
          JOIN sessions ms ON ms.id = m.session_id
          WHERE 1=1 ${f.sql}`;
-  const params: unknown[] = match !== null ? [match, ...f.params] : [...f.params];
+  const params: SqlValue[] = match !== null ? [match, ...f.params] : [...f.params];
 
   try {
     const rows = db
@@ -1989,7 +1988,7 @@ export function searchTimeline(
  * Null = unknown session.
  */
 export function getSessionContext(
-  db: Database.Database,
+  db: DatabaseSync,
   sessionId: string,
 ): SessionContextResponse | null {
   const exists = db.prepare(`SELECT id, tool FROM sessions WHERE id = ?`).get(sessionId) as
@@ -2043,7 +2042,7 @@ function rowToSavedSearch(r: any): SavedSearch {
   return { id: r.id, name: r.name, query: r.query, createdAt: r.created_at ?? null };
 }
 
-export function listSavedSearches(db: Database.Database): SavedSearch[] {
+export function listSavedSearches(db: DatabaseSync): SavedSearch[] {
   return db
     .prepare(`SELECT id, name, query, created_at FROM saved_searches ORDER BY id DESC`)
     .all()
@@ -2077,7 +2076,7 @@ const SEEDED_KEY = 'starterSearchesSeeded';
  * Seed the examples if this index has never had a saved search and has never
  * been seeded. Returns how many were written — zero on every later launch.
  */
-export function seedStarterSearches(db: Database.Database): number {
+export function seedStarterSearches(db: DatabaseSync): number {
   const seeded = db.prepare(`SELECT value FROM ui_prefs WHERE key = ?`).get(SEEDED_KEY);
   if (seeded !== undefined) return 0;
   const existing = db.prepare(`SELECT COUNT(*) AS n FROM saved_searches`).get() as { n: number };
@@ -2089,7 +2088,7 @@ export function seedStarterSearches(db: Database.Database): number {
   const markSeeded = db.prepare(
     `INSERT OR REPLACE INTO ui_prefs (key, value) VALUES (?, ?)`,
   );
-  return db.transaction(() => {
+  return transaction(db, () => {
     // Someone with their own saved searches does not need examples; mark it
     // seeded anyway so this check stops running.
     if (existing.n > 0) {
@@ -2104,7 +2103,7 @@ export function seedStarterSearches(db: Database.Database): number {
 
 /** Create a saved search; the name defaults to the query. Null = nothing to save. */
 export function createSavedSearch(
-  db: Database.Database,
+  db: DatabaseSync,
   name: string | null,
   query: string,
 ): SavedSearch | null {
@@ -2120,7 +2119,7 @@ export function createSavedSearch(
   return rowToSavedSearch(row);
 }
 
-export function deleteSavedSearch(db: Database.Database, id: number): boolean {
+export function deleteSavedSearch(db: DatabaseSync, id: number): boolean {
   return db.prepare(`DELETE FROM saved_searches WHERE id = ?`).run(id).changes > 0;
 }
 
@@ -2132,14 +2131,14 @@ export function deleteSavedSearch(db: Database.Database, id: number): boolean {
  * search query — "which files did the rate-limit work touch".
  */
 export function searchFiles(
-  db: Database.Database,
+  db: DatabaseSync,
   q: { query?: string; limit?: number; find?: string; deep?: boolean },
 ): FileSummary[] {
   const limit = Math.min(Math.max(q.limit ?? 100, 1), 500);
   const like = q.query ? `%${q.query}%` : '%';
 
   let findSql = '';
-  const findParams: unknown[] = [];
+  const findParams: SqlValue[] = [];
   if (q.find && q.find.trim() !== '') {
     const { parsed, match, empty, fts } = parseForSearch(q.find, db, q.deep);
     if (!empty) {
@@ -2183,7 +2182,7 @@ export function searchFiles(
 
 /** True when a path was ever touched by any session — the open-in-editor
  *  route only launches on paths the index actually knows. */
-export function isTouchedFile(db: Database.Database, filePath: string): boolean {
+export function isTouchedFile(db: DatabaseSync, filePath: string): boolean {
   return (
     db.prepare(`SELECT 1 FROM files_touched WHERE path = ? LIMIT 1`).get(filePath) !== undefined
   );
@@ -2227,12 +2226,12 @@ export function commandSignature(cmd: string): string {
  * adapter extracts from its own payload shape.
  */
 export function getCommands(
-  db: Database.Database,
+  db: DatabaseSync,
   q: { filter?: string; limit?: number },
 ): CommandsResponse {
   const limit = Math.min(Math.max(q.limit ?? 100, 1), 500);
   const filterSqlPart = q.filter ? `AND m.command LIKE ?` : '';
-  const params: unknown[] = q.filter ? [`%${q.filter}%`] : [];
+  const params: SqlValue[] = q.filter ? [`%${q.filter}%`] : [];
   const rows = db
     .prepare(
       `SELECT m.command AS command, m.idx AS idx, m.ts AS ts,
@@ -2322,7 +2321,7 @@ export function getCommands(
  * so it is recomputed here rather than round-tripped as an id.
  */
 export function getCommandHistory(
-  db: Database.Database,
+  db: DatabaseSync,
   signature: string,
 ): CommandHistoryResponse {
   const rows = db
@@ -2372,7 +2371,7 @@ export function getCommandHistory(
 }
 
 /** Every session that touched a path (subagent hits resolve to their root). */
-export function getFileHistory(db: Database.Database, path: string): FileHistoryResponse {
+export function getFileHistory(db: DatabaseSync, path: string): FileHistoryResponse {
   const rows = db
     .prepare(
       `SELECT ${SESSION_COLUMNS} FROM ${SESSIONS_JOINED}
@@ -2425,7 +2424,7 @@ const DUP_ROWIDS_SQL = `
  * Totals count messages, not session aggregates, so a family's subagent
  * transcripts contribute once and resume copies not at all.
  */
-export function getProject(db: Database.Database, projectKey: string): ProjectDetail | null {
+export function getProject(db: DatabaseSync, projectKey: string): ProjectDetail | null {
   const head = db
     .prepare(
       `SELECT MAX(project_path) AS project_path, COUNT(*) AS n,
@@ -2554,7 +2553,7 @@ export function errorSignature(text: string): string {
  * about the errors you are already looking at.
  */
 export function getErrorSignatures(
-  db: Database.Database,
+  db: DatabaseSync,
   q: { query?: string; limit?: number; deep?: boolean },
 ): ErrorSignaturesResponse {
   const limit = Math.min(Math.max(q.limit ?? 12, 1), 50);
@@ -2641,7 +2640,7 @@ export function getErrorSignatures(
   return { signatures: out, totalErrors: rows.length };
 }
 
-export function listProjects(db: Database.Database): ProjectInfo[] {
+export function listProjects(db: DatabaseSync): ProjectInfo[] {
   const rows = db
     .prepare(
       `SELECT project_key, MAX(project_path) AS project_path, COUNT(*) AS n,
@@ -2671,7 +2670,7 @@ export function listProjects(db: Database.Database): ProjectInfo[] {
  * "what did this kind of work cost me". Session-start attribution.
  */
 export function getSpend(
-  db: Database.Database,
+  db: DatabaseSync,
   q: { days?: number; query?: string; pricingOverrides?: Record<string, Partial<ModelPricing>> },
 ): SpendResponse {
   const sinceDays = Math.min(Math.max(Math.floor(q.days ?? 30), 1), 3650);
@@ -2721,18 +2720,18 @@ export function getSpend(
   }
   const sessions = db
     .prepare(`SELECT id, parent_session_id, project_key, started_at, cost_usd FROM sessions`)
-    .all() as SessionRowLite[];
+    .all() as unknown as SessionRowLite[];
   const byId = new Map(sessions.map((s) => [s.id, s]));
   // Filters narrow even with no text (`agent:codex` alone is a real spend
   // question); null only when the query says nothing at all.
   const spendFilter = filterSql(parsedQ.parsed.filters, 'ms');
   const matchedSql = match
-    ? `SELECT DISTINCT COALESCE(ms.parent_session_id, ms.id)
+    ? `SELECT DISTINCT COALESCE(ms.parent_session_id, ms.id) AS root
        FROM messages_fts
        JOIN messages m ON m.rowid = messages_fts.rowid
        JOIN sessions ms ON ms.id = m.session_id
        WHERE messages_fts MATCH ? ${spendFilter.sql}`
-    : `SELECT DISTINCT COALESCE(ms.parent_session_id, ms.id)
+    : `SELECT DISTINCT COALESCE(ms.parent_session_id, ms.id) AS root
        FROM messages m
        JOIN sessions ms ON ms.id = m.session_id
        WHERE 1=1 ${spendFilter.sql}`;
@@ -2741,10 +2740,9 @@ export function getSpend(
       ? new Set(
           (db
             .prepare(matchedSql)
-            .raw()
-            .all(...(match ? [match, ...spendFilter.params] : spendFilter.params)) as [
-            string,
-          ][]).map((r) => r[0]),
+            .all(...(match ? [match, ...spendFilter.params] : spendFilter.params)) as {
+            root: string;
+          }[]).map((r) => r.root),
         )
       : null;
 
@@ -2874,7 +2872,7 @@ export function getSpend(
  * state): index size plus the unknown-record tally — the cardinal rule's
  * "never crash, never drop" residue, surfaced instead of silent.
  */
-export function getIndexHealth(db: Database.Database): {
+export function getIndexHealth(db: DatabaseSync): {
   indexedFiles: number;
   events: number;
   unknownEvents: number;
@@ -2934,7 +2932,7 @@ export function getIndexHealth(db: Database.Database): {
  * reasoning — if the file returns (a moved project dir, a restored backup),
  * so does everything the user wrote about it.
  */
-export function pruneMissingSessions(db: Database.Database): { pruned: number } {
+export function pruneMissingSessions(db: DatabaseSync): { pruned: number } {
   const rows = db.prepare(`SELECT id, file_path FROM sessions`).all() as {
     id: string;
     file_path: string;
@@ -2953,7 +2951,7 @@ export function pruneMissingSessions(db: Database.Database): { pruned: number } 
   const delMessages = db.prepare(`DELETE FROM messages WHERE session_id = ?`);
   const delFiles = db.prepare(`DELETE FROM files_touched WHERE session_id = ?`);
   const delSession = db.prepare(`DELETE FROM sessions WHERE id = ?`);
-  const tx = db.transaction((ids: string[]) => {
+  const tx = transaction(db, (ids: string[]) => {
     for (const id of ids) {
       for (const r of selRows.all(id) as { rowid: number; text: string }[]) {
         ftsDelete.run(r.rowid, r.text);
@@ -2973,7 +2971,7 @@ export function pruneMissingSessions(db: Database.Database): { pruned: number } 
  * frees is still sitting on disk — page math alone reported a win the
  * filesystem never saw. Returns the bytes freed (never negative).
  */
-export function vacuumIndex(db: Database.Database): { freedBytes: number; dbBytes: number } {
+export function vacuumIndex(db: DatabaseSync): { freedBytes: number; dbBytes: number } {
   const before = indexBytes(db);
   db.exec('VACUUM');
   checkpointWal(db);
@@ -3009,7 +3007,7 @@ export interface AnnotationsDump {
   tags?: { sessionId: string; tag: string; createdAt: string | null }[];
 }
 
-export function exportAnnotations(db: Database.Database): AnnotationsDump {
+export function exportAnnotations(db: DatabaseSync): AnnotationsDump {
   const meta = db
     .prepare(`SELECT session_id, pinned, custom_name, note, updated_at FROM session_meta`)
     .all() as { session_id: string; pinned: number; custom_name: string | null; note: string | null; updated_at: string | null }[];
@@ -3058,7 +3056,7 @@ export function exportAnnotations(db: Database.Database): AnnotationsDump {
  * doubles them. Throws on a shape that is not an annotations dump.
  */
 export function importAnnotations(
-  db: Database.Database,
+  db: DatabaseSync,
   data: unknown,
 ): { sessionMeta: number; bookmarks: number; savedSearches: number; tags: number } {
   const d = data as Partial<AnnotationsDump> | null;
@@ -3099,7 +3097,7 @@ export function importAnnotations(
   const insertTag = db.prepare(
     `INSERT OR IGNORE INTO session_tags (session_id, tag, created_at) VALUES (?, ?, ?)`,
   );
-  const tx = db.transaction(() => {
+  const tx = transaction(db, () => {
     for (const m of d.sessionMeta!) {
       if (typeof m?.sessionId !== 'string') continue;
       upsertMeta.run(
@@ -3139,14 +3137,14 @@ export function importAnnotations(
         tag,
         typeof t.createdAt === 'string' ? t.createdAt : null,
       );
-      counts.tags += res.changes;
+      counts.tags += Number(res.changes);
     }
   });
   tx();
   return counts;
 }
 
-export function getStats(db: Database.Database): StatsResponse {
+export function getStats(db: DatabaseSync): StatsResponse {
   const totals = db
     .prepare(
       `SELECT COUNT(*) AS sessions,

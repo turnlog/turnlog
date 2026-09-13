@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import { Indexer } from '../src/indexer/indexer.js';
 import {
   distinctiveTerms,
@@ -15,7 +15,7 @@ import {
 import { SNIPPET_CLOSE, SNIPPET_OPEN } from '../src/server/apiTypes.js';
 import { SESSION_A, SESSION_C, SESSION_D, copyCorpus, testDb, tmpDir } from './helpers.js';
 
-let db: Database.Database;
+let db: DatabaseSync;
 
 beforeAll(async () => {
   db = testDb(tmpDir('turnlog-search-'));

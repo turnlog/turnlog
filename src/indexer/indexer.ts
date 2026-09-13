@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type Database from 'better-sqlite3';
+import type { DatabaseSync, StatementSync } from 'node:sqlite';
 import { readLines } from '../parser/lineReader.js';
 import {
   normalizeCodexLine,
@@ -18,6 +18,7 @@ import {
   CURSOR_IDE_ADAPTER_VERSION,
 } from '../version.js';
 import { extractCursorIdeComposers } from './cursorIde.js';
+import { transaction } from './sqlite.js';
 import { resumeDeepIndex, suspendDeepIndex } from './deepSearch.js';
 
 export interface IndexProgress {
@@ -81,25 +82,26 @@ interface SessionFileRow {
 const BATCH_SIZE = 500;
 
 export class Indexer {
-  private readonly db: Database.Database;
+  private readonly db: DatabaseSync;
   private readonly opts: IndexerOptions;
 
-  private readonly selByPath: Database.Statement;
-  private readonly selById: Database.Statement;
-  private readonly selCodexSeed: Database.Statement;
-  private readonly selMessageIds: Database.Statement;
-  private readonly insMessage: Database.Statement;
-  private readonly insFts: Database.Statement;
-  private readonly insFileTouched: Database.Statement;
-  private readonly upsertSession: Database.Statement;
-  private readonly updateAggregates: Database.Statement;
-  private readonly selRowsForSession: Database.Statement;
-  private readonly ftsDelete: Database.Statement;
-  private readonly insertBatchTx: Database.Transaction<
-    (sessionId: string, entries: Array<{ rec: NormalizedRecord; idx: number; dupUsage: boolean }>) => void
-  >;
+  private readonly selByPath: StatementSync;
+  private readonly selById: StatementSync;
+  private readonly selCodexSeed: StatementSync;
+  private readonly selMessageIds: StatementSync;
+  private readonly insMessage: StatementSync;
+  private readonly insFts: StatementSync;
+  private readonly insFileTouched: StatementSync;
+  private readonly upsertSession: StatementSync;
+  private readonly updateAggregates: StatementSync;
+  private readonly selRowsForSession: StatementSync;
+  private readonly ftsDelete: StatementSync;
+  private readonly insertBatchTx: (
+    sessionId: string,
+    entries: Array<{ rec: NormalizedRecord; idx: number; dupUsage: boolean }>,
+  ) => void;
 
-  constructor(db: Database.Database, opts: IndexerOptions) {
+  constructor(db: DatabaseSync, opts: IndexerOptions) {
     this.db = db;
     this.opts = opts;
 
@@ -191,7 +193,7 @@ export class Indexer {
       `INSERT INTO messages_fts (messages_fts, rowid, text) VALUES ('delete', ?, ?)`,
     );
 
-    this.insertBatchTx = db.transaction(
+    this.insertBatchTx = transaction(db, 
       (sessionId: string, entries: Array<{ rec: NormalizedRecord; idx: number; dupUsage: boolean }>) => {
         for (const { rec, idx, dupUsage } of entries) {
           // Usage repeats verbatim on every line of a multi-block response;
@@ -681,7 +683,7 @@ export class Indexer {
 
   /** Full-reindex helper: drop everything derived from one session file. */
   private deleteSessionData(sessionId: string): void {
-    const tx = this.db.transaction(() => {
+    const tx = transaction(this.db, () => {
       const rows = this.selRowsForSession.all(sessionId) as Array<{ rowid: number; text: string }>;
       for (const r of rows) this.ftsDelete.run(r.rowid, r.text);
       this.db.prepare(`DELETE FROM messages WHERE session_id = ?`).run(sessionId);

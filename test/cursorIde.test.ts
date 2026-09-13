@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import Database from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 import { extractCursorIdeComposers } from '../src/indexer/cursorIde.js';
 import { Indexer, mungeCwd } from '../src/indexer/indexer.js';
 import {
@@ -34,7 +34,7 @@ function buildCursorUserDir(): string {
   const userDir = tmpDir('turnlog-cursor-ide-');
   const globalDir = path.join(userDir, 'globalStorage');
   fs.mkdirSync(globalDir, { recursive: true });
-  const db = new Database(path.join(globalDir, 'state.vscdb'));
+  const db = new DatabaseSync(path.join(globalDir, 'state.vscdb'));
   db.exec(`CREATE TABLE cursorDiskKV (key TEXT PRIMARY KEY, value TEXT)`);
   const put = db.prepare(`INSERT INTO cursorDiskKV (key, value) VALUES (?, ?)`);
 
@@ -101,7 +101,8 @@ function buildCursorUserDir(): string {
   );
   put.run(
     `composerData:${LEGACY}`,
-    JSON.stringify({
+    // Bytes, not text: the IDE's column is a BLOB and can hold either.
+    Buffer.from(JSON.stringify({
       composerId: LEGACY,
       name: 'Legacy inline conversation',
       createdAt: 1737819637986,
@@ -110,7 +111,7 @@ function buildCursorUserDir(): string {
         { type: 1, bubbleId: 'L1', text: 'write a mobile app based on the docs' },
         { type: 2, bubbleId: 'L2', text: "I'll help you create a React Native app." },
       ],
-    }),
+    })),
   );
   put.run(
     `composerData:${DRAFT}`,
@@ -124,7 +125,7 @@ function buildCursorUserDir(): string {
     path.join(wsDir, 'workspace.json'),
     JSON.stringify({ folder: pathToFileURL(WS_FOLDER).href }),
   );
-  const ws = new Database(path.join(wsDir, 'state.vscdb'));
+  const ws = new DatabaseSync(path.join(wsDir, 'state.vscdb'));
   ws.exec(`CREATE TABLE ItemTable (key TEXT PRIMARY KEY, value TEXT)`);
   ws.prepare(`INSERT INTO ItemTable (key, value) VALUES (?, ?)`).run(
     'composer.composerData',
@@ -178,7 +179,7 @@ describe('cursor ide extraction', () => {
 });
 
 describe('cursor ide indexing', () => {
-  let db: Database.Database;
+  let db: DatabaseSync;
 
   beforeAll(async () => {
     db = testDb(tmpDir('turnlog-cursorideidx-'));
@@ -236,11 +237,11 @@ describe('cursor ide indexing', () => {
     expect(second.filesIndexed).toBe(0); // nothing changed → nothing re-read
 
     const globalDb = path.join(userDir, 'globalStorage', 'state.vscdb');
-    const raw = new Database(globalDb);
+    const raw = new DatabaseSync(globalDb);
     const row = raw
       .prepare(`SELECT value FROM cursorDiskKV WHERE key = ?`)
-      .get(`composerData:${LEGACY}`) as { value: string };
-    const data = JSON.parse(row.value);
+      .get(`composerData:${LEGACY}`) as { value: Uint8Array }; // stored as bytes above
+    const data = JSON.parse(new TextDecoder().decode(row.value));
     data.lastUpdatedAt = 1737819999999;
     data.conversation.push({ type: 1, bubbleId: 'L3', text: 'add a dark theme toggle' });
     raw

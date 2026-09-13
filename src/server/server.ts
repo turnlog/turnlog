@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import type { IndexDriver } from '../indexer/driver.js';
 import { checkpointWal } from '../indexer/db.js';
 import { buildDeepIndex, dropDeepIndex } from '../indexer/deepSearch.js';
@@ -57,7 +57,7 @@ import { placeholderHtml } from './placeholder.js';
 import { APP_VERSION } from '../version.js';
 
 export interface ServerContext {
-  db: Database.Database;
+  db: DatabaseSync;
   driver: IndexDriver;
   /** Random per-launch token; required on every /api request. */
   token: string;

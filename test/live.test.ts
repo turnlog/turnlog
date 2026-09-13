@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import { Indexer } from '../src/indexer/indexer.js';
 import { getLiveSessions, LIVE_WITHIN_MINUTES } from '../src/server/api.js';
 import {
@@ -16,12 +16,12 @@ import {
  * ended_at into the window and it should appear, move it out and it should
  * not. That is the whole contract — everything else is shaping.
  */
-function setActivity(db: Database.Database, id: string, minutesAgo: number): void {
+function setActivity(db: DatabaseSync, id: string, minutesAgo: number): void {
   const ts = new Date(Date.now() - minutesAgo * 60_000).toISOString();
   db.prepare(`UPDATE sessions SET ended_at = ? WHERE id = ?`).run(ts, id);
 }
 
-let db: Database.Database;
+let db: DatabaseSync;
 
 beforeEach(async () => {
   db = testDb(tmpDir('turnlog-live-'));

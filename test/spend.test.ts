@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import type Database from 'better-sqlite3';
+import type { DatabaseSync } from 'node:sqlite';
 import { Indexer } from '../src/indexer/indexer.js';
 import { getSpend, listProjects, searchMessages } from '../src/server/api.js';
 import { SESSION_C, SESSION_D, SUBAGENT_D, copyCodexCorpus, copyCorpus, testDb, tmpDir } from './helpers.js';
 
-let db: Database.Database;
+let db: DatabaseSync;
 let corpusDir: string;
 
 beforeAll(async () => {
@@ -175,7 +175,7 @@ describe('listSessions date range', () => {
 });
 
 describe('spend accepts the query language, not just text', () => {
-  let db2: Database.Database;
+  let db2: DatabaseSync;
 
   beforeAll(async () => {
     db2 = testDb(tmpDir('turnlog-spend-ops-'));

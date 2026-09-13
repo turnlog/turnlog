@@ -1,12 +1,12 @@
 import fs from 'node:fs';
-import Database from 'better-sqlite3';
+import { databasePath, openSqlite, pragma, type DatabaseSync } from './sqlite.js';
 
 export const SCHEMA_VERSION = 15;
 
-export function openDb(path: string): Database.Database {
-  const db = new Database(path);
-  db.pragma('journal_mode = WAL');
-  db.pragma('synchronous = NORMAL');
+export function openDb(path: string): DatabaseSync {
+  const db = openSqlite(path);
+  db.exec('PRAGMA journal_mode = WAL');
+  db.exec('PRAGMA synchronous = NORMAL');
   migrate(db);
   return db;
 }
@@ -18,16 +18,16 @@ export function openDb(path: string): Database.Database {
  * wild: a 782MB WAL beside a 780MB database). Never throws; a checkpoint that
  * loses the race with a reader is a no-op the next scan retries.
  */
-export function checkpointWal(db: Database.Database): void {
+export function checkpointWal(db: DatabaseSync): void {
   try {
-    db.pragma('wal_checkpoint(TRUNCATE)');
+    db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
   } catch {
     // Busy: readers hold the WAL open. Nothing is wrong, and nothing is lost.
   }
 }
 
 const WAL_TRUNCATE_EVERY_MS = 60_000;
-const lastTruncate = new WeakMap<Database.Database, number>();
+const lastTruncate = new WeakMap<DatabaseSync, number>();
 
 /**
  * checkpointWal, at most once a minute per connection. Live file events are
@@ -37,7 +37,7 @@ const lastTruncate = new WeakMap<Database.Database, number>();
  * stamp advances even when the checkpoint loses to a reader, so a busy index
  * gets one cheap attempt a minute instead of one per append.
  */
-export function checkpointWalThrottled(db: Database.Database): void {
+export function checkpointWalThrottled(db: DatabaseSync): void {
   const now = Date.now();
   if (now - (lastTruncate.get(db) ?? 0) < WAL_TRUNCATE_EVERY_MS) return;
   lastTruncate.set(db, now);
@@ -50,11 +50,11 @@ export function checkpointWalThrottled(db: Database.Database): void {
  * which can be half the bytes actually on disk. Falls back to it for
  * in-memory databases, which have no files to stat.
  */
-export function indexBytes(db: Database.Database): number {
+export function indexBytes(db: DatabaseSync): number {
   const pageBytes = () =>
-    (db.pragma('page_count', { simple: true }) as number) *
-    (db.pragma('page_size', { simple: true }) as number);
-  const main = db.name;
+    (pragma(db, 'page_count') as number) *
+    (pragma(db, 'page_size') as number);
+  const main = databasePath(db);
   if (!main || main === ':memory:') return pageBytes();
   let total = 0;
   for (const p of [main, `${main}-wal`, `${main}-shm`]) {
@@ -67,8 +67,8 @@ export function indexBytes(db: Database.Database): number {
   return total > 0 ? total : pageBytes();
 }
 
-function migrate(db: Database.Database): void {
-  const version = db.pragma('user_version', { simple: true }) as number;
+function migrate(db: DatabaseSync): void {
+  const version = pragma(db, 'user_version') as number;
   if (version >= SCHEMA_VERSION) return;
 
   if (version < 1) {
@@ -316,5 +316,5 @@ function migrate(db: Database.Database): void {
     `);
   }
 
-  db.pragma(`user_version = ${SCHEMA_VERSION}`);
+  db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
 }

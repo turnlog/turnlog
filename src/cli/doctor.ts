@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import Database from 'better-sqlite3';
+import { openSqlite, pragma } from '../indexer/sqlite.js';
 import { dataDir, loadSettings, packageRoot } from '../config.js';
 import { indexBytes } from '../indexer/db.js';
 import { sessionFileOnDisk } from '../server/api.js';
@@ -113,14 +113,14 @@ export function runDoctor(dirs: {
     return { text: lines.join('\n'), healthy };
   }
 
-  const db = new Database(indexPath, { readonly: true });
+  const db = openSqlite(indexPath, { readOnly: true });
   try {
     // indexBytes, not the main file alone: a stale WAL can double the
     // footprint, and hiding it is exactly what a support report must not do.
     out('index', `${indexPath} (${fmtBytes(indexBytes(db))})`);
     const sqlite = db.prepare('SELECT sqlite_version() v').get() as { v: string };
     out('sqlite', sqlite.v);
-    out('schema', `v${db.pragma('user_version', { simple: true })}`);
+    out('schema', `v${pragma(db, 'user_version')}`);
 
     // Facts split per agent: with more than one indexed, a lump sum hides
     // which adapter a problem lives in.
@@ -163,7 +163,7 @@ export function runDoctor(dirs: {
     out('files gone', `${missing}${missing > 0 ? '  (prune forgets them)' : ''}`);
 
     // SQLite's own verdict, last — a corrupt index is the headline.
-    const integrity = (db.pragma('integrity_check', { simple: true }) as string) ?? 'unknown';
+    const integrity = (pragma(db, 'integrity_check') as string) ?? 'unknown';
     healthy = integrity === 'ok';
     out('integrity', integrity);
   } finally {
