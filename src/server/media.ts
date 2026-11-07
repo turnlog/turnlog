@@ -48,13 +48,23 @@ export function sniffMedia(head: Buffer): string | null {
 }
 
 /**
+ * Undo a POSIX shell's escaping (`Screen\ Recording.mov`). Only a backslash
+ * before a shell metacharacter is an escape — on Windows the backslash is the
+ * separator, and stripping every one turned `C:\Users\me` into `C:Usersme`.
+ */
+export function unescapeShell(ref: string): string {
+  if (/^(?:[A-Za-z]:[\\/]|\\\\)/.test(ref)) return ref; // drive or UNC path
+  return ref.replace(/\\([ ()'"&!$;,[\]{}#])/g, '$1');
+}
+
+/**
  * A reference as written in a log → an absolute path, or null. Shell-escaped
  * spaces (`Screen\ Recording.mov`, what a terminal drag-and-drop inserts)
  * are unescaped, `~` expands, and a relative path resolves against the cwd
  * the record was written in.
  */
 export function resolveMediaRef(ref: string, cwd: string | null): string | null {
-  let p = ref.replace(/\\(.)/g, '$1');
+  let p = unescapeShell(ref);
   if (p === '~' || p.startsWith('~/')) p = path.join(os.homedir(), p.slice(1));
   if (!path.isAbsolute(p)) {
     if (cwd === null || !path.isAbsolute(cwd)) return null;

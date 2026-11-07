@@ -4,6 +4,7 @@ import http from 'node:http';
 import type { DatabaseSync } from 'node:sqlite';
 import { Indexer } from '../src/indexer/indexer.js';
 import type { IndexDriver } from '../src/indexer/driver.js';
+import { unescapeShell } from '../src/server/media.js';
 import { SseHub, startServer } from '../src/server/server.js';
 import { SESSION_A, SESSION_C, SESSION_D, SUBAGENT_D, copyCorpus, testDb, tmpDir } from './helpers.js';
 
@@ -902,6 +903,18 @@ describe('media route (local images and videos a record points at)', () => {
     expect((await request(withToken(media(at('notes.txt'))))).status).toBe(415);
     expect((await request(withToken(media(at('icon.svg'))))).status).toBe(415);
     expect((await request(withToken(media(at('fake.png'))))).status).toBe(415);
+  });
+
+  // Pure string checks, so every OS leg catches a Windows-path regression.
+  it('unescapes shell escapes without eating Windows separators', () => {
+    expect(unescapeShell('/Users/me/Screen\\ Recording\\ (1).mov')).toBe(
+      '/Users/me/Screen Recording (1).mov',
+    );
+    expect(unescapeShell('C:\\Users\\me\\shot.png')).toBe('C:\\Users\\me\\shot.png');
+    expect(unescapeShell('C:\\Users\\me\\Temp/rec.mp4')).toBe('C:\\Users\\me\\Temp/rec.mp4');
+    expect(unescapeShell('\\\\server\\share\\a.png')).toBe('\\\\server\\share\\a.png');
+    // A backslash before an ordinary character is not an escape on POSIX either.
+    expect(unescapeShell('/tmp/a\\b.png')).toBe('/tmp/a\\b.png');
   });
 
   it('400s a missing or garbage idx', async () => {
