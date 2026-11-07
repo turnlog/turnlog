@@ -1675,56 +1675,77 @@
   color: var(--tx1);
   word-break: break-all;
 }
-/* Inline images (pasted screenshots, tool captures). Thumbnails until
-   clicked: a session full of screenshots has to stay scrollable, and the
-   virtualizer measures rows, so growth must come from a click and not from
-   an image finishing its decode. The checkerboard reads through transparent
-   PNGs, which are otherwise invisible on either theme. */
-.thumbs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 6px;
+/* A call's media sits under its head, visible while the call is folded —
+   what the agent sent you is not something to dig for. */
+.tool-media {
+  padding: 0 0 4px 20px;
 }
-.thumb {
-  position: relative;
-  display: block;
-  padding: 4px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background:
-    repeating-conic-gradient(var(--bg2) 0% 25%, var(--bg1) 0% 50%) 50% / 14px 14px;
-  cursor: zoom-in;
-  transition: border-color 0.15s ease;
-}
-.thumb:hover {
-  border-color: var(--tx2);
-}
-.thumb.open {
-  cursor: zoom-out;
-}
-.thumb img {
-  display: block;
-  max-height: 180px;
-  max-width: 100%;
-  border-radius: var(--radius-xs);
-}
-.thumb.open img {
-  max-height: none;
-}
-.thumb-size {
-  display: block;
-  padding-top: 3px;
+
+/* An answer whose reasoning came back omitted: one quiet line, not an
+   empty "thinking" toggle with nothing behind it. */
+.block-meta {
   color: var(--tx2);
   font-family: var(--mono);
-  font-size: var(--fs-10);
-  line-height: 1.4;
-  opacity: 0;
-  transition: opacity 0.15s ease;
+  font-size: var(--fs-12);
 }
-.thumb:hover .thumb-size,
-.thumb:focus-visible .thumb-size {
-  opacity: 1;
+.thinking-time {
+  margin-left: 6px;
+  font-family: var(--mono);
+  font-style: normal;
+}
+
+.ask-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-12);
+}
+.ask-q {
+  color: var(--tx0);
+}
+.ask-options {
+  display: block;
+  color: var(--tx2);
+}
+
+.harness-list {
+  list-style: none;
+  margin: 4px 0 2px;
+  padding: 0 0 0 20px;
+}
+.harness-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 1px 0;
+  text-align: left;
+  color: var(--tx2);
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  transition: color 0.15s ease;
+}
+.harness-item:hover {
+  color: var(--tx1);
+}
+
+/* Images in agent prose: a remote one is named, never fetched. */
+.md-remote-img,
+.md-img-alt {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--bg2);
+  color: var(--tx1);
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+}
+.md .media-thumb {
+  display: inline-block;
+  vertical-align: middle;
 }
 
 .tool-result {

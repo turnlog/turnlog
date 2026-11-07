@@ -132,14 +132,22 @@ last time.
   what the index already knows: length, cost, errors hit, and how many other
   sessions touched the same files. "My important sessions" without the
   homework of pinning them — and pins still outrank it when you do.
-- **Screenshots** — images you pasted to an agent, and screenshots tools
-  handed back, render inline in the replay. They were always in your logs;
-  now you can see them.
+- **Images and videos, yours and the agent's** — images you pasted, screenshots
+  tools handed back, files the agent sent you, recordings you dragged into a
+  prompt, and paths an agent wrote into its answer all preview in the replay,
+  with a full-size viewer where videos play. Inline images decode from the
+  record; files on disk come through a guarded local route that only serves
+  a path the message itself names.
+- **A replay that reads like the conversation** — current agents write a
+  record for every request snapshot, cache latch and reminder; those fold into
+  one quiet *bookkeeping* row, titles show only when they change, and omitted
+  reasoning reads as *thought 4.2s · xhigh effort* instead of an empty toggle.
 - **Spend tracker** — cost by day, model, or project — and, uniquely, cost
   filtered by a search query ("what did *this kind of work* cost me"). Usage is
   counted once per API response (the logs repeat it per line), priced from a
-  shipped table covering Anthropic and OpenAI rates, and always labeled an
-  estimate. Cursor IDE sessions use the cost Cursor itself recorded. Rates
+  shipped table covering Anthropic and OpenAI rates (current through the
+  Claude 5.5 generation, with fast mode and per-model cache discounts), and
+  always labeled an estimate. Cursor IDE sessions use the cost Cursor itself recorded. Rates
   wrong for you (Bedrock, Vertex, enterprise)? Override any model via
   `modelPricing` in settings.json.
 - **Calendar** — your sessions placed in time: a week timeline (days as rows,
@@ -190,7 +198,8 @@ memory), and `file_history` (every session that ever touched a file).
 
 It runs on your machine — no server port, no network — and is **strictly
 read-only, with no flag that changes that**: an agent can read your history
-but never write to it. It reads the same index the app builds, so run
+but never write to it, and every tool says so in its MCP annotations
+(`readOnlyHint`), checkable from the tool list. It reads the same index the app builds, so run
 `turnlog` or `turnlog index` once first; on each start it does a quick
 incremental catch-up so recent sessions are included.
 
@@ -213,7 +222,9 @@ send it wherever yours reads them.
 
 Turnlog binds to `127.0.0.1` only, with `Host`-header validation (DNS-rebinding
 defense) and a per-launch token required on every request. It makes **no
-outbound connections** — verify it yourself:
+outbound connections**, and the UI is served with a Content-Security-Policy
+that keeps the browser on the local origin too — an image URL inside a log is
+shown as a link, never fetched. Verify it yourself:
 
 ```sh
 lsof -iTCP -sTCP:LISTEN | grep node

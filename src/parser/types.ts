@@ -9,6 +9,9 @@ export type MessageKind =
   | 'title'
   | 'attachment'
   | 'mode'
+  /** Harness-internal records the adapter recognizes but that carry no
+   *  conversation (request snapshots, cache latches, file-history deltas). */
+  | 'bookkeeping'
   | 'unknown';
 
 export interface FileTouch {
@@ -55,6 +58,11 @@ export interface NormalizedRecord {
   cacheWriteTokens: number;
   /** Subset of cacheWriteTokens written with 1h TTL (billed at 2x instead of 1.25x). */
   cacheWrite1hTokens: number;
+  /**
+   * 'fast' when the response ran in fast mode (CC's `usage.speed`), billed at
+   * a premium over the standard rate; null otherwise.
+   */
+  speed: string | null;
   /** Cost as recorded in the log itself (older CC versions); null if absent. */
   costUsd: number | null;
   cwd: string | null;

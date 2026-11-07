@@ -7,7 +7,11 @@ description: "The six read-only tools turnlog mcp exposes, with parameters — a
 
 `turnlog mcp` is a stdio MCP server exposing the local index as **six read-only tools**.
 There are no write tools and no flag that adds them — see
-[why](/docs/guides/mcp-claude-code#what-it-cannot-do).
+[why](/docs/guides/mcp-claude-code#what-it-cannot-do). Every tool carries the protocol's
+`readOnlyHint: true` / `destructiveHint: false` annotations, so a client can check the
+claim from the tool list itself. The server speaks MCP protocol revisions 2024-11-05
+through 2025-11-25 and sends short `instructions` on initialize telling the agent when
+the tools are worth calling.
 
 Setup: [Claude Code](/docs/guides/mcp-claude-code) · [any other client](/docs/guides/mcp-other-agents).
 
@@ -58,7 +62,8 @@ A window of messages from one session, in order.
 | `lens` | string | narrow to `diffs`, `commands`, `errors` or `prompts` |
 
 To read around a search hit, pass `after_idx = hit.idx - 1`, or a few earlier for lead-in.
-Long bodies are truncated.
+Long bodies are truncated, and harness bookkeeping records are skipped so they do not
+spend the page.
 
 ## `get_context`
 

@@ -101,7 +101,8 @@ function toolBodyHtml(name: string, input: Record<string, unknown>, red: Red): s
       const p = str(input.pattern);
       return p ? `<div class="note">Pattern: <code>${esc(red(p))}</code></div>` : '';
     }
-    case 'Task': {
+    case 'Task':
+    case 'Agent': {
       const p = str(input.prompt);
       return p ? `<blockquote class="task">${esc(red(truncate(p)))}</blockquote>` : '';
     }
@@ -282,6 +283,7 @@ export function sessionToHtml(
       case 'title':
       case 'attachment':
       case 'mode':
+      case 'bookkeeping':
       case 'unknown':
         break; // omitted from prose export
       default: {

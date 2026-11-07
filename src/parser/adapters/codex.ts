@@ -128,6 +128,7 @@ export function normalizeCodex(
     cacheReadTokens: 0,
     cacheWriteTokens: 0,
     cacheWrite1hTokens: 0,
+    speed: null,
     costUsd: null,
     cwd: state.cwd,
     gitBranch: state.gitBranch,
@@ -255,8 +256,14 @@ export function normalizeCodex(
       }
     }
 
+    case 'world_state':
+      // The workspace snapshot Codex keeps for itself — no conversation in it.
+      rec.kind = 'bookkeeping';
+      rec.subtype = 'world_state';
+      return rec;
+
     default:
-      // world_state and whatever the next Codex release invents.
+      // Whatever the next Codex release invents.
       return rec;
   }
 }

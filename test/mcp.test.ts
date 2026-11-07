@@ -46,6 +46,7 @@ describe('protocol handshake', () => {
     expect(res.result.protocolVersion).toBe('2024-11-05');
     expect(res.result.capabilities.tools).toBeDefined();
     expect(res.result.serverInfo.name).toBe('turnlog');
+    expect(res.result.instructions).toMatch(/read-only/i);
   });
 
   it('initialize falls back to the latest version on an unknown one', () => {
@@ -55,7 +56,7 @@ describe('protocol handshake', () => {
       method: 'initialize',
       params: { protocolVersion: '1999-01-01' },
     }) as any;
-    expect(res.result.protocolVersion).toBe('2025-06-18');
+    expect(res.result.protocolVersion).toBe('2025-11-25');
   });
 
   it('notifications get no response', () => {
@@ -90,6 +91,9 @@ describe('tools/list', () => {
     for (const tool of res.result.tools) {
       expect(tool.description.length).toBeGreaterThan(20);
       expect(tool.inputSchema).toHaveProperty('type', 'object');
+      // The read-only guarantee, machine-checkable from the tool list.
+      expect(tool.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
+      expect(typeof tool.title).toBe('string');
     }
   });
 });

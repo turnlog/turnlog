@@ -363,9 +363,9 @@ export default function Spend({ view = 'overview' }: { view?: 'overview' | 'cale
                 <span className="dark-badge">saved ~{fmtCost(d.totals.cacheSavedUsd)}</span>
               </div>
               <p className="spend-cache-note">
-                {fmtTokens(d.totals.cacheReadTokens)} tokens read from cache at ~0.1× the input rate
-                ({fmtTokens(d.totals.cacheWriteTokens)} written). Without caching this period would
-                cost roughly {fmtCost(d.totals.costUsd + d.totals.cacheSavedUsd)}.
+                {fmtTokens(d.totals.cacheReadTokens)} tokens read from cache instead of billed as
+                fresh input ({fmtTokens(d.totals.cacheWriteTokens)} written). Without caching this
+                period would cost roughly {fmtCost(d.totals.costUsd + d.totals.cacheSavedUsd)}.
               </p>
             </section>
           </div>

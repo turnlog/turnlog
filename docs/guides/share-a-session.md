@@ -34,7 +34,9 @@ an attachment, or a static host, with no network access at all. Each prompt is a
 turn with its tool and error counts, so a 300-turn session arrives as 300 scannable lines.
 Native `<details>`, no script — it still folds with JavaScript off.
 
-**JSON** — the normalized message stream, for piping into `jq` or your own tooling.
+**JSON** — the normalized message stream, for piping into `jq` or your own tooling. It is
+the whole stream, harness bookkeeping included (`kind: "bookkeeping"`); Markdown and HTML
+leave bookkeeping out, since it is not part of the conversation.
 
 ## Redaction
 

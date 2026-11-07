@@ -28,7 +28,10 @@ inventing a value is not.
 ## The rules
 
 **Never crash, never drop.** An unrecognized record becomes `kind: 'unknown'` with its raw
-JSON kept. A malformed line must not lose the rest of the file.
+JSON kept. A malformed line must not lose the rest of the file. A record you *do*
+recognise as harness-internal — request snapshots, cache latches, file-history deltas — is
+`kind: 'bookkeeping'`, with its type in `subtype` and no search text: still stored, but no
+longer reported as format drift, and folded out of the replay's way.
 
 **Pure and synchronous.** No I/O, no clock, no randomness — that is what makes golden
 snapshots meaningful.

@@ -162,3 +162,94 @@ describe('inline images in the replay', () => {
     expect(view.images).toEqual([]);
   });
 });
+
+/**
+ * Media named by path: the bytes were never in the log, so the replay asks
+ * the media route for them. What counts as a reference decides what the
+ * strip shows — tool arguments always, prose only when the path is rooted.
+ */
+describe('media named by path', () => {
+  it('takes files a tool was handed as explicit references', () => {
+    const view = parseRaw(
+      row({
+        type: 'assistant',
+        message: {
+          content: [
+            {
+              type: 'tool_use',
+              id: 't1',
+              name: 'SendUserFile',
+              input: { files: ['/Users/me/shots/after.png', '/Users/me/rec.webm'], caption: 'done' },
+            },
+          ],
+        },
+      }),
+    );
+    expect(view.media).toEqual([
+      { ref: '/Users/me/shots/after.png', kind: 'image', explicit: true },
+      { ref: '/Users/me/rec.webm', kind: 'video', explicit: true },
+    ]);
+  });
+
+  it('reads the saved-image marker only when the bytes are not inline', () => {
+    const marker = '[Image: source: /Users/me/.claude/projects/p/s/tool-results/shot.jpg]';
+    const withBytes = parseRaw(
+      row({
+        type: 'user',
+        message: {
+          content: [
+            {
+              type: 'tool_result',
+              tool_use_id: 't',
+              content: [
+                { type: 'image', source: { media_type: 'image/png', data: PNG } },
+                { type: 'text', text: marker },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+    expect(withBytes.media).toEqual([]);
+    const pathOnly = parseRaw(
+      row({
+        type: 'user',
+        message: { content: [{ type: 'tool_result', tool_use_id: 't', content: marker }] },
+      }),
+    );
+    expect(pathOnly.media.map((m) => m.ref)).toEqual([
+      '/Users/me/.claude/projects/p/s/tool-results/shot.jpg',
+    ]);
+  });
+
+  it('spots rooted, ~-rooted, and @-mentioned paths in prose — never bare words', () => {
+    const view = parseRaw(
+      row(
+        {
+          type: 'user',
+          message: {
+            content:
+              'compare /Users/me/a.png with ~/Desktop/Screen\\ Recording.mov and @shots/b.gif; ' +
+              'logo.png is just a word, https://x.dev/c.png is remote, ![d](/e/d.png) is markdown',
+          },
+        },
+      ),
+    );
+    expect(view.media.map((m) => [m.ref, m.kind, m.explicit])).toEqual([
+      ['/Users/me/a.png', 'image', false],
+      ['~/Desktop/Screen\\ Recording.mov', 'video', false],
+      ['shots/b.gif', 'image', false],
+    ]);
+  });
+
+  it("takes Codex's attached local images", () => {
+    const view = parseRaw(
+      row({
+        timestamp: 't',
+        type: 'event_msg',
+        payload: { type: 'user_message', message: 'what is wrong here', local_images: ['/tmp/bug.png'] },
+      }),
+    );
+    expect(view.media).toEqual([{ ref: '/tmp/bug.png', kind: 'image', explicit: true }]);
+  });
+});

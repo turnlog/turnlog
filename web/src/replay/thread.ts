@@ -24,9 +24,52 @@ export type Block =
       repIdx: number;
     }
   | { kind: 'orphan-run'; run: Block[]; repIdx: number }
-  | { kind: 'abandoned'; run: Block[]; repIdx: number };
+  | { kind: 'abandoned'; run: Block[]; repIdx: number }
+  /** A run of consecutive harness records, folded into one row — kept, not shown. */
+  | { kind: 'harness'; rows: MessageRow[]; repIdx: number };
 
-const INERT_KINDS = new Set(['meta', 'system', 'attachment', 'mode', 'title', 'unknown']);
+const INERT_KINDS = new Set([
+  'meta', 'system', 'attachment', 'mode', 'title', 'bookkeeping', 'unknown',
+]);
+
+/** Attachment payloads worth a row of their own; every other type is harness context. */
+export const ATTACH_LABEL: Record<string, string> = {
+  file: 'file attached',
+  directory: 'directory attached',
+  edited_text_file: 'file edited',
+  compact_file_reference: 'file referenced',
+  queued_command: 'queued',
+  plan_mode: 'plan mode',
+  plan_mode_exit: 'left plan mode',
+  auto_mode: 'auto mode',
+  auto_mode_exit: 'left auto mode',
+};
+
+/** System subtypes that carry no words — timings and hook tallies. */
+const QUIET_SYSTEM = new Set(['turn_duration', 'stop_hook_summary', 'bridge_status']);
+
+/** The record's own `type`/`subtype`/`attachment.type`, read once per row. */
+const shapeCache = new Map<string, { type: string; subtype: string }>();
+export function recordShape(row: MessageRow): { type: string; subtype: string } {
+  const hit = shapeCache.get(row.uuid);
+  if (hit) return hit;
+  let shape = { type: '', subtype: '' };
+  try {
+    const o = JSON.parse(row.raw) as { type?: unknown; subtype?: unknown; attachment?: unknown };
+    const att = typeof o.attachment === 'object' && o.attachment !== null
+      ? (o.attachment as { type?: unknown }).type
+      : undefined;
+    shape = {
+      type: typeof o.type === 'string' ? o.type : '',
+      subtype: typeof o.subtype === 'string' ? o.subtype : typeof att === 'string' ? att : '',
+    };
+  } catch {
+    /* unparseable — no shape, so never mistaken for harness */
+  }
+  if (shapeCache.size > 4000) shapeCache.clear();
+  shapeCache.set(row.uuid, shape);
+  return shape;
+}
 
 /**
  * Rows on abandoned branches: interrupting Claude and retyping leaves the
@@ -106,14 +149,47 @@ function foldTools(rows: MessageRow[]): Block[] {
   const blocks: Block[] = [];
   const pendingTools = new Map<string, Extract<Block, { kind: 'tool' }>>();
   const lastMode = new Map<string, string>();
+  const lastTitle = new Map<string, string>();
+
+  // Harness records join the run directly before them, so ten of them
+  // between two tool calls read as one quiet row.
+  const harness = (row: MessageRow) => {
+    const last = blocks[blocks.length - 1];
+    if (last?.kind === 'harness') last.rows.push(row);
+    else blocks.push({ kind: 'harness', rows: [row], repIdx: row.idx });
+  };
 
   for (const row of rows) {
+    if (row.kind === 'bookkeeping') {
+      harness(row);
+      continue;
+    }
     if (row.kind === 'mode') {
       const change = modeChange(row);
       if (change) {
-        if (lastMode.get(change.stream) === change.value) continue; // repeat — fold away
+        if (lastMode.get(change.stream) === change.value) {
+          harness(row); // a repeat, not a switch
+          continue;
+        }
         lastMode.set(change.stream, change.value);
       }
+    }
+    if (row.kind === 'title') {
+      // CC rewrites its title after every turn; only a new name is a moment.
+      const { type } = recordShape(row);
+      if (type === 'agent-name' || lastTitle.get(type) === row.text) {
+        harness(row);
+        continue;
+      }
+      lastTitle.set(type, row.text);
+    }
+    if (row.kind === 'attachment' && !(recordShape(row).subtype in ATTACH_LABEL)) {
+      harness(row);
+      continue;
+    }
+    if (row.kind === 'system' && QUIET_SYSTEM.has(recordShape(row).subtype)) {
+      harness(row);
+      continue;
     }
     if (row.kind === 'tool_use') {
       const block: Extract<Block, { kind: 'tool' }> = {
@@ -181,9 +257,12 @@ function groupSidechainRuns(side: MessageRow[]): Run[] {
   return runs;
 }
 
+/** CC's subagent spawner: `Task` through 2.0, `Agent` since. */
+export const SUBAGENT_TOOLS = new Set(['Task', 'Agent']);
+
 function taskPrompt(block: Extract<Block, { kind: 'tool' }>): string | null {
-  if (block.use.toolName !== 'Task') return null;
-  const use = parseRaw(block.use).toolUses.find((t) => t.name === 'Task');
+  if (!SUBAGENT_TOOLS.has(block.use.toolName ?? '')) return null;
+  const use = parseRaw(block.use).toolUses.find((t) => SUBAGENT_TOOLS.has(t.name));
   const prompt = use?.input.prompt;
   return typeof prompt === 'string' ? prompt : null;
 }
@@ -252,7 +331,7 @@ export function buildBlocks(rows: MessageRow[]): Block[] {
       // Fallback: nearest preceding unclaimed Task call.
       for (let i = toolBlocks.length - 1; i >= 0; i--) {
         const b = toolBlocks[i]!;
-        if (b.use.idx < run.rootIdx && b.run === null && b.use.toolName === 'Task') {
+        if (b.use.idx < run.rootIdx && b.run === null && SUBAGENT_TOOLS.has(b.use.toolName ?? '')) {
           anchor = b;
           break;
         }
@@ -281,6 +360,8 @@ export function idxToBlockMap(blocks: Block[]): Map<number, number> {
         map.set(b.use.idx, i);
         if (b.result) map.set(b.result.idx, i);
         b.run?.forEach(claim);
+      } else if (b.kind === 'harness') {
+        for (const row of b.rows) map.set(row.idx, i);
       } else {
         // orphan-run / abandoned — both carry a nested block list.
         b.run.forEach(claim);

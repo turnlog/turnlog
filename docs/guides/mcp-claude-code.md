@@ -41,8 +41,9 @@ Because it is the same search grammar, operators work through the agent too:
 
 ## What it cannot do
 
-**It cannot write.** There are no write tools and no flag that adds them. An agent that
-wants to remember something writes to its own memory and cites the session id.
+**It cannot write.** There are no write tools and no flag that adds them, and every tool
+carries the protocol's `readOnlyHint: true` / `destructiveHint: false` annotations. An
+agent that wants to remember something writes to its own memory and cites the session id.
 
 This is deliberate: "it cannot write anything" is a guarantee a stranger can verify from
 the tool list, and that stops being true the moment an opt-in exists. The annotation

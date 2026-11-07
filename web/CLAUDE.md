@@ -23,17 +23,25 @@ selected via `?l=` — the diffs lens renders as the per-file pivot in
 `src/replay/Files.tsx` — views via `?v=`, and in-session find via `?q=`.
 
 **Threading.** `src/replay/thread.ts` builds display blocks: it folds
-`tool_use`/`tool_result` pairs, nests sidechain runs under their Task calls, and
-folds abandoned branches away. The abandoned-branch rule is implemented twice —
+`tool_use`/`tool_result` pairs, nests sidechain runs under their `Agent` (formerly
+`Task`) calls, folds abandoned branches away, and folds consecutive harness records
+(kind `bookkeeping`, unlabelled attachments, unchanged titles/modes, timing-only
+system rows) into one `harness` block — kept, never dropped. The abandoned-branch rule is implemented twice —
 `findAbandoned` here and `findAbandonedIdxs` in `src/server/api.ts` — and the
 two must stay in step.
 
 **Tolerant re-parsing.** `src/replay/raw.ts` re-parses `raw` JSONL leniently.
 This is the UI half of the parser cardinal rule: degrade, never throw.
 
+**Media.** `components/Media.tsx` is the one way an image or video renders —
+fixed-height thumbs (the log is virtualized; a row must not grow on decode) and a
+portaled viewer. Inline bytes are data: URIs; a file a record names by path goes
+through `mediaUrl()` → the server's media route, which checks the ref against that
+one message. Markdown never loads a remote image — it renders a link.
+
 **Highlighting.** Shiki runs in a web worker, behind a language whitelist and a
 size cap.
 
-**Nothing loads from the network, ever.** Fonts are bundled woff2 in
+**Nothing loads from the network, ever** — and the server's CSP enforces it. Fonts are bundled woff2 in
 `public/fonts/`; Solar outline icons are vendored as path data in
 `src/icons.tsx` (CC BY 4.0 — credits in `public/CREDITS.txt`).

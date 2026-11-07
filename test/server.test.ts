@@ -391,11 +391,11 @@ describe('index health route', () => {
     expect(h.events).toBeGreaterThan(0);
     expect(h.dbBytes).toBeGreaterThan(0);
     // The corpus carries records no adapter understands — kept, counted, named.
-    expect(h.unknownEvents).toBeGreaterThanOrEqual(2);
+    expect(h.unknownEvents).toBeGreaterThanOrEqual(1);
     const types = Object.fromEntries(h.unknownTypes.map((t: any) => [t.type, t.count]));
-    expect(types['queue-operation']).toBe(1);
-    // Adapted since v4 — must no longer read as format drift.
+    // Adapted since v4 (titles) and v8 (harness bookkeeping) — not format drift.
     expect(types['ai-title']).toBeUndefined();
+    expect(types['queue-operation']).toBeUndefined();
     // Skipped files come from the driver's last scan summary.
     expect(h.skipped).toEqual([{ file: '/projects/broken.jsonl', message: 'EACCES' }]);
   });
@@ -578,9 +578,9 @@ describe('API', () => {
   it('lists sessions (subagent transcripts excluded)', async () => {
     const res = await request(withToken('/api/sessions'));
     const data = res.json();
-    // 6 root sessions; the subagent transcript rolls into its parent.
-    expect(data.total).toBe(6);
-    expect(data.sessions).toHaveLength(6);
+    // 7 root sessions; the subagent transcript rolls into its parent.
+    expect(data.total).toBe(7);
+    expect(data.sessions).toHaveLength(7);
   });
 
   it('filters sessions by project', async () => {
@@ -633,8 +633,8 @@ describe('API', () => {
     expect(status.updateAvailable).toBeNull();
 
     const stats = (await request(withToken('/api/stats'))).json();
-    expect(stats.sessions).toBe(6);
-    expect(stats.projects.length).toBe(3);
+    expect(stats.sessions).toBe(7);
+    expect(stats.projects.length).toBe(4);
   });
 
   it('surfaces the CLI update check on /api/status via getUpdate', async () => {
@@ -812,5 +812,100 @@ describe('sidebar name filter (name= on /api/sessions)', () => {
     };
     expect(byProject.sessions.length).toBeGreaterThanOrEqual(2); // A + B live in webapp
     expect((await request(withToken('/api/sessions?name=zzznope'))).json().sessions).toHaveLength(0);
+  });
+});
+
+describe('media route (local images and videos a record points at)', () => {
+  const PNG_BYTES = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  );
+  // ftyp box + filler: enough for the sniffer and a ranged read.
+  const MP4_BYTES = Buffer.concat([
+    Buffer.from([0, 0, 0, 0x18]),
+    Buffer.from('ftypisom', 'latin1'),
+    Buffer.alloc(100, 7),
+  ]);
+  let dir: string;
+  const at = (name: string) => `${dir}/${name}`;
+  const IDX = 9000;
+
+  beforeAll(() => {
+    dir = tmpDir('turnlog-media-');
+    fs.writeFileSync(at('shot.png'), PNG_BYTES);
+    fs.writeFileSync(at('rec.mp4'), MP4_BYTES);
+    fs.writeFileSync(at('fake.png'), 'not a png at all');
+    fs.writeFileSync(at('notes.txt'), 'plain text');
+    fs.writeFileSync(at('icon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"><script/></svg>');
+    fs.writeFileSync(at('unreferenced.png'), PNG_BYTES);
+    const raw = JSON.stringify({
+      type: 'assistant',
+      cwd: dir,
+      message: {
+        content: [
+          {
+            type: 'tool_use',
+            name: 'SendUserFile',
+            input: {
+              files: [at('shot.png'), at('rec.mp4'), at('fake.png'), at('notes.txt'), at('icon.svg'), 'shot.png'],
+            },
+          },
+        ],
+      },
+    });
+    db.prepare(
+      `INSERT INTO messages (uuid, session_id, idx, kind, raw_json) VALUES (?, ?, ?, 'tool_use', ?)`,
+    ).run('media-row', SESSION_A, IDX, raw);
+  });
+  afterAll(() => {
+    db.prepare(`DELETE FROM messages WHERE uuid = 'media-row'`).run();
+  });
+
+  const media = (ref: string, idx = IDX) =>
+    `/api/sessions/${SESSION_A}/media?idx=${idx}&ref=${encodeURIComponent(ref)}`;
+
+  it('requires the token like every API route', async () => {
+    expect((await request(media(at('shot.png')))).status).toBe(401);
+  });
+
+  it('serves a referenced image sandboxed, typed by its bytes', async () => {
+    const res = await request(withToken(media(at('shot.png'))));
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toBe('image/png');
+    expect(res.headers['x-content-type-options']).toBe('nosniff');
+    expect(res.headers['content-security-policy']).toContain('sandbox');
+    expect(Number(res.headers['content-length'])).toBe(PNG_BYTES.length);
+  });
+
+  it('resolves a relative reference against the record cwd', async () => {
+    const res = await request(withToken(media('shot.png')));
+    expect(res.status).toBe(200);
+  });
+
+  it('honours a byte range so video can seek', async () => {
+    const res = await request(withToken(media(at('rec.mp4'))), { Range: 'bytes=4-11' });
+    expect(res.status).toBe(206);
+    expect(res.headers['content-type']).toBe('video/mp4');
+    expect(res.headers['content-range']).toBe(`bytes 4-11/${MP4_BYTES.length}`);
+    expect(res.body).toBe('ftypisom');
+    const bad = await request(withToken(media(at('rec.mp4'))), { Range: 'bytes=5000-' });
+    expect(bad.status).toBe(416);
+  });
+
+  it('refuses files the message never mentioned, even real images', async () => {
+    expect((await request(withToken(media(at('unreferenced.png'))))).status).toBe(404);
+    // The right file, but asked for through a message that does not name it.
+    expect((await request(withToken(media(at('shot.png'), 0)))).status).toBe(404);
+  });
+
+  it('refuses non-media, SVG, and bytes that lie about their extension', async () => {
+    expect((await request(withToken(media(at('notes.txt'))))).status).toBe(415);
+    expect((await request(withToken(media(at('icon.svg'))))).status).toBe(415);
+    expect((await request(withToken(media(at('fake.png'))))).status).toBe(415);
+  });
+
+  it('400s a missing or garbage idx', async () => {
+    const res = await request(withToken(`/api/sessions/${SESSION_A}/media?ref=x.png`));
+    expect(res.status).toBe(400);
   });
 });

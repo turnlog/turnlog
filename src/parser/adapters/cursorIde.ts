@@ -92,6 +92,7 @@ export function normalizeCursorIde(
     cacheReadTokens: 0,
     cacheWriteTokens: 0,
     cacheWrite1hTokens: 0,
+    speed: null,
     costUsd: null,
     cwd: env.cwd ?? null,
     gitBranch: null,

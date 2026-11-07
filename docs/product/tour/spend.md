@@ -14,8 +14,9 @@ differently from fresh input and are usually where the money actually goes.
 ## Always an estimate
 
 Turnlog computes cost from the token counts in your own logs against a shipped price
-table covering Anthropic and OpenAI rates. It is labelled an estimate everywhere, because
-it is one: it is not your bill.
+table covering Anthropic and OpenAI rates — including the per-generation cache discounts,
+Haiku 5.5's long-prompt tier, and fast mode's premium. It is labelled an estimate
+everywhere, because it is one: it is not your bill.
 
 Cursor IDE sessions are the exception — they use the cost Cursor itself recorded.
 

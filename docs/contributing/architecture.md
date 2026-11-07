@@ -27,7 +27,10 @@ megabytes.
 **The cardinal rule is never crash, never drop.** These formats are undocumented and
 change without notice. An unrecognized record is stored with `kind='unknown'` and its raw
 JSON, and rendered as a collapsed row. Format churn must be a cosmetic bug, never data
-loss.
+loss. Records an adapter *does* recognise as harness-internal — request snapshots, cache
+latches, file-history deltas — are `kind='bookkeeping'`: stored the same way, carrying no
+search text, and not counted as drift, so `unknown` keeps meaning "a shape nobody has
+seen yet".
 
 ## Indexer
 
@@ -52,6 +55,14 @@ token required on every request and `Host`/`Origin` validated against localhost.
 Everything is `GET` except a short allowlist for your own annotations. The typed API
 contract lives in one file that the web UI imports type-only, so the two cannot drift.
 
+One route reads outside the index: the media route, which serves an image or video a
+session names by path (a file the agent sent you, a recording dragged into a prompt).
+It answers only when the path appears verbatim in the named message's own record, the
+extension is an image or video, and the file's leading bytes agree — SVG is refused, the
+response is sandboxed, and byte ranges are honoured so video can seek. The app shell is
+served with a Content-Security-Policy that allows only its own origin, which is what
+keeps an image URL inside a log from ever becoming a request.
+
 ## Web UI
 
 React + Vite, shipped prebuilt inside the npm package. Nothing loads from the network,
@@ -61,13 +72,16 @@ syntax highlighting runs in a web worker behind a language whitelist and a size 
 Threading is rebuilt client-side from the `parentUuid` chain: tool calls fold with their
 results, subagent runs nest under the call that spawned them, and abandoned branches fold
 away. That last rule is implemented on both sides — server and client — and the two must
-stay in step.
+stay in step. Consecutive harness records (bookkeeping, injected context, a title or mode
+repeated unchanged, turn timings) fold into one quiet row, so the log reads as the
+conversation; every one of them is still there to open.
 
 ## MCP server
 
 The same query functions the HTTP API uses, over hand-rolled newline-delimited JSON-RPC
-2.0 on stdio. Tools-only, read-only, permanently. In MCP mode stdout is the protocol
-channel, so every diagnostic goes to stderr.
+2.0 on stdio. Tools-only, read-only, permanently — and every tool says so in the
+protocol's own annotations (`readOnlyHint`), so a client can verify it from the tool list.
+In MCP mode stdout is the protocol channel, so every diagnostic goes to stderr.
 
 ## Testing
 

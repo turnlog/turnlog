@@ -12,8 +12,10 @@ export const APP_VERSION: string = pkg.version;
  * v6: gitBranch, stamped on every record and previously discarded.
  * v7: command, extracted from Bash tool_use inputs — 40% of tool calls had
  * no dimension of their own.
+ * v8: CC 2.1's harness records become kind 'bookkeeping' (they were a fifth
+ * of all rows, as 'unknown'), fast-mode speed, and the 2026-10 price table.
  */
-export const ADAPTER_VERSION = 7;
+export const ADAPTER_VERSION = 8;
 
 /**
  * Version of the Codex rollout adapter. Per-tool on purpose: bumping one
@@ -25,19 +27,22 @@ export const ADAPTER_VERSION = 7;
  * v4: session_meta.git.branch, carried across the file like cwd and model.
  * v5: command, from local_shell_call actions, shell function_calls, and the
  * exec_command handle inside exec's JavaScript bodies.
+ * v6: world_state snapshots become kind 'bookkeeping' instead of 'unknown'.
  */
-export const CODEX_ADAPTER_VERSION = 5;
+export const CODEX_ADAPTER_VERSION = 6;
 
 /**
  * Version of the Cursor CLI (agent-transcripts JSONL) adapter.
  * v2: command, from run_terminal_cmd-shaped tool_use inputs.
+ * v3: no normalization change — reprices Claude models on the 2026-10 table.
  */
-export const CURSOR_ADAPTER_VERSION = 2;
+export const CURSOR_ADAPTER_VERSION = 3;
 
 /**
  * Version of the Cursor IDE (state.vscdb) extractor+adapter. Separate from
  * the CLI constant: the two formats churn independently, and a bump reindexes
  * only the sessions that came from the matching source.
  * v2: command, from run_terminal_cmd-shaped toolFormerData params.
+ * v3: no normalization change — reprices Claude models on the 2026-10 table.
  */
-export const CURSOR_IDE_ADAPTER_VERSION = 2;
+export const CURSOR_IDE_ADAPTER_VERSION = 3;

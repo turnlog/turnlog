@@ -222,11 +222,21 @@ describe('adapter behavior', () => {
   it('stores unrecognized record types as unknown with raw preserved', async () => {
     const records = await normalizeFile(sessionAFile);
     const unknowns = records.filter((r) => r.kind === 'unknown');
-    // queue-operation (deliberately unadapted) and the malformed JSON line
-    expect(unknowns).toHaveLength(2);
+    // Only the malformed JSON line: queue-operation is bookkeeping since v8.
+    expect(unknowns).toHaveLength(1);
     for (const rec of unknowns) expect(rec.raw.length).toBeGreaterThan(0);
     const malformed = unknowns.find((r) => r.raw.includes('"assist'));
     expect(malformed?.uuid.startsWith(`${SESSION_A}:`)).toBe(true);
+  });
+
+  it('classifies known harness records as silent bookkeeping, raw preserved', async () => {
+    const records = await normalizeFile(sessionAFile);
+    const kept = records.filter((r) => r.kind === 'bookkeeping');
+    expect(kept.map((r) => r.subtype)).toEqual(['queue-operation']);
+    for (const rec of kept) {
+      expect(rec.text).toBe('');
+      expect(rec.raw.length).toBeGreaterThan(0);
+    }
   });
 
   it('normalizes CC titles with their source in subtype', async () => {

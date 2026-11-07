@@ -59,6 +59,17 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * A local image or video a record names by path, through the guarded media
+ * route. `<img>`/`<video>` cannot send headers, so the token rides the query
+ * string — the event stream's arrangement.
+ */
+export function mediaUrl(sessionId: string, idx: number, ref: string): string {
+  const q = new URLSearchParams({ idx: String(idx), ref });
+  if (token) q.set('token', token);
+  return `/api/sessions/${encodeURIComponent(sessionId)}/media?${q.toString()}`;
+}
+
 async function apiFetch<T>(path: string): Promise<T> {
   const res = await fetch(path, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},

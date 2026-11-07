@@ -131,12 +131,13 @@ export function fmtDuration(startIso: string | null, endIso: string | null): str
   return `${h}h ${mins % 60}m`;
 }
 
-/** `claude-sonnet-4-5-20250929` → `sonnet-4-5`; unknown shapes pass through. */
+/** `claude-sonnet-4-5-20250929` → `sonnet-4.5`; unknown shapes pass through. */
 export function fmtModel(model: string | null): string {
   if (!model) return '';
   return model
     .replace(/^claude-/, '')
-    .replace(/-\d{8}$/, '');
+    .replace(/-\d{8}$/, '')
+    .replace(/(^|-)(\d)-(\d)(?=-|$)/g, '$1$2.$3');
 }
 
 export function shortId(id: string): string {

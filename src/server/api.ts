@@ -830,13 +830,14 @@ export function isLens(v: string | undefined): v is Lens {
 export function listMessages(
   db: DatabaseSync,
   sessionId: string,
-  q: { afterIdx?: number; limit?: number; lens?: Lens },
+  q: { afterIdx?: number; limit?: number; lens?: Lens; skipBookkeeping?: boolean },
 ): MessageListResponse | null {
   const session = db.prepare(`SELECT id FROM sessions WHERE id = ?`).get(sessionId);
   if (!session) return null;
   const afterIdx = q.afterIdx ?? -1;
   const limit = Math.min(Math.max(q.limit ?? 200, 1), 2000);
-  const lensSql = q.lens ? LENS_SQL[q.lens] : '';
+  const lensSql =
+    (q.lens ? LENS_SQL[q.lens] : '') + (q.skipBookkeeping ? ` AND kind <> 'bookkeeping'` : '');
 
   const rows = db
     .prepare(
@@ -957,6 +958,8 @@ export function getSessionJsonExport(
 
 const READ_TOOLS = new Set(['Read', 'Grep', 'Glob', 'LS', 'NotebookRead']);
 const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit']);
+/** CC's subagent spawner: `Task` through 2.0, `Agent` since. */
+const SUBAGENT_TOOLS = new Set(['Task', 'Agent']);
 const COMMAND_RE = /<command-name>([^<]*)<\/command-name>/;
 const TURN_TEXT_MAX = 240;
 
@@ -1071,7 +1074,7 @@ export function listTurns(db: DatabaseSync, sessionId: string): TurnsResponse | 
       // calls count, not just Claude Code's.
       else if (EDIT_TOOLS.has(r.tool_name)) current.edits++;
       else if (r.command !== null) current.commands++;
-      else if (r.tool_name === 'Task') current.tasks++;
+      else if (SUBAGENT_TOOLS.has(r.tool_name)) current.tasks++;
       else current.otherTools++;
     }
   }
@@ -1117,7 +1120,9 @@ interface BranchRow {
   isSidechain?: boolean;
 }
 
-const BRANCH_INERT_KINDS = new Set(['meta', 'system', 'attachment', 'mode', 'title', 'unknown']);
+const BRANCH_INERT_KINDS = new Set([
+  'meta', 'system', 'attachment', 'mode', 'title', 'bookkeeping', 'unknown',
+]);
 
 export function findAbandonedIdxs(rows: BranchRow[]): Set<number> {
   const parentOf = (r: BranchRow) => r.parent_uuid ?? r.parentUuid ?? null;

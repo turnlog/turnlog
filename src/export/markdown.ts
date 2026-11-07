@@ -181,6 +181,7 @@ function toolBody(name: string, input: Record<string, unknown>): string {
     case 'Glob':
       return str(input.pattern) ? `Pattern: \`${str(input.pattern)}\`` : '';
     case 'Task':
+    case 'Agent':
       return str(input.prompt) ? blockquote(str(input.prompt)!) : '';
     default: {
       const json = JSON.stringify(input, null, 2);
@@ -255,6 +256,7 @@ export function sessionToMarkdown(
       case 'title':
       case 'attachment':
       case 'mode':
+      case 'bookkeeping':
       case 'unknown':
         break; // omitted from prose export
       default: {

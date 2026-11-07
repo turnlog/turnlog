@@ -111,12 +111,14 @@ describe('codex indexing', () => {
     expect(hit.groups.map((g) => g.session.id)).toContain(CODEX_SESSION);
   });
 
-  it('keeps world_state and friends under the cardinal rule', () => {
-    const unknown = db
+  it('keeps world_state under the cardinal rule, as bookkeeping rather than drift', () => {
+    const rows = db
       .prepare(
-        `SELECT COUNT(*) AS n FROM messages WHERE session_id = ? AND kind = 'unknown'`,
+        `SELECT kind, raw_json AS raw FROM messages
+         WHERE session_id = ? AND kind IN ('unknown', 'bookkeeping')`,
       )
-      .get(CODEX_SESSION) as { n: number };
-    expect(unknown.n).toBe(1); // world_state, raw preserved
+      .all(CODEX_SESSION) as { kind: string; raw: string }[];
+    expect(rows.map((r) => r.kind)).toEqual(['bookkeeping']);
+    expect(rows[0]!.raw).toContain('world_state'); // raw preserved
   });
 });

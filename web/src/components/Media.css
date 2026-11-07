@@ -1,0 +1,135 @@
+/* Media — thumbnails and the full-size viewer. Thumbs are a fixed height:
+   the log is virtualized, so a row must not grow when an image decodes. The
+   checkerboard reads through transparent PNGs on either theme. */
+
+.media-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.media-thumb {
+  position: relative;
+  display: block;
+  height: 112px;
+  padding: 4px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background:
+    repeating-conic-gradient(var(--bg2) 0% 25%, var(--bg1) 0% 50%) 50% / 14px 14px;
+  cursor: zoom-in;
+  overflow: hidden;
+  transition: background-color 0.15s ease;
+}
+.media-thumb img,
+.media-thumb video {
+  display: block;
+  height: 104px;
+  max-width: 220px;
+  object-fit: cover;
+  border-radius: var(--radius-xs);
+}
+.media-thumb video {
+  width: 184px;
+  background: var(--bg2);
+  pointer-events: none;
+}
+.media-play {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--contrast-on);
+}
+.media-play svg {
+  border-radius: 999px;
+  background: var(--contrast-solid);
+  opacity: 0.85;
+}
+.media-tag {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  max-width: calc(100% - 16px);
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--contrast-solid);
+  color: var(--contrast-on);
+  font-family: var(--mono);
+  font-size: var(--fs-10);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.media-thumb:hover .media-tag,
+.media-thumb:focus-visible .media-tag {
+  opacity: 1;
+}
+
+.media-missing {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg1);
+  color: var(--tx2);
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+}
+
+/* The viewer: a card on the scrim, the media letterboxed inside it. */
+.media-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(1200px, 100%);
+  max-height: calc(100vh - 40px);
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  background: var(--card);
+}
+.media-viewer-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.media-viewer-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--tx1);
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.media-viewer-count {
+  color: var(--tx2);
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+}
+.media-viewer-stage {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  border-radius: var(--radius-md);
+  background:
+    repeating-conic-gradient(var(--bg2) 0% 25%, var(--bg1) 0% 50%) 50% / 18px 18px;
+  overflow: hidden;
+}
+.media-viewer-stage img,
+.media-viewer-stage video {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100vh - 160px);
+  object-fit: contain;
+}
+.media-viewer-nav {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
