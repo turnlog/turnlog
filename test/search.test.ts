@@ -450,10 +450,13 @@ describe('MCP calls — parsed, not mangled', () => {
     // matter how many plain tools share the match set.
     const facets = searchMessages(db, { query: 'kind:tool_use' }).facets;
     const servers = (facets?.servers ?? []).map((f) => f.value).sort();
-    expect(servers).toEqual(['Context7', 'Playwright']);
-    // The tools dimension is capped at 6; the Context7 call is the MCP name
-    // that makes the cut (BINARY tie order), and one is all a label needs.
-    const mcpTool = (facets?.tools ?? []).find(
+    expect(servers).toEqual(['Context7', 'Playwright', 'browser']);
+    // The tools dimension is capped at 6, so read the label off the one
+    // project whose calls are mostly MCP; one is all a label needs.
+    const context7 = searchMessages(db, {
+      query: 'kind:tool_use project:-Users-dev-projects-webapp',
+    }).facets;
+    const mcpTool = (context7?.tools ?? []).find(
       (f) => f.value === 'mcp__Context7__resolve_library_id',
     );
     expect(mcpTool?.label).toBe('Context7 · resolve_library_id');

@@ -40,6 +40,11 @@ way or the client will fail to parse the handshake.
 **It reads the same index as the UI.** No separate configuration, no second copy. If the
 UI can find your sessions, so can the agent.
 
+**Protocol revisions 2024-11-05 through 2025-11-25.** The server echoes whichever of
+those the client asks for, and answers anything else with the newest — the client decides
+whether to continue. Initialize also returns short `instructions` saying when the tools
+are worth calling, which clients that support them pass to the model.
+
 **It is read-only**, permanently — see [Claude Code setup](/docs/guides/mcp-claude-code#what-it-cannot-do)
 for why that is a design decision rather than a default.
 

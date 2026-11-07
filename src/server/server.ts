@@ -54,6 +54,7 @@ import {
 import type { SessionMetaPatch } from './apiTypes.js';
 import type { ModelPricing } from '../cost/pricing.js';
 import { placeholderHtml } from './placeholder.js';
+import { findMedia, sendMedia } from './media.js';
 import { APP_VERSION } from '../version.js';
 
 export interface ServerContext {
@@ -319,17 +320,39 @@ function serveStatic(res: http.ServerResponse, urlPath: string): boolean {
 function serveIndex(res: http.ServerResponse): void {
   const indexPath = path.join(webDistDir, 'index.html');
   let html: string;
+  let built = true;
   try {
     html = fs.readFileSync(indexPath, 'utf8');
   } catch {
-    html = placeholderHtml();
+    html = placeholderHtml(); // unbuilt checkout: its one inline script needs no CSP
+    built = false;
   }
   res.writeHead(200, {
     'Content-Type': 'text/html; charset=utf-8',
     'X-Content-Type-Options': 'nosniff',
+    ...(built ? { 'Content-Security-Policy': APP_CSP } : {}),
   });
   res.end(html);
 }
+
+/**
+ * The browser half of "never phones home": logs are untrusted input, and a
+ * remote URL an agent wrote into its prose must not become a request.
+ */
+const APP_CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "media-src 'self' blob:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "worker-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+  "frame-ancestors 'none'",
+].join('; ');
 
 export function createServer(ctx: ServerContext): http.Server {
   const server = http.createServer((req, res) => {
@@ -370,6 +393,21 @@ export function createServer(ctx: ServerContext): http.Server {
           });
         });
         return;
+      }
+      // Media streams honour Range, so this route needs the request itself.
+      const mediaMatch = /^\/api\/sessions\/([^/]+)\/media$/.exec(url.pathname);
+      if (mediaMatch) {
+        const idxParam = url.searchParams.get('idx') ?? '';
+        if (!/^\d{1,9}$/.test(idxParam)) return sendJson(res, 400, { error: 'bad idx' });
+        const idx = Number(idxParam);
+        const found = findMedia(
+          ctx.db,
+          decodeURIComponent(mediaMatch[1]!),
+          idx,
+          url.searchParams.get('ref') ?? '',
+        );
+        if (!found.ok) return sendJson(res, found.status, { error: found.error });
+        return sendMedia(req, res, found.file);
       }
       try {
         return handleApi(ctx, url, res);

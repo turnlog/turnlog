@@ -63,11 +63,21 @@ The other reason is [deep search](/docs/product/tour/search#deep-search), which 
 second index for substring matching and costs a few times the first one. Dropping it from
 the health card gives that space straight back.
 
+## A preview says "not on disk"
+
+Images and videos a session names by path are read from your disk when you open the
+session, not copied into the index. If the file was moved, deleted, or lived in a temp
+directory that has since been cleared, a file the agent named on purpose shows *not on
+disk*; a path that only appeared in prose simply shows nothing. Images that were inline in
+the log itself always render.
+
 ## After an update, something looks odd
 
 Some releases bump an adapter version, which forces a full re-index of that agent's files
 on the next scan. That is expected and self-healing — it is how a parser fix reaches
-sessions that were indexed before it existed.
+sessions that were indexed before it existed. Costs are computed at index time, so a
+re-index is also how a price-table update reaches old sessions: if your totals moved
+after updating, that is the new table, not a counting change.
 
 ## Windows: a leftover `.turnlog-<random>` directory
 

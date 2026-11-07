@@ -7,7 +7,7 @@ description: "Which agents Turnlog reads, where their logs live, and what each f
 
 | Agent | Read from | Notes |
 |---|---|---|
-| **Claude Code** | `~/.claude/projects/**/*.jsonl` | Includes subagent transcripts under `<session>/subagents/` |
+| **Claude Code** | `~/.claude/projects/**/*.jsonl` | Includes subagent transcripts under `<session>/subagents/`; verified against 2.1.316 |
 | **OpenAI Codex** | `~/.codex/sessions/**/*.jsonl` | Rollout files |
 | **Cursor CLI** | `~/.cursor/projects/**` | `cursor-agent` transcripts, subagent runs included |
 | **Cursor IDE** | the IDE's `state.vscdb` | Copied before reading; the original is never opened |
@@ -33,9 +33,14 @@ field can only be shown if the agent wrote it:
 | Git branch | ✅ | ✅ | — | — |
 | Context-window curve | ✅ | — | — | — |
 | Subagent transcripts | ✅ | — | ✅ | — |
+| Inline images | ✅ | — | ✅ | ✅ |
+| Images and videos named by path | ✅ | ✅ | ✅ | ✅ |
+| Effort, thinking time, fast mode | ✅ | — | — | — |
 
 A gap here is the log's, not the adapter's: Turnlog reports null rather than inventing a
-value. Older Claude Code builds did not stamp a branch either, so some historical
+value. Media named by path is read from the normalized layer — tool arguments, the marker
+Claude Code leaves where it saved a screenshot, Codex's attached images, rooted paths in
+prose — so it works for every agent that writes a path down. Older Claude Code builds did not stamp a branch either, so some historical
 sessions have none.
 
 ## Adding an agent

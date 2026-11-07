@@ -16,7 +16,7 @@ and `https://…` never break a query.
 | Operator | Matches | Example |
 |---|---|---|
 | `tool:` | exact, case-insensitive | `tool:Bash` |
-| `kind:` | exact, case-insensitive | `kind:prompt` |
+| `kind:` | exact, case-insensitive — `prompt`, `assistant`, `tool_use`, `tool_result`, `system`, `attachment`, `bookkeeping`, … | `kind:prompt` |
 | `branch:` | exact, case-insensitive | `branch:feature/auth` |
 | `agent:` | exact, plus the adapter's variants | `agent:cursor` |
 | `tag:` | exact (tags are normalised) | `tag:billing` |

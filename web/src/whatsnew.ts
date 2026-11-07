@@ -18,6 +18,44 @@ export interface ReleaseNotes {
 
 export const RELEASES: ReleaseNotes[] = [
   {
+    version: '0.14.0',
+    date: '2026-11-07',
+    notes: [
+      {
+        kind: 'added',
+        text: 'Image and video previews for the agent’s side of the conversation, not just yours. A tool call’s screenshots show under it without opening the call, and files a session names by path preview too: a file the agent sent you, an image Codex looked at, a screen recording you dragged into a prompt, a path the agent wrote into its answer. Click any thumbnail for a full-size viewer — videos play there, and the arrow keys step through the set.',
+      },
+      {
+        kind: 'improved',
+        text: 'The replay reads like the conversation again. Current Claude Code writes a record for every request snapshot, cache check and reminder — a fifth of everything in its logs — and each one showed up as its own “unrecognized event” row. They now fold into one quiet bookkeeping row per run (open it to read any of them), and a session’s title shows once instead of after every turn.',
+      },
+      {
+        kind: 'improved',
+        text: 'Thinking you cannot read says what happened. Current models often return their reasoning with the text left out, which showed as an empty “thinking” toggle on nearly every answer; it now reads “thought 4.2s · xhigh effort”, and “fast mode” when it was.',
+      },
+      {
+        kind: 'improved',
+        text: 'Costs for the current Claude models are right: Opus 5.5, Sonnet 5.5, Haiku 5.5 and Fable 5.1 have their own rates, fast mode costs what it costs, and Sonnet 5 is no longer estimated at the old Sonnet price. Opus 5.5 sessions had been estimated at about twice their cost; they now match what Claude Code itself records. Your index rebuilds itself on first launch to reprice everything.',
+      },
+      {
+        kind: 'improved',
+        text: 'Newer tools read as themselves — task updates show the task and its new status, questions show their options, a file sent to you shows its caption — the “while you were away” recap and commands like /compact render as what they are, and model names read as versions: opus-5.5, not opus-5-5.',
+      },
+      {
+        kind: 'improved',
+        text: 'Your agent’s Turnlog tools now say they are read-only in a way MCP clients can check from the tool list, and reading a session through them skips the bookkeeping records.',
+      },
+      {
+        kind: 'fixed',
+        text: 'Subagents nest under the call that started them again. Claude Code renamed its subagent tool, and Turnlog only knew the old name — so subagent runs floated loose, and the turn summaries stopped counting them.',
+      },
+      {
+        kind: 'fixed',
+        text: 'An image link inside an agent’s answer could make your browser fetch it from the internet when you opened the session. Remote images now show as a link and are never loaded, and the app itself refuses to load anything from anywhere but your own machine.',
+      },
+    ],
+  },
+  {
     version: '0.13.1',
     date: '2026-09-13',
     notes: [

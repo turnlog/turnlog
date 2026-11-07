@@ -1,9 +1,10 @@
 import { memo, useContext, useMemo, useState } from 'react';
-import { useChildRows } from '../api';
-import { AgentLabelContext } from './agentContext';
+import { mediaUrl, useChildRows } from '../api';
+import { AgentLabelContext, SessionIdContext } from './agentContext';
 import CodeBlock from '../code/CodeBlock';
 import { langFromPath } from '../code/highlighter';
 import Badge from '../components/Badge';
+import { MediaStrip, type MediaItem } from '../components/Media';
 import { SkeletonLines } from '../components/Skeleton';
 import Tooltip from '../components/Tooltip';
 import { fmtCount, fmtTime, mcpName } from '../format';
@@ -13,8 +14,20 @@ import type { ChildSessionSummary, MessageRow } from '../types';
 import { BookmarkContext, type BookmarkState } from './bookmarkContext';
 import { ChildSessionsContext, matchChildSession } from './childSessions';
 import { EditDiff, WriteDiff } from './DiffView';
-import { parseRaw, prettyRaw, type ImageView, type ToolResultView } from './raw';
-import { buildChildBlocks, type Block } from './thread';
+import {
+  parseRaw,
+  prettyRaw,
+  type ImageView,
+  type MediaRef,
+  type ToolResultView,
+} from './raw';
+import {
+  ATTACH_LABEL,
+  SUBAGENT_TOOLS,
+  buildChildBlocks,
+  recordShape,
+  type Block,
+} from './thread';
 
 /* ── shared bits ─────────────────────────────────────────────────────── */
 
@@ -46,33 +59,40 @@ function ClampedText({ text, mono = true }: { text: string; mono?: boolean }) {
 }
 
 /**
- * Images the log carried inline — a pasted screenshot, or one a tool
- * returned. Thumbnails until clicked, so a session full of screenshots still
- * scrolls; the bytes are already in the record, decoded here as a data: URI.
- * Nothing is fetched, and nothing is written — same promise as every pixel
- * in this app.
+ * Everything a row can show as media: images the log carried inline (decoded
+ * as data: URIs — nothing fetched) and files it names by path, which the
+ * guarded media route serves against this exact message.
  */
-function Thumbs({ images, label }: { images: ImageView[]; label: string }) {
-  const [openIdx, setOpenIdx] = useState<number | null>(null);
-  if (images.length === 0) return null;
-  return (
-    <div className="thumbs">
-      {images.map((img, i) => {
-        const open = openIdx === i;
-        return (
-          <button
-            key={i}
-            className={`thumb ${open ? 'open' : ''}`}
-            onClick={() => setOpenIdx(open ? null : i)}
-            title={open ? 'Click to shrink' : 'Click to view full size'}
-          >
-            <img src={img.src} alt={`${label}${images.length > 1 ? ` ${i + 1}` : ''}`} loading="lazy" />
-            <span className="thumb-size">{Math.max(1, Math.round(img.bytes / 1024))} KB</span>
-          </button>
-        );
-      })}
-    </div>
-  );
+const NO_IMAGES: ImageView[] = [];
+const NO_REFS: MediaRef[] = [];
+
+function useMediaItems(
+  row: MessageRow | null,
+  images: ImageView[],
+  refs: MediaRef[],
+  label: string,
+): MediaItem[] {
+  const sessionId = useContext(SessionIdContext);
+  return useMemo(() => {
+    const items: MediaItem[] = images.map((img, i) => ({
+      src: img.src,
+      kind: 'image',
+      name: images.length > 1 ? `${label} ${i + 1}` : label,
+      bytes: img.bytes,
+      explicit: true,
+    }));
+    if (row && sessionId) {
+      for (const ref of refs) {
+        items.push({
+          src: mediaUrl(sessionId, row.idx, ref.ref),
+          kind: ref.kind,
+          name: ref.ref,
+          explicit: ref.explicit,
+        });
+      }
+    }
+    return items;
+  }, [row, sessionId, images, refs, label]);
 }
 
 function RawDetails({ raw }: { raw: string }) {
@@ -125,7 +145,8 @@ function CopyPrompt({ text }: { text: string }) {
 const PromptBlock = memo(function PromptBlock({ row }: { row: MessageRow }) {
   const command = COMMAND_RE.exec(row.text)?.[1]?.trim();
   const stdout = STDOUT_RE.exec(row.text)?.[1]?.trim();
-  const { images } = parseRaw(row);
+  const { images, media } = parseRaw(row);
+  const items = useMediaItems(row, images, media, 'pasted image');
 
   return (
     <div className="block block-user">
@@ -142,35 +163,84 @@ const PromptBlock = memo(function PromptBlock({ row }: { row: MessageRow }) {
       ) : (
         row.text !== '' && <ClampedText text={row.text} />
       )}
-      <Thumbs images={images} label="pasted image" />
+      <MediaStrip items={items} />
     </div>
   );
 });
 
 /* ── assistant ───────────────────────────────────────────────────────── */
 
+/** What the record says about how the answer was made, beyond its words. */
+function responseFacts(row: MessageRow): { effort: string | null; thinkingMs: number | null; fast: boolean } {
+  try {
+    const o = JSON.parse(row.raw) as {
+      effort?: unknown;
+      thinkingDurationMs?: unknown;
+      message?: { usage?: { speed?: unknown } };
+    };
+    return {
+      effort: typeof o.effort === 'string' ? o.effort : null,
+      thinkingMs: typeof o.thinkingDurationMs === 'number' ? o.thinkingDurationMs : null,
+      fast: o.message?.usage?.speed === 'fast',
+    };
+  } catch {
+    return { effort: null, thinkingMs: null, fast: false };
+  }
+}
+
+function fmtSeconds(ms: number): string {
+  return ms < 10_000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.round(ms / 1000)}s`;
+}
+
 const AssistantBlock = memo(function AssistantBlock({ row }: { row: MessageRow }) {
   const view = parseRaw(row);
   const [thinkingOpen, setThinkingOpen] = useState(false);
   const agentLabel = useContext(AgentLabelContext);
+  const sessionId = useContext(SessionIdContext);
+  const facts = useMemo(() => responseFacts(row), [row]);
+  const items = useMediaItems(row, view.images, view.media, 'image');
+  const resolveMedia = useMemo(
+    () => (ref: string) => (sessionId ? mediaUrl(sessionId, row.idx, ref) : null),
+    [sessionId, row.idx],
+  );
+  // Current models return thinking with its text omitted: a signature and a
+  // duration, nothing to read. Say that it happened, not that it is empty.
+  const thinking = view.thinkingParts.filter((t) => t.trim() !== '').join('\n\n');
+  const hidThinking = view.thinkingParts.length > 0 && thinking === '';
+  const meta = [
+    hidThinking ? `thought${facts.thinkingMs !== null ? ` ${fmtSeconds(facts.thinkingMs)}` : ''}` : null,
+    facts.effort ? `${facts.effort} effort` : null,
+    facts.fast ? 'fast mode' : null,
+  ].filter(Boolean);
+
+  if (hidThinking && view.textParts.length === 0 && items.length === 0) {
+    return (
+      <div className="block block-mode block-thought">
+        <span className="mode-text">{meta.join(' · ')}</span>
+      </div>
+    );
+  }
 
   return (
     <div className="block block-assistant">
       <div className="block-head">
         <span className="block-label">{agentLabel}</span>
+        {meta.length > 0 && <span className="block-meta">{meta.join(' · ')}</span>}
         <Ts iso={row.ts} />
       </div>
-      {view.thinkingParts.length > 0 && (
+      {thinking !== '' && (
         <div className="thinking">
           <button className="thinking-toggle" onClick={() => setThinkingOpen(!thinkingOpen)}>
             <Caret open={thinkingOpen} /> thinking
+            {facts.thinkingMs !== null && <span className="thinking-time">{fmtSeconds(facts.thinkingMs)}</span>}
           </button>
-          {thinkingOpen && <ClampedText text={view.thinkingParts.join('\n\n')} />}
+          {thinkingOpen && <ClampedText text={thinking} />}
         </div>
       )}
       {view.textParts.map((text, i) => (
-        <Markdown key={i} text={text} />
+        <Markdown key={i} text={text} resolveMedia={resolveMedia} />
       ))}
+      <MediaStrip items={items} />
     </div>
   );
 });
@@ -201,7 +271,30 @@ function toolSummary(name: string, input: Record<string, unknown>): string {
     case 'Glob':
       return str(input.pattern) ?? '';
     case 'Task':
+    case 'Agent':
       return str(input.description) ?? '';
+    case 'TaskCreate':
+      return str(input.subject) ?? '';
+    case 'TaskUpdate': {
+      const id = str(input.taskId) ?? (typeof input.taskId === 'number' ? String(input.taskId) : '');
+      const status = str(input.status);
+      return `#${id}${status ? ` → ${status.replace(/_/g, ' ')}` : ''}`;
+    }
+    case 'TaskGet':
+      return str(input.taskId) ? `#${str(input.taskId)}` : '';
+    case 'ToolSearch':
+      return str(input.query) ?? '';
+    case 'Skill':
+      return str(input.skill) ?? str(input.name) ?? '';
+    case 'SendUserFile': {
+      const files = Array.isArray(input.files) ? input.files.length : 0;
+      return str(input.caption) ?? `${files} file${files === 1 ? '' : 's'}`;
+    }
+    case 'AskUserQuestion': {
+      const qs = Array.isArray(input.questions) ? input.questions : [];
+      const first = (qs[0] as { question?: unknown } | undefined)?.question;
+      return typeof first === 'string' ? first : `${qs.length} questions`;
+    }
     case 'WebFetch':
       return str(input.url) ?? '';
     case 'WebSearch':
@@ -302,10 +395,40 @@ function ToolBody({
         </div>
       );
     }
-    case 'Task': {
+    case 'Task':
+    case 'Agent': {
       const prompt = str(input.prompt);
-      return prompt ? <ClampedText text={prompt} /> : null;
+      return prompt ? <ClampedText text={prompt} mono={false} /> : null;
     }
+    case 'TaskCreate': {
+      const desc = str(input.description);
+      return desc ? <ClampedText text={desc} mono={false} /> : null;
+    }
+    case 'AskUserQuestion':
+      if (Array.isArray(input.questions)) {
+        return (
+          <ul className="ask-list">
+            {input.questions.map((q, i) => {
+              const item = q as { question?: unknown; options?: unknown };
+              const options = Array.isArray(item.options) ? item.options : [];
+              return (
+                <li key={i}>
+                  <span className="ask-q">{str(item.question) ?? ''}</span>
+                  {options.length > 0 && (
+                    <span className="ask-options">
+                      {options
+                        .map((o) => str((o as { label?: unknown }).label) ?? '')
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        );
+      }
+      break;
     case 'TodoWrite':
       if (Array.isArray(input.todos)) return <TodoList todos={input.todos} />;
       break;
@@ -322,15 +445,20 @@ function ResultBody({ result }: { result: MessageRow }) {
   const text = first?.text !== undefined && first.text !== '' ? first.text : result.text;
   const isError = first?.isError === true;
   const images = first?.images ?? [];
+  // A result whose only content is its images reads as the images.
+  const textShown = text.replace(/\[Image: source: [^\]\n]+\]/g, '').trim();
   return (
     <div className={`tool-result ${isError ? 'error' : ''}`}>
       <div className="tool-result-label">{isError ? 'result · error' : 'result'}</div>
-      {text === '' && images.length === 0 ? (
+      {textShown === '' && images.length === 0 ? (
         <div className="tool-note">(empty)</div>
+      ) : textShown === '' ? (
+        <div className="tool-note">
+          {images.length} image{images.length === 1 ? '' : 's'} — shown above
+        </div>
       ) : (
-        text !== '' && <ClampedText text={text} />
+        <ClampedText text={textShown} />
       )}
-      <Thumbs images={images} label="tool screenshot" />
     </div>
   );
 }
@@ -507,12 +635,31 @@ const ToolBlockView = memo(function ToolBlockView({
   // child session nested where the inline sidechain run would have been.
   const childSessions = useContext(ChildSessionsContext);
   const child =
-    block.use.toolName === 'Task' && block.run === null
+    SUBAGENT_TOOLS.has(block.use.toolName ?? '') && block.run === null
       ? matchChildSession(childSessions, str(use.input.prompt), block.use.ts)
       : null;
 
   const resultView = block.result ? parseRaw(block.result) : null;
   const failed = resultView?.toolResults[0]?.isError === true;
+  // A call's media shows without opening it: what the agent sent you, what a
+  // screenshot tool saw. Inline result bytes win over a path to the same file.
+  const resultImages = useMemo(
+    () => resultView?.toolResults.flatMap((r) => r.images) ?? NO_IMAGES,
+    [resultView],
+  );
+  const useItems = useMediaItems(
+    block.use,
+    NO_IMAGES,
+    resultImages.length > 0 ? NO_REFS : view.media,
+    'file',
+  );
+  const resultItems = useMediaItems(
+    block.result,
+    resultImages,
+    resultView?.media ?? NO_REFS,
+    'tool screenshot',
+  );
+  const media = useMemo(() => [...useItems, ...resultItems], [useItems, resultItems]);
   const summary = toolSummary(use.name, use.input);
   const category =
     use.name === 'Bash'
@@ -531,6 +678,11 @@ const ToolBlockView = memo(function ToolBlockView({
         {!block.result && <span className="tool-pending">no result</span>}
         <Ts iso={block.use.ts} />
       </button>
+      {media.length > 0 && (
+        <div className="tool-media">
+          <MediaStrip items={media} />
+        </div>
+      )}
       {isOpen && (
         <div className="tool-body">
           <ToolBody name={use.name} input={use.input} body={use.body} />
@@ -567,7 +719,27 @@ function SummaryBlock({ row }: { row: MessageRow }) {
 
 const SystemBlock = memo(function SystemBlock({ row }: { row: MessageRow }) {
   const [open, setOpen] = useState(false);
-  const oneLine = row.text.split('\n')[0] ?? '';
+  const { subtype } = recordShape(row);
+  // "While you were away": the agent's own recap — prose worth reading as is.
+  if (subtype === 'away_summary' && row.text !== '') {
+    return (
+      <div className="block block-summary">
+        <Badge kind="summary">recap</Badge>
+        <span className="summary-text">{row.text}</span>
+        <Ts iso={row.ts} />
+      </div>
+    );
+  }
+  const command = subtype === 'local_command' ? COMMAND_RE.exec(row.text)?.[1]?.trim() : undefined;
+  if (command) {
+    return (
+      <div className="block block-mode">
+        <Badge kind="cmd">{command}</Badge>
+        <Ts iso={row.ts} />
+      </div>
+    );
+  }
+  const oneLine = (row.text.split('\n')[0] ?? '') || subtype;
   return (
     <div className="block block-system">
       <button className="system-head" onClick={() => setOpen(!open)}>
@@ -576,7 +748,7 @@ const SystemBlock = memo(function SystemBlock({ row }: { row: MessageRow }) {
         {!open && <span className="system-preview">{oneLine.slice(0, 120)}</span>}
         <Ts iso={row.ts} />
       </button>
-      {open && <ClampedText text={row.text} />}
+      {open && <ClampedText text={row.text || prettyRaw(row.raw)} />}
     </div>
   );
 });
@@ -589,19 +761,6 @@ function TitleBlock({ row }: { row: MessageRow }) {
     </div>
   );
 }
-
-/** Attachment payloads worth a visible badge; everything else is bookkeeping. */
-const ATTACH_LABEL: Record<string, string> = {
-  file: 'file attached',
-  directory: 'directory attached',
-  edited_text_file: 'file edited',
-  compact_file_reference: 'file referenced',
-  queued_command: 'queued',
-  plan_mode: 'plan mode',
-  plan_mode_exit: 'left plan mode',
-  auto_mode: 'auto mode',
-  auto_mode_exit: 'left auto mode',
-};
 
 const AttachmentBlock = memo(function AttachmentBlock({ row }: { row: MessageRow }) {
   const [open, setOpen] = useState(false);
@@ -696,6 +855,57 @@ const ModeBlock = memo(function ModeBlock({ row }: { row: MessageRow }) {
   );
 });
 
+/** One harness record's name, for the folded row and its expansion. */
+function harnessLabel(row: MessageRow): string {
+  const { type, subtype } = recordShape(row);
+  if (row.kind === 'attachment') return subtype || 'context';
+  if (row.kind === 'system') return subtype || 'system';
+  if (row.kind === 'title') return type || 'title';
+  return type || row.kind;
+}
+
+/**
+ * Harness records between two moments, as one quiet row: request snapshots,
+ * cache latches, injected reminders, repeated titles. Recognized and kept —
+ * open the row to read any of them raw — but none is something that happened.
+ */
+const HarnessRun = memo(function HarnessRun({ rows }: { rows: MessageRow[] }) {
+  const [open, setOpen] = useState(false);
+  const [rawAt, setRawAt] = useState<number | null>(null);
+  const names = [...new Set(rows.map(harnessLabel))];
+  const shown = names.slice(0, 3).join(', ') + (names.length > 3 ? ', …' : '');
+  return (
+    <div className="block block-unknown block-harness">
+      <button className="system-head" onClick={() => setOpen(!open)} aria-expanded={open}>
+        <Caret open={open} />
+        <span className="block-label">bookkeeping</span>
+        <span className="system-preview">
+          {rows.length} record{rows.length === 1 ? '' : 's'} · {shown}
+        </span>
+        <Ts iso={rows.find((r) => r.ts)?.ts ?? null} />
+      </button>
+      {open && (
+        <ul className="harness-list">
+          {rows.map((r) => (
+            <li key={r.idx}>
+              <button
+                className="harness-item"
+                onClick={() => setRawAt(rawAt === r.idx ? null : r.idx)}
+                aria-expanded={rawAt === r.idx}
+              >
+                <Caret open={rawAt === r.idx} />
+                <span>{harnessLabel(r)}</span>
+                <Ts iso={r.ts} />
+              </button>
+              {rawAt === r.idx && <ClampedText text={prettyRaw(r.raw)} />}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+});
+
 const UnknownBlock = memo(function UnknownBlock({ row }: { row: MessageRow }) {
   const [open, setOpen] = useState(false);
   const type = useMemo(() => {
@@ -768,6 +978,8 @@ export function BlockView({
       <ToolBlockView block={block} forceOpen={isCurrent} defaultOpen={defaultOpen} />
     ) : block.kind === 'abandoned' ? (
       <AbandonedRun blocks={block.run} />
+    ) : block.kind === 'harness' ? (
+      <HarnessRun rows={block.rows} />
     ) : (
       <SidechainRun blocks={block.run} />
     );

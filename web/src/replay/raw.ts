@@ -35,12 +35,26 @@ export interface ToolResultView {
   images: ImageView[];
 }
 
+/**
+ * A local image or video the record names by path rather than carrying —
+ * a file the agent sent you, a recording dragged into a prompt. `ref` is the
+ * spelling in the log; the media route resolves and gates it.
+ */
+export interface MediaRef {
+  ref: string;
+  kind: 'image' | 'video';
+  /** Named on purpose (a tool argument) rather than spotted in prose — a
+   *  missing file is worth saying out loud only then. */
+  explicit: boolean;
+}
+
 export interface RawView {
   textParts: string[];
   thinkingParts: string[];
   toolUses: ToolUseView[];
   toolResults: ToolResultView[];
   images: ImageView[];
+  media: MediaRef[];
 }
 
 const EMPTY: RawView = {
@@ -49,6 +63,7 @@ const EMPTY: RawView = {
   toolUses: [],
   toolResults: [],
   images: [],
+  media: [],
 };
 
 function asRecord(v: unknown): Record<string, unknown> | null {
@@ -135,6 +150,8 @@ export function parseRaw(row: MessageRow): RawView {
       && row.text !== '') {
     view = { ...view, textParts: [row.text] };
   }
+  const media = collectMedia(view);
+  if (media.length > 0) view = { ...view, media };
 
   if (cache.size >= CACHE_MAX) {
     const first = cache.keys().next().value;
@@ -146,7 +163,73 @@ export function parseRaw(row: MessageRow): RawView {
 
 /** A fresh, empty view — never the shared EMPTY, which callers mutate. */
 function newView(): RawView {
-  return { textParts: [], thinkingParts: [], toolUses: [], toolResults: [], images: [] };
+  return { textParts: [], thinkingParts: [], toolUses: [], toolResults: [], images: [], media: [] };
+}
+
+/* ── media named by path ─────────────────────────────────────────────────
+   Three places on real logs: tool arguments (SendUserFile's files, Codex's
+   view_image path), the marker Claude Code leaves where it saved a tool's
+   image to disk, and paths a person or an agent wrote into prose. Prose only
+   counts a path that is absolute, ~-rooted, or @-mentioned — a bare
+   "logo.png" in a sentence is a word, not a file. */
+
+const MEDIA_EXT = /\.(?:png|jpe?g|gif|webp|mp4|m4v|mov|webm)$/i;
+const VIDEO_EXT = /\.(?:mp4|m4v|mov|webm)$/i;
+const TEXT_PATH =
+  /(?:^|[\s"'`(<[])(@|(?=~\/|\/))((?:\\ |[^\s"'`()<>[\]])+?\.(?:png|jpe?g|gif|webp|mp4|m4v|mov|webm))(?=$|[\s"'`)\]>,;:!?]|\.(?:\s|$))/gim;
+const SAVED_MARKER = /\[Image: source: ([^\]\n]+)\]/g;
+const MD_IMAGE = /!\[[^\]]*\]\([^)]*\)/g;
+const MAX_MEDIA = 12;
+
+function mediaKind(ref: string): MediaRef['kind'] {
+  return VIDEO_EXT.test(ref) ? 'video' : 'image';
+}
+
+/** One path-shaped argument: a single token, no newline, a media extension. */
+function argPath(v: string): string | null {
+  const t = v.trim();
+  if (t.length > 1024 || /\n/.test(t) || !MEDIA_EXT.test(t)) return null;
+  const rooted = /^(?:~\/|\/|[A-Za-z]:[\\/]|\.{1,2}\/)/.test(t);
+  return rooted || !/\s/.test(t) ? t : null;
+}
+
+function argPaths(value: unknown, out: string[], depth = 0): void {
+  if (typeof value === 'string') {
+    const p = argPath(value);
+    if (p) out.push(p);
+  } else if (Array.isArray(value)) {
+    for (const v of value) argPaths(v, out, depth);
+  } else if (depth < 2 && typeof value === 'object' && value !== null) {
+    for (const v of Object.values(value)) argPaths(v, out, depth + 1);
+  }
+}
+
+export function pathsInText(text: string): string[] {
+  const out: string[] = [];
+  for (const m of text.replace(MD_IMAGE, ' ').matchAll(TEXT_PATH)) out.push(m[2]!);
+  return out;
+}
+
+function collectMedia(view: RawView): MediaRef[] {
+  const seen = new Set(view.media.map((m) => m.ref));
+  const out = [...view.media];
+  const add = (ref: string, explicit: boolean) => {
+    if (seen.has(ref) || out.length >= MAX_MEDIA) return;
+    seen.add(ref);
+    out.push({ ref, kind: mediaKind(ref), explicit });
+  };
+  for (const use of view.toolUses) {
+    const found: string[] = [];
+    argPaths(use.input, found);
+    for (const ref of found) add(ref, true);
+  }
+  for (const result of view.toolResults) {
+    // Inline bytes already render; the marker would only repeat them.
+    if (result.images.length > 0) continue;
+    for (const m of result.text.matchAll(SAVED_MARKER)) add(m[1]!.trim(), true);
+  }
+  for (const text of view.textParts) for (const ref of pathsInText(text)) add(ref, false);
+  return out;
 }
 
 /** Parse a JSON string into an object, or null. Tool arguments arrive as
@@ -197,6 +280,13 @@ function extractCodex(rec: Record<string, unknown>): RawView {
     case 'user_message': {
       const text = payload.message ?? payload.text;
       if (typeof text === 'string' && text !== '') view.textParts.push(text);
+      // Images attached from disk ride beside the text, by path.
+      const local = Array.isArray(payload.local_images) ? payload.local_images : [];
+      for (const ref of local) {
+        if (typeof ref === 'string' && MEDIA_EXT.test(ref)) {
+          view.media.push({ ref, kind: mediaKind(ref), explicit: true });
+        }
+      }
       return view;
     }
     case 'reasoning': {
@@ -317,13 +407,7 @@ function extractClaude(rec: Record<string, unknown>): RawView {
   const message = asRecord(rec.message);
   const content = message?.content ?? rec.content;
 
-  const view: RawView = {
-    textParts: [],
-    thinkingParts: [],
-    toolUses: [],
-    toolResults: [],
-    images: [],
-  };
+  const view = newView();
 
   if (typeof content === 'string') {
     view.textParts.push(content);

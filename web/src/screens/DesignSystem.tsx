@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useTheme } from '../theme';
 import AgentBadge from '../components/AgentBadge';
 import CodeBlock from '../code/CodeBlock';
@@ -12,6 +12,7 @@ import Dropdown from '../components/Dropdown';
 import NoteDot from '../components/NoteDot';
 import Primary from '../components/Primary';
 import TextArea from '../components/TextArea';
+import { MediaStrip, type MediaItem } from '../components/Media';
 import Overlay from '../components/Overlay';
 import * as Icons from '../icons';
 import {
@@ -534,6 +535,33 @@ function Family({
 }
 
 /* ── the page ───────────────────────────────────────────────────────── */
+
+/** Two drawn stills and one missing file — the strip's three states, no assets shipped. */
+function drawStill(hue: number): string {
+  const c = document.createElement('canvas');
+  c.width = 320;
+  c.height = 200;
+  const g = c.getContext('2d');
+  if (!g) return '';
+  const grad = g.createLinearGradient(0, 0, 320, 200);
+  grad.addColorStop(0, `hsl(${hue} 60% 55%)`);
+  grad.addColorStop(1, `hsl(${hue + 40} 60% 35%)`);
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 320, 200);
+  return c.toDataURL('image/png');
+}
+
+function MediaSpecimen() {
+  const items = useMemo<MediaItem[]>(
+    () => [
+      { src: drawStill(200), kind: 'image', name: 'pasted image', bytes: 2400, explicit: true },
+      { src: drawStill(20), kind: 'image', name: '/Users/you/shots/after.png', explicit: true },
+      { src: '/api/specimen/missing.png', kind: 'image', name: '/Users/you/gone.png', explicit: true },
+    ],
+    [],
+  );
+  return <MediaStrip items={items} />;
+}
 
 export default function DesignSystem() {
   const theme = useTheme();
@@ -1192,7 +1220,7 @@ export default function DesignSystem() {
 
           <Group
             title="Overlays"
-            note="The only place a shadow appears, over a --scrim backdrop. Three of them, and each button below opens the real one rather than a picture of it — an overlay is fixed to the viewport, so it cannot be shown in place. Escape or a backdrop click dismisses all three, because components/Overlay.tsx owns that for every one."
+            note="The only place a shadow appears, over a --scrim backdrop. Three of them here (the media viewer is the fourth — open it from a thumb in Media below), and each button opens the real one rather than a picture of it — an overlay is fixed to the viewport, so it cannot be shown in place. Escape or a backdrop click dismisses all three, because components/Overlay.tsx owns that for every one."
           >
             <div className="dsn-primary-stage">
               <Primary fill="quiet" onClick={() => setDemoOverlay(true)}>
@@ -1219,6 +1247,13 @@ export default function DesignSystem() {
                 </div>
               </Overlay>
             )}
+          </Group>
+
+          <Group
+            title="Media"
+            note="components/Media.tsx. Thumbs are a fixed 112px so a virtualized row never grows on decode; a click opens the viewer over the shared Overlay (centered), where videos play and ←/→ step. A file named on purpose that is gone says so; one spotted in prose just disappears."
+          >
+            <MediaSpecimen />
           </Group>
 
           <Group

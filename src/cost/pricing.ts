@@ -9,11 +9,12 @@ export interface ModelPricing {
   cacheWrite1h: number;
 }
 
-function rates(input: number, output: number): ModelPricing {
+/** Cache reads default to 10% of input; the 5.5/5.1 generations discount further. */
+function rates(input: number, output: number, cacheRead = input * 0.1): ModelPricing {
   return {
     input,
     output,
-    cacheRead: input * 0.1,
+    cacheRead,
     cacheWrite5m: input * 1.25,
     cacheWrite1h: input * 2,
   };
@@ -27,19 +28,23 @@ function oaiRates(input: number, output: number, cacheRead: number): ModelPricin
 /**
  * Shipped pricing table, updated via npm releases. Matched top to bottom —
  * most specific pattern first. All costs shown to users are labeled estimates.
- * Rates current as of 2026-08 (per MTok). Costs are computed at index time, so
+ * Rates current as of 2026-10 (per MTok). Costs are computed at index time, so
  * a table change only reaches existing indexes via an adapter-version bump.
  */
 const PRICING_TABLE: ReadonlyArray<readonly [RegExp, ModelPricing]> = [
+  [/fable-5-1|mythos-5-1/, rates(10, 50, 0.25)],
   [/fable|mythos/, rates(10, 50)],
+  [/opus-5-5/, rates(4, 20, 0.2)],
   // Legacy expensive Opus generations (4.1 and earlier, Claude 3 Opus).
   // `opus-4[-@]2025` covers both first-party/Bedrock (claude-opus-4-20250514)
   // and Vertex (claude-opus-4@20250514) forms of the Opus 4.0 id.
   [/opus-4-1|opus-4[-@]2025|claude-3-opus/, rates(15, 75)],
   [/opus/, rates(5, 25)],
+  [/haiku-5-5/, rates(0.1, 0.5)],
   [/claude-3-5-haiku|haiku-3-5/, rates(0.8, 4)],
   [/claude-3-haiku/, rates(0.25, 1.25)],
   [/haiku/, rates(1, 5)],
+  [/sonnet-5/, rates(2, 10)], // Sonnet 5 and 5.5
   [/sonnet/, rates(3, 15)],
   // OpenAI (Codex sessions). gpt-5.x rates share the exact shape rates()
   // derives — cached input 10% of input, cache writes 1.25× (Codex reports no
@@ -65,16 +70,16 @@ const PRICING_TABLE: ReadonlyArray<readonly [RegExp, ModelPricing]> = [
   [/gpt-4\.1/, oaiRates(2, 8, 0.5)],
 ];
 
-// Sonnet 5 launched with introductory pricing through 2026-08-31; the sticker
-// rate above applies from 2026-09-01. ISO timestamps compare lexically.
-const SONNET5_INTRO_END = '2026-09';
-const SONNET5_INTRO = rates(2, 10);
+/** Haiku 5.5 bills a prompt over 100K tokens (input + cache) at 5× both legs. */
+const HAIKU55_LONG_PROMPT = 100_000;
+const HAIKU55_LONG = rates(0.5, 2.5);
+
+/** Fast mode (`usage.speed: "fast"`) bills 2× standard on Opus 4.8, 5 and 5.5. */
+const FAST_MULTIPLIER = 2;
 
 export function pricingForModel(
   model: string,
   overrides?: Record<string, Partial<ModelPricing>>,
-  /** Record timestamp — selects date-bound rates (Sonnet 5 intro pricing). */
-  ts?: string | null,
 ): ModelPricing | null {
   let base: ModelPricing | null = null;
   for (const [pattern, pricing] of PRICING_TABLE) {
@@ -82,9 +87,6 @@ export function pricingForModel(
       base = pricing;
       break;
     }
-  }
-  if (base && ts && ts < SONNET5_INTRO_END && /sonnet-5/.test(model)) {
-    base = SONNET5_INTRO;
   }
   if (overrides) {
     // Exact model-id override wins; otherwise substring keys apply.
@@ -113,15 +115,21 @@ export function pricingForModel(
 export function computeCost(
   rec: Pick<
     NormalizedRecord,
-    | 'costUsd' | 'model' | 'ts' | 'tokensIn' | 'tokensOut'
+    | 'costUsd' | 'model' | 'speed' | 'tokensIn' | 'tokensOut'
     | 'cacheReadTokens' | 'cacheWriteTokens' | 'cacheWrite1hTokens'
   >,
   overrides?: Record<string, Partial<ModelPricing>>,
 ): number | null {
   if (rec.costUsd !== null) return rec.costUsd;
   if (!rec.model) return null;
-  const p = pricingForModel(rec.model, overrides, rec.ts);
+  let p = pricingForModel(rec.model, overrides);
   if (!p) return null;
+  const prompt = rec.tokensIn + rec.cacheReadTokens + rec.cacheWriteTokens;
+  // A user override for the model beats the shipped long-prompt tier.
+  const overridden = overrides !== undefined && pricingForModel(rec.model) !== p;
+  if (!overridden && /haiku-5-5/.test(rec.model) && prompt > HAIKU55_LONG_PROMPT) {
+    p = HAIKU55_LONG;
+  }
 
   const write1h = Math.min(rec.cacheWrite1hTokens, rec.cacheWriteTokens);
   const write5m = rec.cacheWriteTokens - write1h;
@@ -132,5 +140,5 @@ export function computeCost(
       write5m * p.cacheWrite5m +
       write1h * p.cacheWrite1h) /
     1_000_000;
-  return usd;
+  return rec.speed === 'fast' ? usd * FAST_MULTIPLIER : usd;
 }

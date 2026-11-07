@@ -4,6 +4,83 @@ All notable changes to Turnlog are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Image and video previews for the agent's side of the conversation, not
+  just yours.** The replay only showed images that were inline in a record —
+  a screenshot you pasted, one a tool returned — and only once you opened the
+  tool call. Now a tool call's media shows under its row without opening it,
+  and files a session names by path preview too: a file the agent sent you
+  (`SendUserFile`), an image Codex viewed, a screen recording you dragged into
+  a prompt, a path the agent wrote into its answer. Videos (mp4, mov, webm)
+  get a first-frame thumbnail; any thumbnail opens a full-size viewer where
+  videos play and ←/→ step through the set. Files on disk come through a new
+  local route that serves a path only if that exact message's record names
+  it, the extension is an image or video, and the file's own leading bytes
+  agree — SVG is refused, and range requests make videos seekable.
+- **Fast-mode and long-prompt pricing.** A response Claude Code ran in fast
+  mode (`usage.speed: "fast"`) is priced at the 2× fast rate, and a Haiku 5.5
+  prompt over 100K tokens at its long-prompt tier.
+- **The MCP server speaks protocol 2025-11-25 and labels itself read-only.**
+  Every tool now carries a `title` and the `readOnlyHint` /
+  `destructiveHint: false` annotations, so "it cannot write anything" is
+  checkable from the tool list; initialize returns short instructions telling
+  the agent when the tools are worth calling. `get_messages` skips harness
+  bookkeeping, so a page of 20 is 20 things that happened.
+
+### Changed
+
+- **Prices for the current Claude generation.** Opus 5.5 ($4/$20, cache reads
+  $0.20), Sonnet 5.5 and Sonnet 5 ($2/$10 — Sonnet 5 had been estimated at
+  $3/$15 since September), Haiku 5.5 ($0.10/$0.50), and Fable 5.1's cheaper
+  cache reads ($0.25). Opus 5.5 sessions had been estimated at roughly twice
+  what they cost: checked against Claude Code's own per-session cost record,
+  the table now matches it to the cent. Indexes rebuild themselves on first
+  launch after updating, which reprices everything.
+- **The replay reads like the conversation again.** Claude Code 2.1 writes a
+  record for every API request snapshot, cache latch, file-history delta and
+  queue operation — a fifth of all records on real logs, each rendered as its
+  own "unrecognized event" row, so a single tool call sat between ten of them.
+  They — and Codex's workspace snapshots — are now recognized as *bookkeeping*
+  (searchable as `kind:bookkeeping`, never matched by text search) and fold, with injected context reminders,
+  repeated modes and turn timings, into one quiet row per run. The index
+  health panel stops counting them as format drift.
+- **Titles show once.** Claude Code rewrites its session title after every
+  turn; the replay now shows a title only when it changes.
+- **Omitted reasoning says what happened.** Current models return thinking with
+  its text left out, which rendered as an empty "thinking" toggle on almost
+  every response. The row now reads *thought 4.2s · xhigh effort* (and *fast
+  mode* when it was), from the duration and effort the record carries.
+- **The away recap and slash commands render as themselves.** Claude Code's
+  "while you were away" summary shows as a *recap* row, and a local command
+  like `/compact` as its command badge, instead of generic system rows.
+- **Current tools read as themselves.** `TaskCreate`/`TaskUpdate` show the task
+  and its new status, `AskUserQuestion` its questions and options,
+  `SendUserFile` its caption, `ToolSearch` and `Skill` what they looked for.
+- **Model names read as versions** — `opus-5.5`, `sonnet-4.5`, not
+  `opus-5-5`.
+
+### Fixed
+
+- **Subagents nest again on current Claude Code.** Claude Code renamed its
+  subagent tool from `Task` to `Agent`, and every place Turnlog recognized a
+  subagent keyed on the old name: runs no longer nested under their call, the
+  spine stopped counting subagents, and exports lost the subagent prompt.
+  Both names are recognized now.
+- **The prompt-caching card no longer claims cache reads cost ~0.1× input** —
+  true for most models, not for Opus 5.5 (0.05×) or Fable 5.1 (0.025×).
+
+### Security
+
+- **An image in an agent's answer can no longer make the browser fetch it.**
+  Markdown like `![x](https://…)` in assistant prose rendered a real `<img>`,
+  so opening a session could send a request off the machine — a beacon a
+  hostile repository could steer an agent into writing. Remote images now
+  render as a link, and the UI is served with a Content-Security-Policy that
+  allows only its own origin for every resource type.
+
 ## [0.13.1] — 2026-09-13
 
 ### Changed

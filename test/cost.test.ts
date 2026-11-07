@@ -5,7 +5,7 @@ function usage(over: Partial<Parameters<typeof computeCost>[0]> = {}) {
   return {
     costUsd: null,
     model: 'claude-opus-4-8',
-    ts: null,
+    speed: null as string | null,
     tokensIn: 0,
     tokensOut: 0,
     cacheReadTokens: 0,
@@ -45,7 +45,7 @@ describe('computeCost', () => {
   });
 
   it('matches model families', () => {
-    expect(pricingForModel('claude-sonnet-5')?.input).toBe(3);
+    expect(pricingForModel('claude-sonnet-4-6')?.input).toBe(3);
     expect(pricingForModel('claude-haiku-4-5-20251001')?.input).toBe(1);
     expect(pricingForModel('claude-fable-5')?.input).toBe(10);
     expect(pricingForModel('claude-opus-4-1-20250805')?.input).toBe(15);
@@ -59,18 +59,50 @@ describe('computeCost', () => {
     expect(pricingForModel('claude-opus-4-5-20251101')?.input).toBe(5);
   });
 
-  it('applies Sonnet 5 introductory pricing by record date', () => {
-    const intro = '2026-07-15T12:00:00.000Z';
-    const after = '2026-09-01T00:00:00.000Z';
-    expect(pricingForModel('claude-sonnet-5', undefined, intro)?.input).toBe(2);
-    expect(pricingForModel('claude-sonnet-5', undefined, intro)?.output).toBe(10);
-    expect(pricingForModel('claude-sonnet-5', undefined, after)?.input).toBe(3);
-    // No timestamp → sticker rate; other Sonnets are never intro-priced.
-    expect(pricingForModel('claude-sonnet-5')?.input).toBe(3);
-    expect(pricingForModel('claude-sonnet-4-6', undefined, intro)?.input).toBe(3);
-    expect(
-      computeCost(usage({ model: 'claude-sonnet-5', ts: intro, tokensOut: 1_000_000 })),
-    ).toBeCloseTo(10);
+  // Pinned to a real `cost-state` record: Claude Code's own per-model totals
+  // for one session, which the table must reproduce to the cent.
+  it('reproduces Claude Code\'s own cost for Opus 5.5 and Haiku 5.5', () => {
+    const opus = usage({
+      model: 'claude-opus-5-5',
+      tokensIn: 168,
+      tokensOut: 34_318,
+      cacheReadTokens: 3_980_865,
+      cacheWriteTokens: 213_608,
+      cacheWrite1hTokens: 213_608,
+    });
+    expect(computeCost(opus)).toBeCloseTo(3.192069, 6);
+    const haiku = usage({ model: 'claude-haiku-5-5', tokensIn: 1552, tokensOut: 768 });
+    expect(computeCost(haiku)).toBeCloseTo(0.0005392, 9);
+  });
+
+  it('prices the current generation', () => {
+    expect(pricingForModel('claude-sonnet-5')?.input).toBe(2);
+    expect(pricingForModel('claude-sonnet-5-5')?.output).toBe(10);
+    expect(pricingForModel('claude-sonnet-5-5')?.cacheRead).toBeCloseTo(0.2);
+    expect(pricingForModel('claude-opus-5')?.input).toBe(5);
+    expect(pricingForModel('claude-opus-5-5')?.cacheRead).toBeCloseTo(0.2);
+    // Fable 5.1 cut cache reads to a quarter of Fable 5's.
+    expect(pricingForModel('claude-fable-5-1')?.cacheRead).toBeCloseTo(0.25);
+    expect(pricingForModel('claude-fable-5')?.cacheRead).toBeCloseTo(1);
+    expect(pricingForModel('claude-mythos-5-1')?.cacheRead).toBeCloseTo(0.25);
+  });
+
+  it('bills a Haiku 5.5 prompt over 100K tokens at the long-prompt rate', () => {
+    const short = usage({ model: 'claude-haiku-5-5', tokensIn: 100_000, tokensOut: 1_000_000 });
+    expect(computeCost(short)).toBeCloseTo(0.01 + 0.5);
+    const long = usage({
+      model: 'claude-haiku-5-5',
+      tokensIn: 1000,
+      cacheReadTokens: 150_000,
+      tokensOut: 1_000_000,
+    });
+    expect(computeCost(long)).toBeCloseTo(0.0005 + 0.15 * 0.05 + 2.5);
+  });
+
+  it('doubles a fast-mode response', () => {
+    const base = usage({ model: 'claude-opus-5-5', tokensOut: 1_000_000 });
+    expect(computeCost(base)).toBeCloseTo(20);
+    expect(computeCost({ ...base, speed: 'fast' })).toBeCloseTo(40);
   });
 
   it('matches OpenAI Codex model families', () => {

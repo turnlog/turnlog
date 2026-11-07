@@ -31,9 +31,9 @@ Most multi-child nodes are not branches — one API response is many lines chain
 each other. A real branch is nearly always a prompt you interrupted and retyped, and
 Turnlog folds the abandoned attempt away rather than showing it twice.
 
-**Subagent runs nest.** Task subagents write their own transcripts; they appear as
-collapsible threads under the call that spawned them, and their usage rolls into the
-parent's totals.
+**Subagent runs nest.** Subagents (Claude Code's `Agent` tool, `Task` in older builds)
+write their own transcripts; they appear as collapsible threads under the call that
+spawned them, and their usage rolls into the parent's totals.
 
 **Tool calls pair with results**, and results collapse by default because they can be
 enormous.
@@ -43,8 +43,22 @@ show their real arguments, and Codex reasoning folds like thinking. The replay r
 each agent from the record's own shape; an unfamiliar shape degrades to plain text
 instead of breaking.
 
-**Screenshots render.** Images you pasted, and images tools handed back, appear as
-thumbnails you can click to enlarge — decoded locally from the record.
+**Images and videos render — yours and the agent's.** Images you pasted and images tools
+handed back are decoded from the record itself. Files a record names by path — a
+screenshot the agent sent you, a recording you dragged into a prompt, a path the agent
+wrote into its answer — are read from your disk through a guarded local route (see
+[Privacy](/docs/product/privacy#the-server-is-locked-to-your-machine)). A tool call's
+media shows without opening the call; click any thumbnail for the full-size viewer, where
+videos play and the arrow keys step through the set.
+
+**Harness bookkeeping folds away.** Current agents write many records that are not the
+conversation — request snapshots, cache latches, injected reminders, a title rewritten
+after every turn. Consecutive ones fold into a single quiet *bookkeeping* row; open it to
+read any of them raw. A title shows once, and again only when it changes.
+
+**Reasoning you cannot read says so.** Current models often return their thinking with
+the text omitted. Instead of an empty toggle, the row reads *thought 4.2s · xhigh effort*
+— and *fast mode* when the response ran on it.
 
 ## Context window
 
@@ -64,4 +78,5 @@ operator, so it composes with everything else.
 
 Agent log formats are undocumented and change without notice. Anything Turnlog does not
 recognise is stored whole and rendered as a collapsed "unrecognized event" row. Format
-churn is a cosmetic bug here, never data loss.
+churn is a cosmetic bug here, never data loss. Records it *does* recognise as harness
+bookkeeping are kept the same way, and searchable by `kind:bookkeeping`.

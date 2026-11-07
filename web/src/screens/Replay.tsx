@@ -41,7 +41,7 @@ import {
 } from '../icons';
 import { SHORTCUTS } from '../keys';
 import { getPref, setPref } from '../prefs';
-import { AgentLabelContext } from '../replay/agentContext';
+import { AgentLabelContext, SessionIdContext } from '../replay/agentContext';
 import AnnotatePanel from '../replay/AnnotatePanel';
 import { BookmarkContext } from '../replay/bookmarkContext';
 import ChainNav from '../replay/ChainNav';
@@ -234,6 +234,7 @@ export default function Replay({
     <AgentLabelContext.Provider value={agentInfo(s?.tool ?? 'claude-code').label}>
     <BookmarkContext.Provider value={bookmarkCtx}>
     <ChildSessionsContext.Provider value={childSessions}>
+    <SessionIdContext.Provider value={sessionId}>
     <div className="replay">
       <div className="replay-head">
         <div className="replay-title">
@@ -507,6 +508,7 @@ export default function Replay({
         </div>
       )}
     </div>
+    </SessionIdContext.Provider>
     </ChildSessionsContext.Provider>
     </BookmarkContext.Provider>
     </AgentLabelContext.Provider>

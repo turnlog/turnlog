@@ -638,7 +638,7 @@ export class Indexer {
         }
         if (rec.kind === 'title' && rec.text !== '') {
           if (rec.subtype === 'custom') ccTitle = rec.text;
-          else aiTitle = rec.text;
+          else if (rec.subtype !== 'agent') aiTitle = rec.text;
         }
         let dupUsage = false;
         if (rec.messageId !== null) {

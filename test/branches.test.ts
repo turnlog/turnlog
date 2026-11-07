@@ -102,3 +102,74 @@ describe('buildBlocks with a branch', () => {
     expect(buildBlocks(plain).some((b) => b.kind === 'abandoned')).toBe(false);
   });
 });
+
+describe('harness folding', () => {
+  const bk = (idx: number, type: string) =>
+    row({ idx, uuid: `b${idx}`, kind: 'bookkeeping', raw: JSON.stringify({ type }) });
+  const title = (idx: number, text: string) =>
+    row({ idx, uuid: `t${idx}`, kind: 'title', text, raw: JSON.stringify({ type: 'ai-title', aiTitle: text }) });
+
+  it('folds consecutive harness records into one block, keeping every row', () => {
+    const blocks = buildBlocks([
+      row({ idx: 0, uuid: 'p', kind: 'prompt', text: 'go' }),
+      bk(1, 'api-request'),
+      bk(2, 'atis-latch'),
+      row({
+        idx: 3,
+        uuid: 'ctx',
+        kind: 'attachment',
+        raw: JSON.stringify({ type: 'attachment', attachment: { type: 'task_reminder' } }),
+      }),
+      row({ idx: 4, uuid: 'a', text: 'done' }),
+    ]);
+    expect(blocks.map((b) => b.kind)).toEqual(['message', 'harness', 'message']);
+    const harness = blocks[1] as Extract<(typeof blocks)[number], { kind: 'harness' }>;
+    expect(harness.rows.map((r) => r.idx)).toEqual([1, 2, 3]);
+  });
+
+  it('shows a title once, and again only when it changes', () => {
+    const blocks = buildBlocks([
+      title(0, 'Fix the header'),
+      row({ idx: 1, uuid: 'a', text: 'x' }),
+      title(2, 'Fix the header'),
+      title(3, 'Fix the header overflow'),
+    ]);
+    expect(blocks.map((b) => b.kind)).toEqual(['message', 'message', 'harness', 'message']);
+  });
+
+  it('keeps labelled attachments and worded system records as rows of their own', () => {
+    const blocks = buildBlocks([
+      row({
+        idx: 0,
+        uuid: 'f',
+        kind: 'attachment',
+        raw: JSON.stringify({ type: 'attachment', attachment: { type: 'edited_text_file' } }),
+      }),
+      row({ idx: 1, uuid: 'r', kind: 'system', text: 'recap', raw: JSON.stringify({ subtype: 'away_summary' }) }),
+      row({ idx: 2, uuid: 'd', kind: 'system', raw: JSON.stringify({ subtype: 'turn_duration' }) }),
+    ]);
+    expect(blocks.map((b) => b.kind)).toEqual(['message', 'message', 'harness']);
+  });
+
+  it('nests a sidechain run under an Agent call, the tool CC renamed Task to', () => {
+    const prompt = 'Find the CSS rule that keeps the header on one line.';
+    const blocks = buildBlocks([
+      row({
+        idx: 0,
+        uuid: 'u',
+        kind: 'tool_use',
+        toolName: 'Agent',
+        toolUseId: 'tu',
+        raw: JSON.stringify({
+          type: 'assistant',
+          message: { content: [{ type: 'tool_use', id: 'tu', name: 'Agent', input: { prompt } }] },
+        }),
+      }),
+      row({ idx: 1, uuid: 's1', kind: 'prompt', isSidechain: true, text: prompt }),
+      row({ idx: 2, uuid: 's2', parentUuid: 's1', isSidechain: true, text: 'header.css:12' }),
+    ]);
+    expect(blocks).toHaveLength(1);
+    const tool = blocks[0] as Extract<(typeof blocks)[number], { kind: 'tool' }>;
+    expect(tool.run).toHaveLength(2);
+  });
+});

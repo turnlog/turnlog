@@ -28,8 +28,22 @@ import { APP_VERSION } from '../version.js';
  * touches the network.
  */
 
-const LATEST_PROTOCOL = '2025-06-18';
-const SUPPORTED_PROTOCOLS = new Set(['2024-11-05', '2025-03-26', '2025-06-18']);
+const LATEST_PROTOCOL = '2025-11-25';
+const SUPPORTED_PROTOCOLS = new Set(['2024-11-05', '2025-03-26', '2025-06-18', '2025-11-25']);
+
+/** Every tool reads the local index and nothing else — stated, so clients can check it. */
+const READ_ONLY = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const;
+
+const INSTRUCTIONS =
+  'Read-only memory of past coding-agent sessions on this machine (every indexed agent). ' +
+  'Search it before re-deriving a fix, a decision, or a command that was already worked out: ' +
+  'search finds the moment, get_messages reads around it, file_history explains a file. ' +
+  'Cite session ids when you rely on what you found.';
 
 /* ── argument helpers ───────────────────────────────────────────────── */
 
@@ -89,6 +103,8 @@ function compactSession(s: SessionMeta) {
 
 interface McpTool {
   name: string;
+  /** Display name (MCP 2025-06-18+); older clients ignore it. */
+  title: string;
   description: string;
   inputSchema: object;
   run(db: DatabaseSync, args: Record<string, unknown>): unknown;
@@ -99,6 +115,7 @@ const MAX_TURNS = 300;
 const TOOLS: McpTool[] = [
   {
     name: 'search',
+    title: 'Search session history',
     description:
       'Full-text search across every indexed coding-agent session on this machine ' +
       '(Claude Code, Codex, and any other adapter the user has indexed). ' +
@@ -152,6 +169,7 @@ const TOOLS: McpTool[] = [
   },
   {
     name: 'list_sessions',
+    title: 'List sessions',
     description:
       'List recent coding-agent sessions, most recently active first — every ' +
       'agent the user has indexed, not just your own. Each row says which ' +
@@ -181,6 +199,7 @@ const TOOLS: McpTool[] = [
   },
   {
     name: 'get_session',
+    title: 'Get session overview',
     description:
       'Get one session’s metadata plus its turn spine: every user prompt with mechanical counts of ' +
       'what happened under it (file reads, edits, commands, subagents, errors). ' +
@@ -219,6 +238,7 @@ const TOOLS: McpTool[] = [
   },
   {
     name: 'get_messages',
+    title: 'Read session messages',
     description:
       'Read a window of messages from one session, in order. ' +
       'Call this to read the context around a search hit: pass the hit’s sessionId and after_idx = hit idx - 1 ' +
@@ -244,7 +264,8 @@ const TOOLS: McpTool[] = [
       }
       const afterIdx = argInt(args, 'after_idx', -1, -1, Number.MAX_SAFE_INTEGER);
       const limit = argInt(args, 'limit', 20, 1, 100);
-      const res = listMessages(db, id, { afterIdx, limit, lens: lensArg });
+      // Harness bookkeeping has no text and would eat the page budget.
+      const res = listMessages(db, id, { afterIdx, limit, lens: lensArg, skipBookkeeping: true });
       if (!res) throw new Error(`session "${id}" not found`);
       return {
         sessionId: id,
@@ -263,6 +284,7 @@ const TOOLS: McpTool[] = [
   },
   {
     name: 'get_context',
+    title: 'Context window history',
     description:
       'How full the context window was across one session, and where it was compacted. ' +
       'Call this before trusting a session’s late-conversation memory: work after a compaction ' +
@@ -303,6 +325,7 @@ const TOOLS: McpTool[] = [
   },
   {
     name: 'file_history',
+    title: 'File history',
     description:
       'Cross-session file history: every session that ever edited or wrote a file, newest first — ' +
       'like blame, but for agent edits, where the why is the surrounding conversation. ' +
@@ -371,17 +394,20 @@ export function handleMcpMessage(db: DatabaseSync, msg: unknown): object | null 
       return rpcResult(id!, {
         protocolVersion: version,
         capabilities: { tools: {} },
-        serverInfo: { name: 'turnlog', version: APP_VERSION },
+        serverInfo: { name: 'turnlog', title: 'Turnlog', version: APP_VERSION },
+        instructions: INSTRUCTIONS,
       });
     }
     case 'ping':
       return rpcResult(id!, {});
     case 'tools/list':
       return rpcResult(id!, {
-        tools: TOOLS.map(({ name, description, inputSchema }) => ({
+        tools: TOOLS.map(({ name, title, description, inputSchema }) => ({
           name,
+          title,
           description,
           inputSchema,
+          annotations: { title, ...READ_ONLY },
         })),
       });
     case 'tools/call': {

@@ -13,7 +13,9 @@ promises are narrow, and each one has a mechanism you can check.
 There is no account, no cloud, no telemetry, and no analytics — not disabled by default,
 **absent**. The web UI never loads anything from the network: fonts are bundled woff2,
 icons are vendored path data, and images in your sessions are decoded from the record you
-already have rather than fetched.
+already have rather than fetched. The page is served with a Content-Security-Policy that
+allows only its own origin, so even an image URL an agent wrote into its answer cannot
+become a request — it is shown as a link instead.
 
 The single optional network touch is a version check against the npm registry on startup,
 which surfaces as an "update available" notice. The browser never contacts npm — the Node
@@ -38,6 +40,7 @@ assumption that something else on your machine is hostile:
 - **A random high port**, new on every run.
 - **A session token**, generated fresh each launch and required on every API request. The URL carries it; a request without it is refused.
 - **`Host` and `Origin` are validated** against localhost, which is what stops a website you happen to be visiting from reaching the server through DNS rebinding.
+- **Media files are gated three ways.** To preview an image or video a session names by path, the server checks that the path appears verbatim in that exact message's record, that it carries an image or video extension, and that the file's leading bytes are that media type. SVG is refused (it can carry script), and the file is served sandboxed.
 - **No CORS headers**, so no other origin can read a response.
 - **Almost everything is `GET`.** Writes are a short allowlist of endpoints for your own annotations. Anything else is a 405.
 

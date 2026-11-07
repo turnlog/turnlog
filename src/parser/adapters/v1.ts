@@ -75,6 +75,7 @@ export function normalizeV1(obj: any, raw: string, fallbackId: string): Normaliz
     cacheReadTokens: 0,
     cacheWriteTokens: 0,
     cacheWrite1hTokens: 0,
+    speed: null,
     costUsd: typeof obj?.costUSD === 'number' ? obj.costUSD : null,
     cwd: str(obj?.cwd),
     gitBranch: str(obj?.gitBranch),
@@ -125,6 +126,7 @@ export function normalizeV1(obj: any, raw: string, fallbackId: string): Normaliz
         rec.cacheReadTokens = num(usage.cache_read_input_tokens);
         rec.cacheWriteTokens = num(usage.cache_creation_input_tokens);
         rec.cacheWrite1hTokens = num(usage.cache_creation?.ephemeral_1h_input_tokens);
+        if (usage.speed === 'fast') rec.speed = 'fast';
       }
       const content = msg.content;
       rec.text = contentToText(content);
@@ -151,7 +153,9 @@ export function normalizeV1(obj: any, raw: string, fallbackId: string): Normaliz
     case 'system': {
       rec.kind = 'system';
       rec.role = 'system';
-      rec.text = str(obj.content) ?? str(obj.subtype) ?? '';
+      rec.subtype = str(obj.subtype);
+      // Content-less subtypes (turn_duration, stop_hook_summary) index no text.
+      rec.text = str(obj.content) ?? '';
       return rec;
     }
 
@@ -202,6 +206,15 @@ export function normalizeV1(obj: any, raw: string, fallbackId: string): Normaliz
       return rec;
     }
 
+    // The desktop app's name for the session — usually a copy of the custom
+    // title. Searchable, but never lifted onto the session row.
+    case 'agent-name': {
+      rec.kind = 'title';
+      rec.subtype = 'agent';
+      rec.text = str(obj.agentName) ?? '';
+      return rec;
+    }
+
     // Mode bookkeeping ('mode' / 'permission-mode'), written repeatedly —
     // no uuid, no timestamp. Text stays empty (2.7k "normal" lines would
     // pollute search); the UI reads the value from raw and renders changes.
@@ -217,10 +230,28 @@ export function normalizeV1(obj: any, raw: string, fallbackId: string): Normaliz
     }
 
     default:
-      // Unrecognized record type (queue-operation, last-prompt,
-      // file-history-snapshot, bridge-session are known-but-meaningless and
-      // deliberate here; anything the next CC release invents also lands
-      // here). Stored, never dropped.
+      // Known harness records are bookkeeping; anything the next CC release
+      // invents stays 'unknown' so the health panel surfaces it. Neither is
+      // searchable — request snapshots repeat the system prompt and history.
+      if (BOOKKEEPING_TYPES.has(obj?.type)) {
+        rec.kind = 'bookkeeping';
+        rec.subtype = obj.type;
+      }
       return rec;
   }
 }
+
+const BOOKKEEPING_TYPES = new Set<unknown>([
+  'api-request',
+  'api-request-blob',
+  'api-request-shape',
+  'atis-latch',
+  'bridge-session',
+  'cost-state',
+  'file-history-delta',
+  'file-history-snapshot',
+  'last-prompt',
+  'queue-operation',
+  'relocated',
+  'tools-used',
+]);

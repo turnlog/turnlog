@@ -125,6 +125,7 @@ function unknownRecord(raw: string, fallbackId: string): NormalizedRecord {
     cacheReadTokens: 0,
     cacheWriteTokens: 0,
     cacheWrite1hTokens: 0,
+    speed: null,
     costUsd: null,
     cwd: null,
     gitBranch: null,

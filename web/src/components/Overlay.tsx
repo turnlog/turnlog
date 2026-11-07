@@ -2,14 +2,18 @@ import { useEffect, type ReactNode } from 'react';
 import './Overlay.css';
 
 /**
- * Shared scrim for centered overlays (palette, shortcuts sheet): closes on
- * backdrop click and on Escape, so every overlay dismisses the same way.
+ * Shared scrim for centered overlays (palette, shortcuts sheet, media
+ * viewer): closes on backdrop click and on Escape, so every overlay
+ * dismisses the same way. `center` seats the surface mid-screen instead of
+ * near the top, for content whose size is not text.
  */
 export default function Overlay({
   onClose,
+  center = false,
   children,
 }: {
   onClose: () => void;
+  center?: boolean;
   children: ReactNode;
 }) {
   useEffect(() => {
@@ -22,7 +26,7 @@ export default function Overlay({
 
   return (
     <div
-      className="overlay"
+      className={`overlay ${center ? 'center' : ''}`}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

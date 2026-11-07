@@ -27,7 +27,8 @@ cannot name, in a repo you have since renamed. Full-text search across every age
 
 **Reading a run back.** A 5,000-message session collapses to a spine of prompts, each
 with a mechanical summary of what happened under it. Lenses cut it down to just the
-diffs, just the commands, or just the errors.
+diffs, just the commands, or just the errors. Screenshots and recordings — yours and the
+agent's — preview where they happened.
 
 **Knowing what it cost.** Cost by day, model, or project — and, uniquely, cost filtered
 by a search query, because "what did *this kind of work* cost me" is not a question a

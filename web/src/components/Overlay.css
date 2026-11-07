@@ -11,3 +11,8 @@
   align-items: flex-start;
   padding: 12vh 20px 20px;
 }
+
+.overlay.center {
+  align-items: center;
+  padding: 20px;
+}
